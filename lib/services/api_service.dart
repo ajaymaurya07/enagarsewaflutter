@@ -3,19 +3,123 @@ import 'package:http/http.dart' as http;
 
 class ApiService {
   static const String baseUrl = 'https://iamsup.in/ulb_property_tax/';
+  static const String ulbDataEndpoint = 'api/House_tax/ulbdata';
+  static const String zoneDataEndpoint = 'api/House_tax/zonedata/';
+  static const String wardDataEndpoint = 'api/House_tax/warddata/';
+  static const String mohallaDataEndpoint = 'api/House_tax/mohalladata/';
   static const String loginEndpoint = 'api/house_tax/login';
-  static const String appVersion = '1.0.0'; // Update this as needed
+  
+  // Header Version
+  static const String appVersion = '6'; 
 
+  static Map<String, String> get _headers => {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+    'X-App-Version': appVersion,
+  };
+
+  // Fetch ULB Data
+  static Future<List<UlbData>> getUlbData() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl$ulbDataEndpoint'),
+        headers: _headers,
+      ).timeout(const Duration(seconds: 20));
+
+      if (response.statusCode == 200) {
+        final decodedData = json.decode(response.body);
+        if (decodedData['success'] == true && decodedData['data'] != null) {
+          return (decodedData['data'] as List)
+              .map((item) => UlbData.fromJson(item))
+              .toList();
+        }
+        throw Exception(decodedData['message'] ?? 'Failed to load ULB data');
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Connection error: $e');
+    }
+  }
+
+  // Fetch Zone Data
+  static Future<List<ZoneData>> getZoneData(String ulbId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl$zoneDataEndpoint$ulbId'),
+        headers: _headers,
+      ).timeout(const Duration(seconds: 20));
+
+      if (response.statusCode == 200) {
+        final decodedData = json.decode(response.body);
+        if (decodedData['success'] == true && decodedData['data'] != null) {
+          return (decodedData['data'] as List)
+              .map((item) => ZoneData.fromJson(item))
+              .toList();
+        }
+        return [];
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Connection error: $e');
+    }
+  }
+
+  // Fetch Ward Data
+  static Future<List<WardData>> getWardData(String ulbId, String zoneId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl$wardDataEndpoint$ulbId/$zoneId'),
+        headers: _headers,
+      ).timeout(const Duration(seconds: 20));
+
+      if (response.statusCode == 200) {
+        final decodedData = json.decode(response.body);
+        if (decodedData['success'] == true && decodedData['data'] != null) {
+          return (decodedData['data'] as List)
+              .map((item) => WardData.fromJson(item))
+              .toList();
+        }
+        return [];
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Connection error: $e');
+    }
+  }
+
+  // Fetch Mohalla Data
+  static Future<List<MohallaData>> getMohallaData(String ulbId, String zoneId, String wardId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl$mohallaDataEndpoint$ulbId/$zoneId/$wardId'),
+        headers: _headers,
+      ).timeout(const Duration(seconds: 20));
+
+      if (response.statusCode == 200) {
+        final decodedData = json.decode(response.body);
+        if (decodedData['success'] == true && decodedData['data'] != null) {
+          return (decodedData['data'] as List)
+              .map((item) => MohallaData.fromJson(item))
+              .toList();
+        }
+        return [];
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Connection error: $e');
+    }
+  }
+
+  // Login API
   static Future<LoginResponse> login(String username, String password) async {
     try {
-      final url = Uri.parse('$baseUrl$loginEndpoint');
-      
       final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'X-App-Version': appVersion,
-        },
+        Uri.parse('$baseUrl$loginEndpoint'),
+        headers: _headers,
         body: jsonEncode({
           'username': username,
           'password': password,
@@ -23,42 +127,87 @@ class ApiService {
       ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
-        final jsonResponse = jsonDecode(response.body);
-        return LoginResponse.fromJson(jsonResponse);
-      } else if (response.statusCode == 401) {
-        throw Exception('Invalid username or password');
-      } else if (response.statusCode == 400) {
-        final errorBody = jsonDecode(response.body);
-        throw Exception(errorBody['message'] ?? 'Invalid request');
+        return LoginResponse.fromJson(jsonDecode(response.body));
       } else {
-        throw Exception('Server error: ${response.statusCode}');
+        throw Exception('Login failed: ${response.statusCode}');
       }
-    } on http.ClientException {
-      throw Exception('Network error. Please check your internet connection.');
     } catch (e) {
       rethrow;
     }
   }
 }
 
+// --- Models ---
+
+class UlbData {
+  final String ulbName;
+  final String ulbId;
+  final String? ulbType;
+
+  UlbData({required this.ulbName, required this.ulbId, this.ulbType});
+
+  factory UlbData.fromJson(Map<String, dynamic> json) {
+    return UlbData(
+      ulbName: json['ulbName'] ?? '',
+      ulbId: json['ulbId']?.toString() ?? '',
+      ulbType: json['ulbType'],
+    );
+  }
+}
+
+class ZoneData {
+  final String zoneName;
+  final String zoneId;
+
+  ZoneData({required this.zoneName, required this.zoneId});
+
+  factory ZoneData.fromJson(Map<String, dynamic> json) {
+    return ZoneData(
+      zoneName: json['zoneName'] ?? '',
+      zoneId: json['zoneId']?.toString() ?? '',
+    );
+  }
+}
+
+class WardData {
+  final String wardName;
+  final String wardId;
+
+  WardData({required this.wardName, required this.wardId});
+
+  factory WardData.fromJson(Map<String, dynamic> json) {
+    return WardData(
+      wardName: json['wardName'] ?? '',
+      wardId: json['wardId']?.toString() ?? '',
+    );
+  }
+}
+
+class MohallaData {
+  final String mohallaName;
+  final String mohallaId;
+
+  MohallaData({required this.mohallaName, required this.mohallaId});
+
+  factory MohallaData.fromJson(Map<String, dynamic> json) {
+    return MohallaData(
+      mohallaName: json['mohallaName'] ?? '',
+      mohallaId: json['mohallaId']?.toString() ?? '',
+    );
+  }
+}
+
 class LoginResponse {
   final bool success;
   final String message;
-  final String? token;
   final UserData? data;
 
-  LoginResponse({
-    required this.success,
-    required this.message,
-    this.token,
-    this.data,
-  });
+  LoginResponse({required this.success, required this.message, this.data});
 
   factory LoginResponse.fromJson(Map<String, dynamic> json) {
     return LoginResponse(
       success: json['status'] ?? false,
       message: json['message'] ?? '',
-      token: json['token'] as String?,
       data: json['data'] != null ? UserData.fromJson(json['data']) : null,
     );
   }
@@ -66,23 +215,14 @@ class LoginResponse {
 
 class UserData {
   final String accessToken;
-  final String refreshToken;
   final String emailId;
-  final String userType;
 
-  UserData({
-    required this.accessToken,
-    required this.refreshToken,
-    required this.emailId,
-    required this.userType,
-  });
+  UserData({required this.accessToken, required this.emailId});
 
   factory UserData.fromJson(Map<String, dynamic> json) {
     return UserData(
       accessToken: json['access_token'] ?? '',
-      refreshToken: json['refresh_token'] ?? '',
       emailId: json['email_id'] ?? '',
-      userType: json['user_type'] ?? '',
     );
   }
 }
