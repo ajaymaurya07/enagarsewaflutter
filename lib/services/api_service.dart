@@ -18,7 +18,7 @@ class ApiService {
       final response = await http.get(
         Uri.parse('${AppConstants.baseUrl}api/House_tax/ulbdata'),
         headers: _headers,
-      ).timeout(const Duration(seconds: 20));
+      ).timeout(const Duration(seconds: AppConstants.networkTimeout));
 
       if (response.statusCode == 200) {
         final decodedData = json.decode(response.body);
@@ -42,7 +42,7 @@ class ApiService {
       final response = await http.get(
         Uri.parse('${AppConstants.baseUrl}api/House_tax/zonedata/$ulbId'),
         headers: _headers,
-      ).timeout(const Duration(seconds: 20));
+      ).timeout(const Duration(seconds: AppConstants.networkTimeout));
 
       if (response.statusCode == 200) {
         final decodedData = json.decode(response.body);
@@ -66,7 +66,7 @@ class ApiService {
       final response = await http.get(
         Uri.parse('${AppConstants.baseUrl}api/House_tax/warddata/$ulbId/$zoneId'),
         headers: _headers,
-      ).timeout(const Duration(seconds: 20));
+      ).timeout(const Duration(seconds: AppConstants.networkTimeout));
 
       if (response.statusCode == 200) {
         final decodedData = json.decode(response.body);
@@ -90,7 +90,7 @@ class ApiService {
       final response = await http.get(
         Uri.parse('${AppConstants.baseUrl}api/House_tax/mohalladata/$ulbId/$zoneId/$wardId'),
         headers: _headers,
-      ).timeout(const Duration(seconds: 20));
+      ).timeout(const Duration(seconds: AppConstants.networkTimeout));
 
       if (response.statusCode == 200) {
         final decodedData = json.decode(response.body);
@@ -119,7 +119,7 @@ class ApiService {
           'username': username,
           'device_id': deviceId,
         }),
-      );
+      ).timeout(const Duration(seconds: AppConstants.networkTimeout));
 
       if (challengeResponse.statusCode != 200) {
         throw Exception('Failed to get challenge: ${challengeResponse.statusCode}');
@@ -152,7 +152,7 @@ class ApiService {
           'nonce': nonce,
           'hash': finalHash,
         }),
-      );
+      ).timeout(const Duration(seconds: AppConstants.networkTimeout));
 
       if (loginResponse.statusCode == 200) {
         final loginData = LoginResponse.fromJson(jsonDecode(loginResponse.body));
@@ -165,6 +165,27 @@ class ApiService {
       }
     } catch (e) {
       rethrow;
+    }
+  }
+
+  // Refresh Token API
+  static Future<RefreshTokenResponse> refreshToken(String refreshToken) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${AppConstants.baseUrl}api/house_tax/refreshToken'),
+        headers: _headers,
+        body: jsonEncode({
+          'refresh_token': refreshToken,
+        }),
+      ).timeout(const Duration(seconds: AppConstants.networkTimeout));
+
+      if (response.statusCode == 200) {
+        return RefreshTokenResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Connection error: $e');
     }
   }
 
@@ -273,6 +294,36 @@ class SignIn {
       refreshToken: json['refresh_token']?.toString(),
       emailId: json['email_id']?.toString(),
       userType: json['user_type']?.toString(),
+    );
+  }
+}
+
+class RefreshTokenResponse {
+  final bool? status;
+  final int? responseCode;
+  final String? message;
+  final RefreshTokenData? data;
+
+  RefreshTokenResponse({this.status, this.responseCode, this.message, this.data});
+
+  factory RefreshTokenResponse.fromJson(Map<String, dynamic> json) {
+    return RefreshTokenResponse(
+      status: json['status'],
+      responseCode: json['responseCode'],
+      message: json['message'],
+      data: json['data'] != null ? RefreshTokenData.fromJson(json['data']) : null,
+    );
+  }
+}
+
+class RefreshTokenData {
+  final String? accessToken;
+
+  RefreshTokenData({this.accessToken});
+
+  factory RefreshTokenData.fromJson(Map<String, dynamic> json) {
+    return RefreshTokenData(
+      accessToken: json['access_token'],
     );
   }
 }
