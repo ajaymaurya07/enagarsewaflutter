@@ -10,9 +10,19 @@ class StorageService {
     if (data.userType != null) await prefs.setString('user_type', data.userType!);
   }
 
+  static Future<void> updateAccessToken(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('access_token', token);
+  }
+
   static Future<String?> getAccessToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('access_token');
+  }
+
+  static Future<String?> getRefreshToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('refresh_token');
   }
 
   static Future<String?> getEmailId() async {

@@ -138,7 +138,7 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
           setState(() {
             _selectedUlb = _ulbList[index];
           });
-          _loadZoneData(_selectedUlb!.ulbId);
+          _loadZoneData(_selectedUlb!.ulbId ?? "");
         },
       ),
     );
@@ -162,7 +162,7 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
           setState(() {
             _selectedZone = _zoneList[index];
           });
-          _loadWardData(_selectedUlb!.ulbId, _selectedZone!.zoneId);
+          _loadWardData(_selectedUlb!.ulbId ?? "", _selectedZone!.zoneId);
         },
       ),
     );
@@ -186,7 +186,7 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
           setState(() {
             _selectedWard = _wardList[index];
           });
-          _loadMohallaData(_selectedUlb!.ulbId, _selectedZone!.zoneId, _selectedWard!.wardId);
+          _loadMohallaData(_selectedUlb!.ulbId ?? "", _selectedZone!.zoneId, _selectedWard!.wardId);
         },
       ),
     );
@@ -253,7 +253,7 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
             image: const AssetImage('assets/images/background_pattern.png'),
             fit: BoxFit.cover,
             colorFilter: ColorFilter.mode(
-              Colors.white.withOpacity(0.9),
+              Colors.white.withValues(alpha: 0.9),
               BlendMode.lighten,
             ),
           ),
@@ -276,11 +276,11 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    const Expanded(child: SizedBox(), flex: 1),
+                    const Expanded(flex: 1, child: SizedBox()),
                     Expanded(flex: 5, child: _buildModeButton('By Location')),
                     const SizedBox(width: 8),
                     Expanded(flex: 5, child: _buildModeButton('By Mobile No')),
-                    const Expanded(child: SizedBox(), flex: 1),
+                    const Expanded(flex: 1, child: SizedBox()),
                   ],
                 ),
                 const SizedBox(height: 40),

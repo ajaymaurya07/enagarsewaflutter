@@ -3,22 +3,66 @@ import 'dart:math';
 import 'package:http/http.dart' as http;
 import 'package:crypto/crypto.dart';
 import 'storage_service.dart';
+import 'device_service.dart';
 import '../constants/app_constants.dart';
 
 class ApiService {
-  static Map<String, String> get _headers => {
-    'Accept': 'application/json',
-    'Content-Type': 'application/json',
-    'X-App-Version': AppConstants.apiVersion,
-  };
+  static Future<Map<String, String>> _getHeaders() async {
+    final token = await StorageService.getAccessToken();
+    final deviceId = await DeviceService.getDeviceId();
+    
+    return {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'X-App-Version': AppConstants.apiVersion,
+      'X-Device-Id': deviceId,
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+  }
+
+  // Generic request wrapper to handle 403 and Refresh Token
+  static Future<http.Response> _makeAuthenticatedRequest(
+    Future<http.Response> Function(Map<String, String> headers) requestFn,
+  ) async {
+    var headers = await _getHeaders();
+    var response = await requestFn(headers);
+
+    if (response.statusCode == 403) {
+      // Token might be expired, try to refresh
+      final refreshTokenStr = await StorageService.getRefreshToken();
+      if (refreshTokenStr != null) {
+        try {
+          final refreshResponse = await refreshToken(refreshTokenStr);
+          if (refreshResponse.status == true && refreshResponse.data?.accessToken != null) {
+            // Update token and retry
+            await StorageService.updateAccessToken(refreshResponse.data!.accessToken!);
+            
+            // Get new headers and retry the original request
+            headers = await _getHeaders();
+            response = await requestFn(headers);
+          } else {
+            // Refresh failed, logout
+            await StorageService.logout();
+          }
+        } catch (e) {
+          // Error in refresh, logout
+          await StorageService.logout();
+        }
+      } else {
+        // No refresh token, logout
+        await StorageService.logout();
+      }
+    }
+    return response;
+  }
 
   // Fetch ULB Data
   static Future<List<UlbData>> getUlbData() async {
     try {
-      final response = await http.get(
+      final response = await _makeAuthenticatedRequest((headers) => http.get(
         Uri.parse('${AppConstants.baseUrl}api/House_tax/ulbdata'),
-        headers: _headers,
-      ).timeout(const Duration(seconds: AppConstants.networkTimeout));
+        headers: headers,
+      ).timeout(Duration(seconds: AppConstants.networkTimeout)));
 
       if (response.statusCode == 200) {
         final decodedData = json.decode(response.body);
@@ -39,10 +83,10 @@ class ApiService {
   // Fetch Zone Data
   static Future<List<ZoneData>> getZoneData(String ulbId) async {
     try {
-      final response = await http.get(
+      final response = await _makeAuthenticatedRequest((headers) => http.get(
         Uri.parse('${AppConstants.baseUrl}api/House_tax/zonedata/$ulbId'),
-        headers: _headers,
-      ).timeout(const Duration(seconds: AppConstants.networkTimeout));
+        headers: headers,
+      ).timeout(Duration(seconds: AppConstants.networkTimeout)));
 
       if (response.statusCode == 200) {
         final decodedData = json.decode(response.body);
@@ -63,10 +107,10 @@ class ApiService {
   // Fetch Ward Data
   static Future<List<WardData>> getWardData(String ulbId, String zoneId) async {
     try {
-      final response = await http.get(
+      final response = await _makeAuthenticatedRequest((headers) => http.get(
         Uri.parse('${AppConstants.baseUrl}api/House_tax/warddata/$ulbId/$zoneId'),
-        headers: _headers,
-      ).timeout(const Duration(seconds: AppConstants.networkTimeout));
+        headers: headers,
+      ).timeout(Duration(seconds: AppConstants.networkTimeout)));
 
       if (response.statusCode == 200) {
         final decodedData = json.decode(response.body);
@@ -87,10 +131,10 @@ class ApiService {
   // Fetch Mohalla Data
   static Future<List<MohallaData>> getMohallaData(String ulbId, String zoneId, String wardId) async {
     try {
-      final response = await http.get(
+      final response = await _makeAuthenticatedRequest((headers) => http.get(
         Uri.parse('${AppConstants.baseUrl}api/House_tax/mohalladata/$ulbId/$zoneId/$wardId'),
-        headers: _headers,
-      ).timeout(const Duration(seconds: AppConstants.networkTimeout));
+        headers: headers,
+      ).timeout(Duration(seconds: AppConstants.networkTimeout)));
 
       if (response.statusCode == 200) {
         final decodedData = json.decode(response.body);
@@ -111,15 +155,21 @@ class ApiService {
   // Secure Login Flow
   static Future<LoginResponse> secureLogin(String username, String password, String deviceId) async {
     try {
+      final headers = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'X-App-Version': AppConstants.apiVersion,
+      };
+
       // Step 1: Get Challenge
       final challengeResponse = await http.post(
         Uri.parse('${AppConstants.baseUrl}api/house_tax/get_challenge'),
-        headers: _headers,
+        headers: headers,
         body: jsonEncode({
           'username': username,
           'device_id': deviceId,
         }),
-      ).timeout(const Duration(seconds: AppConstants.networkTimeout));
+      ).timeout(Duration(seconds: AppConstants.networkTimeout));
 
       if (challengeResponse.statusCode != 200) {
         throw Exception('Failed to get challenge: ${challengeResponse.statusCode}');
@@ -143,7 +193,7 @@ class ApiService {
       // Step 3: Final Login Call
       final loginResponse = await http.post(
         Uri.parse('${AppConstants.baseUrl}api/house_tax/login'),
-        headers: _headers,
+        headers: headers,
         body: jsonEncode({
           'username': username,
           'device_id': deviceId,
@@ -152,7 +202,7 @@ class ApiService {
           'nonce': nonce,
           'hash': finalHash,
         }),
-      ).timeout(const Duration(seconds: AppConstants.networkTimeout));
+      ).timeout(Duration(seconds: AppConstants.networkTimeout));
 
       if (loginResponse.statusCode == 200) {
         final loginData = LoginResponse.fromJson(jsonDecode(loginResponse.body));
@@ -173,11 +223,15 @@ class ApiService {
     try {
       final response = await http.post(
         Uri.parse('${AppConstants.baseUrl}api/house_tax/refreshToken'),
-        headers: _headers,
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'X-App-Version': AppConstants.apiVersion,
+        },
         body: jsonEncode({
           'refresh_token': refreshToken,
         }),
-      ).timeout(const Duration(seconds: AppConstants.networkTimeout));
+      ).timeout(Duration(seconds: AppConstants.networkTimeout));
 
       if (response.statusCode == 200) {
         return RefreshTokenResponse.fromJson(jsonDecode(response.body));
@@ -200,18 +254,33 @@ class ApiService {
 // --- Models ---
 
 class UlbData {
-  final String ulbName;
-  final String ulbId;
+  final String? ulbName;
+  final String? ulbId;
   final String? ulbType;
+  final String? districtId;
+  final String? districtName;
 
-  UlbData({required this.ulbName, required this.ulbId, this.ulbType});
+  UlbData({
+    this.ulbName, 
+    this.ulbId, 
+    this.ulbType, 
+    this.districtId, 
+    this.districtName
+  });
 
   factory UlbData.fromJson(Map<String, dynamic> json) {
     return UlbData(
-      ulbName: json['ulbName'] ?? '',
-      ulbId: json['ulbId']?.toString() ?? '',
+      ulbName: json['ulbName'],
+      ulbId: json['ulbId']?.toString(),
       ulbType: json['ulbType'],
+      districtId: json['districtId']?.toString(),
+      districtName: json['districtName'],
     );
+  }
+
+  @override
+  String toString() {
+    return '${ulbName ?? ""} (${ulbType ?? ""})';
   }
 }
 
