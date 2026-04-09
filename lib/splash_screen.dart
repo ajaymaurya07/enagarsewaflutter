@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'login_screen.dart';
+import 'search_property_screen.dart';
+import 'services/storage_service.dart';
+import 'constants/app_constants.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -12,13 +15,33 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(seconds: 3), () {
+    _checkLoginStatus();
+  }
+
+  Future<void> _checkLoginStatus() async {
+    // Show splash for 3 seconds
+    await Future.delayed(const Duration(seconds: 3));
+    
+    // Check if user is logged in using StorageService
+    final bool loggedIn = await StorageService.isLoggedIn();
+
+    if (!mounted) return;
+
+    if (loggedIn) {
+      // If logged in, go to Search Property Screen
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => const SearchPropertyScreen(),
+        ),
+      );
+    } else {
+      // If not logged in, go to Login Screen
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (context) => const LoginScreen(),
         ),
       );
-    });
+    }
   }
 
   @override
@@ -56,7 +79,7 @@ class _SplashScreenState extends State<SplashScreen> {
                   ),
                   const SizedBox(height: 16),
                   const Text(
-                    'Welcome e-Nagarseva',
+                    'Welcome ${AppConstants.appName}',
                     style: TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.bold,
@@ -101,7 +124,7 @@ class _SplashScreenState extends State<SplashScreen> {
                   ),
                   SizedBox(height: 8),
                   Text(
-                    'App Version 1.0.0',
+                    'App Version ${AppConstants.appDisplayVersion}',
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey,

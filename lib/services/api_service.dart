@@ -1,28 +1,22 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:http/http.dart' as http;
+import 'package:crypto/crypto.dart';
+import 'storage_service.dart';
+import '../constants/app_constants.dart';
 
 class ApiService {
-  static const String baseUrl = 'https://iamsup.in/ulb_property_tax/';
-  static const String ulbDataEndpoint = 'api/House_tax/ulbdata';
-  static const String zoneDataEndpoint = 'api/House_tax/zonedata/';
-  static const String wardDataEndpoint = 'api/House_tax/warddata/';
-  static const String mohallaDataEndpoint = 'api/House_tax/mohalladata/';
-  static const String loginEndpoint = 'api/house_tax/login';
-  
-  // Header Version
-  static const String appVersion = '6'; 
-
   static Map<String, String> get _headers => {
     'Accept': 'application/json',
     'Content-Type': 'application/json',
-    'X-App-Version': appVersion,
+    'X-App-Version': AppConstants.apiVersion,
   };
 
   // Fetch ULB Data
   static Future<List<UlbData>> getUlbData() async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl$ulbDataEndpoint'),
+        Uri.parse('${AppConstants.baseUrl}api/House_tax/ulbdata'),
         headers: _headers,
       ).timeout(const Duration(seconds: 20));
 
@@ -46,7 +40,7 @@ class ApiService {
   static Future<List<ZoneData>> getZoneData(String ulbId) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl$zoneDataEndpoint$ulbId'),
+        Uri.parse('${AppConstants.baseUrl}api/House_tax/zonedata/$ulbId'),
         headers: _headers,
       ).timeout(const Duration(seconds: 20));
 
@@ -70,7 +64,7 @@ class ApiService {
   static Future<List<WardData>> getWardData(String ulbId, String zoneId) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl$wardDataEndpoint$ulbId/$zoneId'),
+        Uri.parse('${AppConstants.baseUrl}api/House_tax/warddata/$ulbId/$zoneId'),
         headers: _headers,
       ).timeout(const Duration(seconds: 20));
 
@@ -94,7 +88,7 @@ class ApiService {
   static Future<List<MohallaData>> getMohallaData(String ulbId, String zoneId, String wardId) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl$mohallaDataEndpoint$ulbId/$zoneId/$wardId'),
+        Uri.parse('${AppConstants.baseUrl}api/House_tax/mohalladata/$ulbId/$zoneId/$wardId'),
         headers: _headers,
       ).timeout(const Duration(seconds: 20));
 
@@ -114,26 +108,71 @@ class ApiService {
     }
   }
 
-  // Login API
-  static Future<LoginResponse> login(String username, String password) async {
+  // Secure Login Flow
+  static Future<LoginResponse> secureLogin(String username, String password, String deviceId) async {
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl$loginEndpoint'),
+      // Step 1: Get Challenge
+      final challengeResponse = await http.post(
+        Uri.parse('${AppConstants.baseUrl}api/house_tax/get_challenge'),
         headers: _headers,
         body: jsonEncode({
           'username': username,
-          'password': password,
+          'device_id': deviceId,
         }),
-      ).timeout(const Duration(seconds: 30));
+      );
 
-      if (response.statusCode == 200) {
-        return LoginResponse.fromJson(jsonDecode(response.body));
+      if (challengeResponse.statusCode != 200) {
+        throw Exception('Failed to get challenge: ${challengeResponse.statusCode}');
+      }
+
+      final challengeData = jsonDecode(challengeResponse.body);
+      if (challengeData['status'] != true) {
+        throw Exception(challengeData['message'] ?? 'Challenge generation failed');
+      }
+
+      final String challengeId = challengeData['data']['challenge_id'];
+      final String challenge = challengeData['data']['challenge'];
+      final String timestamp = challengeData['data']['timestamp'].toString();
+
+      // Step 2: Hashing logic
+      final hashedPassword = sha512.convert(utf8.encode(password)).toString();
+      final String nonce = _generateNonce(16);
+      final String inputString = hashedPassword + challenge + timestamp + nonce;
+      final String finalHash = sha512.convert(utf8.encode(inputString)).toString();
+
+      // Step 3: Final Login Call
+      final loginResponse = await http.post(
+        Uri.parse('${AppConstants.baseUrl}api/house_tax/login'),
+        headers: _headers,
+        body: jsonEncode({
+          'username': username,
+          'device_id': deviceId,
+          'challenge_id': challengeId,
+          'timestamp': timestamp,
+          'nonce': nonce,
+          'hash': finalHash,
+        }),
+      );
+
+      if (loginResponse.statusCode == 200) {
+        final loginData = LoginResponse.fromJson(jsonDecode(loginResponse.body));
+        if (loginData.success && loginData.data != null) {
+          await StorageService.saveLoginData(loginData.data!);
+        }
+        return loginData;
       } else {
-        throw Exception('Login failed: ${response.statusCode}');
+        throw Exception('Login API error: ${loginResponse.statusCode}');
       }
     } catch (e) {
       rethrow;
     }
+  }
+
+  static String _generateNonce(int length) {
+    final Random secureRandom = Random.secure();
+    const chars = '0123456789abcdef';
+    return String.fromCharCodes(Iterable.generate(
+        length, (_) => chars.codeUnitAt(secureRandom.nextInt(chars.length))));
   }
 }
 
@@ -200,29 +239,40 @@ class MohallaData {
 class LoginResponse {
   final bool success;
   final String message;
-  final UserData? data;
+  final int? responseCode;
+  final SignIn? data;
 
-  LoginResponse({required this.success, required this.message, this.data});
+  LoginResponse({
+    required this.success, 
+    required this.message, 
+    this.responseCode,
+    this.data
+  });
 
   factory LoginResponse.fromJson(Map<String, dynamic> json) {
     return LoginResponse(
       success: json['status'] ?? false,
       message: json['message'] ?? '',
-      data: json['data'] != null ? UserData.fromJson(json['data']) : null,
+      responseCode: json['responseCode'],
+      data: json['data'] != null ? SignIn.fromJson(json['data']) : null,
     );
   }
 }
 
-class UserData {
-  final String accessToken;
-  final String emailId;
+class SignIn {
+  final String? accessToken;
+  final String? refreshToken;
+  final String? emailId;
+  final String? userType;
 
-  UserData({required this.accessToken, required this.emailId});
+  SignIn({this.accessToken, this.refreshToken, this.emailId, this.userType});
 
-  factory UserData.fromJson(Map<String, dynamic> json) {
-    return UserData(
-      accessToken: json['access_token'] ?? '',
-      emailId: json['email_id'] ?? '',
+  factory SignIn.fromJson(Map<String, dynamic> json) {
+    return SignIn(
+      accessToken: json['access_token']?.toString(),
+      refreshToken: json['refresh_token']?.toString(),
+      emailId: json['email_id']?.toString(),
+      userType: json['user_type']?.toString(),
     );
   }
 }
