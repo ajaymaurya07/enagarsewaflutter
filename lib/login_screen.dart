@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'signup_screen.dart';
 import 'search_property_screen.dart';
 import 'services/api_service.dart';
+import 'services/device_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -37,9 +38,8 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      // Using secureLogin with a placeholder deviceId
-      // In a real app, use device_info_plus to get a unique ID
-      const String deviceId = "device_id_12345"; 
+      // Get actual device ID
+      final String deviceId = await DeviceService.getDeviceId();
       
       final response = await ApiService.secureLogin(email, password, deviceId);
       
