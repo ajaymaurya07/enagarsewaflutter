@@ -16,11 +16,11 @@ class ApiService {
       'Content-Type': 'application/json',
       'X-App-Version': AppConstants.apiVersion,
       'X-Device-Id': deviceId,
+      'device_id': deviceId,
       if (token != null) 'Authorization': 'Bearer $token',
     };
   }
 
-  // Generic request wrapper to handle 403 and Refresh Token
   static Future<http.Response> _makeAuthenticatedRequest(
     Future<http.Response> Function(Map<String, String> headers) requestFn,
   ) async {
@@ -28,28 +28,21 @@ class ApiService {
     var response = await requestFn(headers);
 
     if (response.statusCode == 403) {
-      // Token might be expired, try to refresh
       final refreshTokenStr = await StorageService.getRefreshToken();
       if (refreshTokenStr != null) {
         try {
           final refreshResponse = await refreshToken(refreshTokenStr);
           if (refreshResponse.status == true && refreshResponse.data?.accessToken != null) {
-            // Update token and retry
             await StorageService.updateAccessToken(refreshResponse.data!.accessToken!);
-            
-            // Get new headers and retry the original request
             headers = await _getHeaders();
             response = await requestFn(headers);
           } else {
-            // Refresh failed, logout
             await StorageService.logout();
           }
         } catch (e) {
-          // Error in refresh, logout
           await StorageService.logout();
         }
       } else {
-        // No refresh token, logout
         await StorageService.logout();
       }
     }
@@ -152,6 +145,55 @@ class ApiService {
     }
   }
 
+  // Search Property API
+  static Future<List<PropertyData>> searchProperty({
+    required String ulbId,
+    required String searchType,
+    String propertyId = "",
+    String ownerName = "",
+    String fatherName = "",
+    String mobileNo = "",
+    String zoneId = "",
+    String wardId = "",
+    String mohallaId = "",
+    String chukNo = "",
+    String houseNo = "",
+  }) async {
+    try {
+      final response = await _makeAuthenticatedRequest((headers) => http.post(
+        Uri.parse('${AppConstants.baseUrl}api/House_tax/propertysearch'),
+        headers: headers,
+        body: jsonEncode({
+          'propertyId': propertyId,
+          'ownerName': ownerName,
+          'fatherName': fatherName,
+          'mobileNo': mobileNo,
+          'zoneId': zoneId,
+          'wardId': wardId,
+          'mohallaId': mohallaId,
+          'chukNo': chukNo,
+          'houseNo': houseNo,
+          'ulbId': ulbId,
+          'searchType': searchType,
+        }),
+      ).timeout(Duration(seconds: AppConstants.networkTimeout)));
+
+      if (response.statusCode == 200) {
+        final decodedData = json.decode(response.body);
+        if (decodedData['success'] == true && decodedData['data'] != null) {
+          return (decodedData['data'] as List)
+              .map((item) => PropertyData.fromJson(item))
+              .toList();
+        }
+        return [];
+      } else {
+        throw Exception('Search failed: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Connection error: $e');
+    }
+  }
+
   // Secure Login Flow
   static Future<LoginResponse> secureLogin(String username, String password, String deviceId) async {
     try {
@@ -161,7 +203,6 @@ class ApiService {
         'X-App-Version': AppConstants.apiVersion,
       };
 
-      // Step 1: Get Challenge
       final challengeResponse = await http.post(
         Uri.parse('${AppConstants.baseUrl}api/house_tax/get_challenge'),
         headers: headers,
@@ -184,13 +225,11 @@ class ApiService {
       final String challenge = challengeData['data']['challenge'];
       final String timestamp = challengeData['data']['timestamp'].toString();
 
-      // Step 2: Hashing logic
       final hashedPassword = sha512.convert(utf8.encode(password)).toString();
       final String nonce = _generateNonce(16);
       final String inputString = hashedPassword + challenge + timestamp + nonce;
       final String finalHash = sha512.convert(utf8.encode(inputString)).toString();
 
-      // Step 3: Final Login Call
       final loginResponse = await http.post(
         Uri.parse('${AppConstants.baseUrl}api/house_tax/login'),
         headers: headers,
@@ -260,13 +299,7 @@ class UlbData {
   final String? districtId;
   final String? districtName;
 
-  UlbData({
-    this.ulbName, 
-    this.ulbId, 
-    this.ulbType, 
-    this.districtId, 
-    this.districtName
-  });
+  UlbData({this.ulbName, this.ulbId, this.ulbType, this.districtId, this.districtName});
 
   factory UlbData.fromJson(Map<String, dynamic> json) {
     return UlbData(
@@ -279,49 +312,82 @@ class UlbData {
   }
 
   @override
-  String toString() {
-    return '${ulbName ?? ""} (${ulbType ?? ""})';
-  }
+  String toString() => '${ulbName ?? ""} (${ulbType ?? ""})';
 }
 
 class ZoneData {
   final String zoneName;
   final String zoneId;
-
   ZoneData({required this.zoneName, required this.zoneId});
-
-  factory ZoneData.fromJson(Map<String, dynamic> json) {
-    return ZoneData(
-      zoneName: json['zoneName'] ?? '',
-      zoneId: json['zoneId']?.toString() ?? '',
-    );
-  }
+  factory ZoneData.fromJson(Map<String, dynamic> json) => ZoneData(
+    zoneName: json['zoneName'] ?? '',
+    zoneId: json['zoneId']?.toString() ?? '',
+  );
 }
 
 class WardData {
   final String wardName;
   final String wardId;
-
   WardData({required this.wardName, required this.wardId});
-
-  factory WardData.fromJson(Map<String, dynamic> json) {
-    return WardData(
-      wardName: json['wardName'] ?? '',
-      wardId: json['wardId']?.toString() ?? '',
-    );
-  }
+  factory WardData.fromJson(Map<String, dynamic> json) => WardData(
+    wardName: json['wardName'] ?? '',
+    wardId: json['wardId']?.toString() ?? '',
+  );
 }
 
 class MohallaData {
   final String mohallaName;
   final String mohallaId;
-
   MohallaData({required this.mohallaName, required this.mohallaId});
+  factory MohallaData.fromJson(Map<String, dynamic> json) => MohallaData(
+    mohallaName: json['mohallaName'] ?? '',
+    mohallaId: json['mohallaId']?.toString() ?? '',
+  );
+}
 
-  factory MohallaData.fromJson(Map<String, dynamic> json) {
-    return MohallaData(
-      mohallaName: json['mohallaName'] ?? '',
-      mohallaId: json['mohallaId']?.toString() ?? '',
+class PropertyData {
+  final String? oldPropertyId;
+  final String? address;
+  final String? ownerName;
+  final double? totalArv;
+  final String? propertyType;
+  final String? fatherHusbandName;
+  final String? finYear;
+  final String? houseNo;
+  final String? chukNo;
+  final String? propertyId;
+  final String? billNo;
+  final String? totalArea;
+
+  PropertyData({
+    this.oldPropertyId,
+    this.address,
+    this.ownerName,
+    this.totalArv,
+    this.propertyType,
+    this.fatherHusbandName,
+    this.finYear,
+    this.houseNo,
+    this.chukNo,
+    this.propertyId,
+    this.billNo,
+    this.totalArea,
+  });
+
+  factory PropertyData.fromJson(Map<String, dynamic> json) {
+    return PropertyData(
+      oldPropertyId: json['oldPropertyId']?.toString(),
+      address: json['address'],
+      ownerName: json['ownerName'],
+      totalArv: (json['totalArv'] is num) ? (json['totalArv'] as num).toDouble() : null,
+      propertyType: json['propertyType'],
+      fatherHusbandName: json['fatherHusbandName'],
+      finYear: json['finYear'],
+      houseNo: json['houseNo'],
+      chukNo: json['chukNo'],
+      propertyId: json['propertyId']?.toString(),
+      billNo: json['billNo'],
+      totalArea: json['totalArea']?.toString(),
     );
   }
 }
@@ -331,22 +397,13 @@ class LoginResponse {
   final String message;
   final int? responseCode;
   final SignIn? data;
-
-  LoginResponse({
-    required this.success, 
-    required this.message, 
-    this.responseCode,
-    this.data
-  });
-
-  factory LoginResponse.fromJson(Map<String, dynamic> json) {
-    return LoginResponse(
-      success: json['status'] ?? false,
-      message: json['message'] ?? '',
-      responseCode: json['responseCode'],
-      data: json['data'] != null ? SignIn.fromJson(json['data']) : null,
-    );
-  }
+  LoginResponse({required this.success, required this.message, this.responseCode, this.data});
+  factory LoginResponse.fromJson(Map<String, dynamic> json) => LoginResponse(
+    success: json['status'] ?? false,
+    message: json['message'] ?? '',
+    responseCode: json['responseCode'],
+    data: json['data'] != null ? SignIn.fromJson(json['data']) : null,
+  );
 }
 
 class SignIn {
@@ -354,17 +411,13 @@ class SignIn {
   final String? refreshToken;
   final String? emailId;
   final String? userType;
-
   SignIn({this.accessToken, this.refreshToken, this.emailId, this.userType});
-
-  factory SignIn.fromJson(Map<String, dynamic> json) {
-    return SignIn(
-      accessToken: json['access_token']?.toString(),
-      refreshToken: json['refresh_token']?.toString(),
-      emailId: json['email_id']?.toString(),
-      userType: json['user_type']?.toString(),
-    );
-  }
+  factory SignIn.fromJson(Map<String, dynamic> json) => SignIn(
+    accessToken: json['access_token']?.toString(),
+    refreshToken: json['refresh_token']?.toString(),
+    emailId: json['email_id']?.toString(),
+    userType: json['user_type']?.toString(),
+  );
 }
 
 class RefreshTokenResponse {
@@ -372,27 +425,19 @@ class RefreshTokenResponse {
   final int? responseCode;
   final String? message;
   final RefreshTokenData? data;
-
   RefreshTokenResponse({this.status, this.responseCode, this.message, this.data});
-
-  factory RefreshTokenResponse.fromJson(Map<String, dynamic> json) {
-    return RefreshTokenResponse(
-      status: json['status'],
-      responseCode: json['responseCode'],
-      message: json['message'],
-      data: json['data'] != null ? RefreshTokenData.fromJson(json['data']) : null,
-    );
-  }
+  factory RefreshTokenResponse.fromJson(Map<String, dynamic> json) => RefreshTokenResponse(
+    status: json['status'],
+    responseCode: json['responseCode'],
+    message: json['message'],
+    data: json['data'] != null ? RefreshTokenData.fromJson(json['data']) : null,
+  );
 }
 
 class RefreshTokenData {
   final String? accessToken;
-
   RefreshTokenData({this.accessToken});
-
-  factory RefreshTokenData.fromJson(Map<String, dynamic> json) {
-    return RefreshTokenData(
-      accessToken: json['access_token'],
-    );
-  }
+  factory RefreshTokenData.fromJson(Map<String, dynamic> json) => RefreshTokenData(
+    accessToken: json['access_token'],
+  );
 }

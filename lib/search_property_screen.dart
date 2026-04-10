@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:enagarsewa/services/api_service.dart';
+import 'property_selection_screen.dart';
 
 class SearchPropertyScreen extends StatefulWidget {
   const SearchPropertyScreen({super.key});
@@ -33,6 +34,7 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
   bool _isLoadingZones = false;
   bool _isLoadingWards = false;
   bool _isLoadingMohallas = false;
+  bool _isSearching = false;
   String? _errorMessage;
 
   @override
@@ -123,6 +125,69 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
         _isLoadingMohallas = false;
         _errorMessage = 'Failed to load mohallas';
       });
+    }
+  }
+
+  void _handleSearch() async {
+    if (_selectedUlb == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select ULB first')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSearching = true;
+    });
+
+    try {
+      String searchType = "";
+      switch (_searchMode) {
+        case 'By Owner': searchType = "OWNER"; break;
+        case 'By Property ID': searchType = "PID"; break;
+        case 'By House No': searchType = "HOUSE"; break;
+        case 'By Location': searchType = "LOCATION"; break;
+        case 'By Mobile No': searchType = "MOBILE"; break;
+      }
+
+      final properties = await ApiService.searchProperty(
+        ulbId: _selectedUlb!.ulbId ?? "",
+        searchType: searchType,
+        ownerName: _ownerController.text.trim(),
+        fatherName: _fatherController.text.trim(),
+        propertyId: _propertyIdController.text.trim(),
+        houseNo: _houseNoController.text.trim(),
+        zoneId: _selectedZone?.zoneId ?? "",
+        wardId: _selectedWard?.wardId ?? "",
+        mohallaId: _selectedMohalla?.mohallaId ?? "",
+        mobileNo: _mobileController.text.trim(),
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _isSearching = false;
+      });
+
+      if (properties.isNotEmpty) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PropertySelectionScreen(properties: properties),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No properties found')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isSearching = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${e.toString().replaceFirst('Exception: ', '')}')),
+      );
     }
   }
 
@@ -353,21 +418,27 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
                 SizedBox(
                   height: 50,
                   child: ElevatedButton(
-                    onPressed: () {},
+                    onPressed: _isSearching ? null : _handleSearch,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFE67514),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    child: const Text(
-                      'Search',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    child: _isSearching 
+                      ? const SizedBox(
+                          height: 20, 
+                          width: 20, 
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+                        )
+                      : const Text(
+                          'Search',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                   ),
                 ),
               ],
