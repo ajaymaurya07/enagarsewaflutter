@@ -194,6 +194,69 @@ class ApiService {
     }
   }
 
+  // Fetch Property Details API
+  static Future<PropertyDetailsResponse> getPropertyDetails(String propertyId) async {
+    try {
+      final response = await _makeAuthenticatedRequest((headers) => http.post(
+        Uri.parse('${AppConstants.baseUrl}api/House_tax/propertydetails'),
+        headers: headers,
+        body: jsonEncode({'propertyId': propertyId}),
+      ).timeout(Duration(seconds: AppConstants.networkTimeout)));
+
+      if (response.statusCode == 200) {
+        return PropertyDetailsResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Failed to load property details: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Connection error: $e');
+    }
+  }
+
+  // Send OTP API
+  static Future<SendOtpResponse> sendOtp(String mobileNo, String propertyId) async {
+    try {
+      final response = await _makeAuthenticatedRequest((headers) => http.post(
+        Uri.parse('${AppConstants.baseUrl}api/house_tax/sendOtp'),
+        headers: headers,
+        body: jsonEncode({
+          'mobileNo': mobileNo,
+          'propertyId': propertyId,
+        }),
+      ).timeout(Duration(seconds: AppConstants.networkTimeout)));
+
+      if (response.statusCode == 200) {
+        return SendOtpResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Failed to send OTP: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Connection error: $e');
+    }
+  }
+
+  // Verify OTP API
+  static Future<OtpVerificationResponse> verifyOtp(String mobileNo, String otp) async {
+    try {
+      final response = await _makeAuthenticatedRequest((headers) => http.post(
+        Uri.parse('${AppConstants.baseUrl}api/house_tax/verifyOtp'),
+        headers: headers,
+        body: jsonEncode({
+          'mobileNo': mobileNo,
+          'otp': otp,
+        }),
+      ).timeout(Duration(seconds: AppConstants.networkTimeout)));
+
+      if (response.statusCode == 200) {
+        return OtpVerificationResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('OTP verification failed: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Connection error: $e');
+    }
+  }
+
   // Secure Login Flow
   static Future<LoginResponse> secureLogin(String username, String password, String deviceId) async {
     try {
@@ -388,6 +451,156 @@ class PropertyData {
       propertyId: json['propertyId']?.toString(),
       billNo: json['billNo'],
       totalArea: json['totalArea']?.toString(),
+    );
+  }
+}
+
+class PropertyDetailsResponse {
+  final bool? success;
+  final String? message;
+  final int? responseCode;
+  final PropertyDetailsData? data;
+
+  PropertyDetailsResponse({this.success, this.message, this.responseCode, this.data});
+
+  factory PropertyDetailsResponse.fromJson(Map<String, dynamic> json) {
+    return PropertyDetailsResponse(
+      success: json['success'],
+      message: json['message'],
+      responseCode: json['responseCode'],
+      data: json['data'] != null ? PropertyDetailsData.fromJson(json['data']) : null,
+    );
+  }
+}
+
+class PropertyDetailsData {
+  final BillDetails? billDetails;
+  final OwnerDetails? ownerDetails;
+  final PropertyInfo? propertyDetailsInfo;
+  final List<ReceiptDetailsItem>? currReceiptDetails;
+  final List<ReceiptDetailsItem>? prevReceiptDetails;
+
+  PropertyDetailsData({
+    this.billDetails,
+    this.ownerDetails,
+    this.propertyDetailsInfo,
+    this.currReceiptDetails,
+    this.prevReceiptDetails,
+  });
+
+  factory PropertyDetailsData.fromJson(Map<String, dynamic> json) {
+    return PropertyDetailsData(
+      billDetails: json['billDetails'] != null ? BillDetails.fromJson(json['billDetails']) : null,
+      ownerDetails: json['ownerDetails'] != null ? OwnerDetails.fromJson(json['ownerDetails']) : null,
+      propertyDetailsInfo: json['propertyDetails'] != null ? PropertyInfo.fromJson(json['propertyDetails']) : null,
+      currReceiptDetails: json['currReceiptDetails'] != null
+          ? (json['currReceiptDetails'] as List).map((i) => ReceiptDetailsItem.fromJson(i)).toList()
+          : null,
+      prevReceiptDetails: json['prevReceiptDetails'] != null
+          ? (json['prevReceiptDetails'] as List).map((i) => ReceiptDetailsItem.fromJson(i)).toList()
+          : null,
+    );
+  }
+}
+
+class BillDetails {
+  final String? netPayble;
+  final String? billNo;
+  final String? billDate;
+  final String? finYear;
+
+  BillDetails({this.netPayble, this.billNo, this.billDate, this.finYear});
+
+  factory BillDetails.fromJson(Map<String, dynamic> json) {
+    return BillDetails(
+      netPayble: json['netPayble']?.toString(),
+      billNo: json['billNo']?.toString(),
+      billDate: json['billDate']?.toString(),
+      finYear: json['finYear']?.toString(),
+    );
+  }
+}
+
+class OwnerDetails {
+  final String? ownerName;
+  final String? fatherName;
+  final String? mobileNo;
+
+  OwnerDetails({this.ownerName, this.fatherName, this.mobileNo});
+
+  factory OwnerDetails.fromJson(Map<String, dynamic> json) {
+    return OwnerDetails(
+      ownerName: json['ownerName'],
+      fatherName: json['fatherName'],
+      mobileNo: json['mobileNo']?.toString(),
+    );
+  }
+}
+
+class PropertyInfo {
+  final String? address;
+  final String? houseNo;
+  final String? wardName;
+  final String? zoneName;
+
+  PropertyInfo({this.address, this.houseNo, this.wardName, this.zoneName});
+
+  factory PropertyInfo.fromJson(Map<String, dynamic> json) {
+    return PropertyInfo(
+      address: json['address'],
+      houseNo: json['houseNo']?.toString(),
+      wardName: json['wardName'],
+      zoneName: json['zoneName'],
+    );
+  }
+}
+
+class ReceiptDetailsItem {
+  final String? receiptNo;
+  final String? receiptDate;
+  final String? propertyTaxPaidAmount;
+
+  ReceiptDetailsItem({this.receiptNo, this.receiptDate, this.propertyTaxPaidAmount});
+
+  factory ReceiptDetailsItem.fromJson(Map<String, dynamic> json) {
+    return ReceiptDetailsItem(
+      receiptNo: json['receiptNo']?.toString(),
+      receiptDate: json['receiptDate']?.toString(),
+      propertyTaxPaidAmount: json['propertyTaxPaidAmount']?.toString(),
+    );
+  }
+}
+
+class SendOtpResponse {
+  final bool? success;
+  final String? message;
+  final int? responseCode;
+
+  SendOtpResponse({this.success, this.message, this.responseCode});
+
+  factory SendOtpResponse.fromJson(Map<String, dynamic> json) {
+    return SendOtpResponse(
+      success: json['success'],
+      message: json['message'],
+      responseCode: json['responseCode'],
+    );
+  }
+}
+
+class OtpVerificationResponse {
+  final bool? success;
+  final String? message;
+  final int? responseCode;
+  final int? userId;
+
+  OtpVerificationResponse({this.success, this.message, this.responseCode, this.userId});
+
+  factory OtpVerificationResponse.fromJson(Map<String, dynamic> json) {
+    return OtpVerificationResponse(
+      success: json['success'],
+      message: json['message'],
+      responseCode: json['responseCode'],
+      userId: json['userId'],
     );
   }
 }
