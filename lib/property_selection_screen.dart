@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'services/api_service.dart';
+import 'dashboard_screen.dart';
 
 class PropertySelectionScreen extends StatefulWidget {
   final List<PropertyData> properties;
@@ -93,8 +94,14 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
                   try {
                     final res = await ApiService.verifyOtp(mobileNo, otpController.text);
                     if (res.success == true) {
+                      if (!mounted) return;
                       Navigator.pop(context); // Close sheet
-                      _showSnackBar(res.message ?? 'OTP Verified Successfully!', isError: false);
+                      
+                      // Navigate to Dashboard on success
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (context) => const DashboardScreen()),
+                        (route) => false,
+                      );
                     } else {
                       _showSnackBar(res.message ?? 'Invalid OTP');
                     }
