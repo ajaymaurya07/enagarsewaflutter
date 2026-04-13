@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'services/database_service.dart';
+import 'payment_details_screen.dart';
 
 class PropertyTaxScreen extends StatefulWidget {
   const PropertyTaxScreen({super.key});
@@ -90,58 +91,68 @@ class _PropertyTaxScreenState extends State<PropertyTaxScreen> {
   }
 
   Widget _buildPropertyCard(PropertyEntity property) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PaymentDetailsScreen(propertyId: property.propertyId),
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    'PID: ${property.propertyId}',
-                    style: GoogleFonts.poppins(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF2D4BA0),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 15,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      'PID: ${property.propertyId}',
+                      style: GoogleFonts.poppins(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF2D4BA0),
+                      ),
                     ),
                   ),
-                ),
-                const Icon(Icons.chevron_right, color: Colors.grey),
-              ],
+                  const Icon(Icons.chevron_right, color: Colors.grey),
+                ],
+              ),
             ),
-          ),
-          Divider(height: 1, color: Colors.grey.shade200),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildDetailRow('Owner', property.ownerName),
-                const SizedBox(height: 8),
-                _buildDetailRow('Ward', property.ward),
-                const SizedBox(height: 8),
-                _buildDetailRow('Mohalla', property.mohalla),
-                const SizedBox(height: 8),
-                _buildDetailRow('Mobile', property.phoneNumber),
-              ],
+            Divider(height: 1, color: Colors.grey.shade200),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildDetailRow('Owner', property.ownerName),
+                  const SizedBox(height: 8),
+                  _buildDetailRow('Ward', property.ward),
+                  const SizedBox(height: 8),
+                  _buildDetailRow('Mohalla', property.mohalla),
+                  const SizedBox(height: 8),
+                  _buildDetailRow('Mobile', property.phoneNumber),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
