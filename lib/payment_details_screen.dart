@@ -48,6 +48,180 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
     }
   }
 
+  void _handlePayTax() async {
+    final mobileNo = _details?.ownerDetails?.mobileNo;
+    if (mobileNo == null || mobileNo.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Mobile number not available for OTP')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      final otpRes = await ApiService.sendOtp(mobileNo, widget.propertyId);
+      setState(() => _isLoading = false);
+
+      if (otpRes.success == true) {
+        _showOtpAndPaymentDialog(mobileNo);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(otpRes.message ?? 'Failed to send OTP')),
+        );
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    }
+  }
+
+  void _showOtpAndPaymentDialog(String mobileNo) {
+    final otpController = TextEditingController();
+    bool isVerifying = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            top: 24, left: 24, right: 24
+          ),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Verification Required',
+                style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Enter the OTP sent to $mobileNo to proceed with payment.',
+                style: GoogleFonts.poppins(color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 24),
+              TextField(
+                controller: otpController,
+                keyboardType: TextInputType.number,
+                maxLength: 6,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 24, letterSpacing: 8, fontWeight: FontWeight.bold),
+                decoration: InputDecoration(
+                  hintText: '000000',
+                  counterText: "",
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: isVerifying ? null : () async {
+                  if (otpController.text.length < 4) return;
+                  setModalState(() => isVerifying = true);
+                  try {
+                    final res = await ApiService.verifyOtp(mobileNo, otpController.text);
+                    if (res.success == true) {
+                      Navigator.pop(context); // Close OTP sheet
+                      _showPaymentOptions(); // Show Payment Options
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(res.message ?? 'Invalid OTP')),
+                      );
+                    }
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+                  } finally {
+                    setModalState(() => isVerifying = false);
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0E3B90),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: isVerifying 
+                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Text('Verify & Proceed', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(height: 32),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showPaymentOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Select Payment Gateway',
+              style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 24),
+            _buildPaymentOptionCard('Pay with Pay', 'Safe & Secure', Icons.payment_rounded, () {
+              Navigator.pop(context);
+              // Handle Pay gateway logic
+            }),
+            const SizedBox(height: 12),
+            _buildPaymentOptionCard('Pay with SBI', 'Official SBI Gateway', Icons.account_balance_rounded, () {
+              Navigator.pop(context);
+              // Handle SBI gateway logic
+            }),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPaymentOptionCard(String title, String subtitle, IconData icon, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: const Color(0xFF0E3B90), size: 28),
+            const SizedBox(width: 16),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.bold)),
+                Text(subtitle, style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey)),
+              ],
+            ),
+            const Spacer(),
+            const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -234,7 +408,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
             top: false,
             child: Column(
               children: [
-                _buildPrimaryButton('Pay Your Tax Online', () {}),
+                _buildPrimaryButton('Pay Your Tax Online', _handlePayTax),
                 const SizedBox(height: 12),
                 Row(
                   children: [
