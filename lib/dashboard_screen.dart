@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'property_tax_screen.dart';
+import 'search_property_screen.dart';
+import 'services/storage_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -11,6 +13,23 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   int _selectedIndex = 0;
+  String _userType = "";
+  String _displayName = "";
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserInfo();
+  }
+
+  Future<void> _loadUserInfo() async {
+    final type = await StorageService.getUserType();
+    setState(() {
+      _userType = type ?? "";
+      _displayName = (_userType.toLowerCase() == "admin") ? "Admin" : _userType;
+      if (_displayName.isEmpty) _displayName = "User";
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,11 +56,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
               Text(
-                'Admin',
+                _displayName,
                 style: GoogleFonts.poppins(
                   color: const Color(0xFF2D4BA0),
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ],
@@ -93,6 +112,70 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ],
                 ),
               ),
+              
+              // Refined "Search Property" Card - Only for Admin
+              if (_userType.toLowerCase() == "admin") ...[
+                const SizedBox(height: 24),
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const SearchPropertyScreen()),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 15,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF4E5), // Soft orange background
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.add_business_outlined, color: Color(0xFFE67514), size: 28),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Search New Property',
+                                style: GoogleFonts.poppins(
+                                  color: const Color(0xFF444444),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              Text(
+                                'Add more properties to your list',
+                                style: GoogleFonts.poppins(
+                                  color: Colors.grey.shade600,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFFBBBBBB), size: 16),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+
               const SizedBox(height: 32),
               Text(
                 'Quick Services',
