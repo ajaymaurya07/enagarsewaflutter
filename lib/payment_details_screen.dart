@@ -150,10 +150,10 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFFF4E5),
+                          color: const Color(0xFFE8F0FE),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Icon(Icons.receipt_long_rounded, color: Color(0xFFE67514), size: 20),
+                        child: const Icon(Icons.receipt_long_rounded, color: Color(0xFF0E3B90), size: 20),
                       ),
                       const SizedBox(width: 12),
                       Text(
@@ -186,8 +186,9 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8F9FB),
+                      color: const Color(0xFFEDF3FF),
                       borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFD1E1FF), width: 1),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -197,7 +198,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
                           style: GoogleFonts.poppins(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
-                            color: const Color(0xFF333333),
+                            color: const Color(0xFF1A3B8E),
                           ),
                         ),
                         Text(
@@ -205,7 +206,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
                           style: GoogleFonts.poppins(
                             fontSize: 20,
                             fontWeight: FontWeight.w800,
-                            color: const Color(0xFFE67514),
+                            color: const Color(0xFF0E3B90),
                           ),
                         ),
                       ],
@@ -286,23 +287,37 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
   }
 
   Widget _buildPrimaryButton(String text, VoidCallback onTap) {
-    return SizedBox(
+    return Container(
       width: double.infinity,
       height: 56,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0E3B90), Color(0xFF2D4BA0)],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0E3B90).withValues(alpha: 0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
       child: ElevatedButton(
         onPressed: onTap,
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFFE67514),
-          foregroundColor: Colors.white,
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          elevation: 8,
-          shadowColor: const Color(0xFFE67514).withValues(alpha: 0.4),
         ),
         child: Text(
           text,
           style: GoogleFonts.poppins(
             fontSize: 16,
             fontWeight: FontWeight.w700,
+            color: Colors.white,
           ),
         ),
       ),
@@ -315,14 +330,14 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
       child: OutlinedButton(
         onPressed: onTap,
         style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: Color(0xFFE67514), width: 1.5),
+          side: const BorderSide(color: Color(0xFF0E3B90), width: 1.5),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           padding: EdgeInsets.zero,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 16, color: const Color(0xFFE67514)),
+            Icon(icon, size: 16, color: const Color(0xFF0E3B90)),
             const SizedBox(width: 6),
             Flexible(
               child: Text(
@@ -333,7 +348,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
                 style: GoogleFonts.poppins(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: const Color(0xFFE67514),
+                  color: const Color(0xFF0E3B90),
                 ),
               ),
             ),
