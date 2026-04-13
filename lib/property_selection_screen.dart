@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'services/api_service.dart';
+import 'services/storage_service.dart';
+import 'services/database_service.dart';
 import 'dashboard_screen.dart';
 
 class PropertySelectionScreen extends StatefulWidget {
@@ -13,13 +16,16 @@ class PropertySelectionScreen extends StatefulWidget {
 
 class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
   bool _isLoading = false;
+  PropertyDetailsData? _currentPropertyDetails;
 
   void _handlePropertySelection(String propertyId) async {
     setState(() => _isLoading = true);
     try {
       // 1. Get Property Details
-      final details = await ApiService.getPropertyDetails(propertyId);
-      final mobileNo = details.data?.ownerDetails?.mobileNo;
+      final res = await ApiService.getPropertyDetails(propertyId);
+      _currentPropertyDetails = res.data;
+      
+      final mobileNo = _currentPropertyDetails?.ownerDetails?.mobileNo;
 
       if (mobileNo == null || mobileNo.isEmpty) {
         throw Exception('Mobile number not found for this property');
@@ -28,20 +34,22 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
       // 2. Send OTP
       final otpRes = await ApiService.sendOtp(mobileNo, propertyId);
       
+      if (!mounted) return;
       setState(() => _isLoading = false);
 
       if (otpRes.success == true) {
-        _showOtpBottomSheet(mobileNo);
+        _showOtpBottomSheet(mobileNo, propertyId);
       } else {
         _showSnackBar(otpRes.message ?? 'Failed to send OTP');
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
       _showSnackBar(e.toString().replaceFirst('Exception: ', ''));
     }
   }
 
-  void _showOtpBottomSheet(String mobileNo) {
+  void _showOtpBottomSheet(String mobileNo, String propertyId) {
     final otpController = TextEditingController();
     bool isVerifying = false;
 
@@ -94,21 +102,42 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
                   try {
                     final res = await ApiService.verifyOtp(mobileNo, otpController.text);
                     if (res.success == true) {
+                      // --- Database Storage Logic ---
+                      final email = await StorageService.getEmailId();
+                      final userType = await StorageService.getUserType();
+
+                      await DatabaseService.insertProperty(
+                        PropertyEntity(
+                          propertyId: propertyId,
+                          ownerName: _currentPropertyDetails?.ownerDetails?.ownerName ?? "N/A",
+                          ward: _currentPropertyDetails?.propertyDetailsInfo?.wardName ?? "N/A",
+                          mohalla: _currentPropertyDetails?.propertyDetailsInfo?.mohallaName ?? "N/A",
+                          phoneNumber: mobileNo,
+                          email: email,
+                          userType: userType,
+                        ),
+                      );
+
+                      // Set verification flag for future app opens
+                      await StorageService.setPropertyVerified(true);
+
                       if (!mounted) return;
                       Navigator.pop(context); // Close sheet
                       
-                      // Navigate to Dashboard on success
+                      // Navigate to Dashboard
                       Navigator.of(context).pushAndRemoveUntil(
                         MaterialPageRoute(builder: (context) => const DashboardScreen()),
                         (route) => false,
                       );
                     } else {
+                      if (!mounted) return;
                       _showSnackBar(res.message ?? 'Invalid OTP');
                     }
                   } catch (e) {
+                    if (!mounted) return;
                     _showSnackBar(e.toString());
                   } finally {
-                    setModalState(() => isVerifying = false);
+                    if (mounted) setModalState(() => isVerifying = false);
                   }
                 },
                 style: ElevatedButton.styleFrom(

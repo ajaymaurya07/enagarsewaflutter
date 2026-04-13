@@ -542,8 +542,9 @@ class PropertyInfo {
   final String? houseNo;
   final String? wardName;
   final String? zoneName;
+  final String? mohallaName;
 
-  PropertyInfo({this.address, this.houseNo, this.wardName, this.zoneName});
+  PropertyInfo({this.address, this.houseNo, this.wardName, this.zoneName, this.mohallaName});
 
   factory PropertyInfo.fromJson(Map<String, dynamic> json) {
     return PropertyInfo(
@@ -551,6 +552,7 @@ class PropertyInfo {
       houseNo: json['houseNo']?.toString(),
       wardName: json['wardName'],
       zoneName: json['zoneName'],
+      mohallaName: json['mohallaName'],
     );
   }
 }

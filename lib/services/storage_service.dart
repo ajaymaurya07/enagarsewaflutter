@@ -40,6 +40,11 @@ class StorageService {
     return prefs.getString('email_id');
   }
 
+  static Future<String?> getUserType() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('user_type');
+  }
+
   static Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('access_token');
