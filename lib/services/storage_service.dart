@@ -15,6 +15,16 @@ class StorageService {
     await prefs.setString('access_token', token);
   }
 
+  static Future<void> setPropertyVerified(bool verified) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('is_property_verified', verified);
+  }
+
+  static Future<bool> isPropertyVerified() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('is_property_verified') ?? false;
+  }
+
   static Future<String?> getAccessToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('access_token');
@@ -36,6 +46,7 @@ class StorageService {
     await prefs.remove('refresh_token');
     await prefs.remove('email_id');
     await prefs.remove('user_type');
+    await prefs.remove('is_property_verified');
   }
 
   static Future<bool> isLoggedIn() async {
