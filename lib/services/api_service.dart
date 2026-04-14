@@ -504,19 +504,132 @@ class PropertyDetailsData {
 }
 
 class BillDetails {
-  final String? netPayble;
-  final String? billNo;
-  final String? billDate;
+  final String? sewerTaxArrear;
+  final String? otherTaxMonthlyInterest;
+  final String? houseTaxDiscount;
+  final String? waterChargeAdvance;
+  final String? houseTaxAdvance;
   final String? finYear;
+  final String? othertaxNetAmount;
+  final String? sewerTaxDiscount;
+  final String? sewerTaxAdvance;
+  final String? waterChargeMonthlyInterest;
+  final String? houseTaxArrear;
+  final String? sewerTaxInterest;
+  final String? waterTaxMonthlyInterest;
+  final String? waterTaxArrear;
+  final String? otherTaxArrear;
+  final String? houseCurrentTax;
+  final String? waterCurrentTax;
+  final String? waterTaxInterest;
+  final String? netPayble;
+  final String? netDemand;
+  final String? otherCurrentTax;
+  final String? otherTaxInterest;
+  final String? sewerTaxMonthlyInterest;
+  final String? billNo;
+  final String? waterChargeDiscount;
+  final String? waterTaxAdvance;
+  final String? otherTaxAdvance;
+  final String? waterTaxNetAmount;
+  final String? waterTaxDiscount;
+  final String? sewerTaxNetAmount;
+  final String? billDate;
+  final String? waterChargeArrear;
+  final String? waterChargeNetAmount;
+  final String? houseTaxMonthlyInterest;
+  final String? houseTaxInterest;
+  final String? sewerCurrentTax;
+  final String? houseTaxNetAmount;
+  final String? otherTaxDiscount;
+  final String? waterChargeInterest;
+  final String? waterChargeCurrent;
 
-  BillDetails({this.netPayble, this.billNo, this.billDate, this.finYear});
+  BillDetails({
+    this.sewerTaxArrear,
+    this.otherTaxMonthlyInterest,
+    this.houseTaxDiscount,
+    this.waterChargeAdvance,
+    this.houseTaxAdvance,
+    this.finYear,
+    this.othertaxNetAmount,
+    this.sewerTaxDiscount,
+    this.sewerTaxAdvance,
+    this.waterChargeMonthlyInterest,
+    this.houseTaxArrear,
+    this.sewerTaxInterest,
+    this.waterTaxMonthlyInterest,
+    this.waterTaxArrear,
+    this.otherTaxArrear,
+    this.houseCurrentTax,
+    this.waterCurrentTax,
+    this.waterTaxInterest,
+    this.netPayble,
+    this.netDemand,
+    this.otherCurrentTax,
+    this.otherTaxInterest,
+    this.sewerTaxMonthlyInterest,
+    this.billNo,
+    this.waterChargeDiscount,
+    this.waterTaxAdvance,
+    this.otherTaxAdvance,
+    this.waterTaxNetAmount,
+    this.waterTaxDiscount,
+    this.sewerTaxNetAmount,
+    this.billDate,
+    this.waterChargeArrear,
+    this.waterChargeNetAmount,
+    this.houseTaxMonthlyInterest,
+    this.houseTaxInterest,
+    this.sewerCurrentTax,
+    this.houseTaxNetAmount,
+    this.otherTaxDiscount,
+    this.waterChargeInterest,
+    this.waterChargeCurrent,
+  });
 
   factory BillDetails.fromJson(Map<String, dynamic> json) {
     return BillDetails(
-      netPayble: json['netPayble']?.toString(),
-      billNo: json['billNo']?.toString(),
-      billDate: json['billDate']?.toString(),
+      sewerTaxArrear: json['sewerTaxArrear']?.toString(),
+      otherTaxMonthlyInterest: json['otherTaxMonthlyInterest']?.toString(),
+      houseTaxDiscount: json['houseTaxDiscount']?.toString(),
+      waterChargeAdvance: json['waterChargeAdvance']?.toString(),
+      houseTaxAdvance: json['houseTaxAdvance']?.toString(),
       finYear: json['finYear']?.toString(),
+      othertaxNetAmount: json['othertaxNetAmount']?.toString(),
+      sewerTaxDiscount: json['sewerTaxDiscount']?.toString(),
+      sewerTaxAdvance: json['sewerTaxAdvance']?.toString(),
+      waterChargeMonthlyInterest: json['waterChargeMonthlyInterest']?.toString(),
+      houseTaxArrear: json['houseTaxArrear']?.toString(),
+      sewerTaxInterest: json['sewerTaxInterest']?.toString(),
+      waterTaxMonthlyInterest: json['waterTaxMonthlyInterest']?.toString(),
+      waterTaxArrear: json['waterTaxArrear']?.toString(),
+      otherTaxArrear: json['otherTaxArrear']?.toString(),
+      houseCurrentTax: json['houseCurrentTax']?.toString(),
+      waterCurrentTax: json['waterCurrentTax']?.toString(),
+      waterTaxInterest: json['waterTaxInterest']?.toString(),
+      netPayble: json['netPayble']?.toString(),
+      netDemand: json['netDemand']?.toString(),
+      otherCurrentTax: json['otherCurrentTax']?.toString(),
+      otherTaxInterest: json['otherTaxInterest']?.toString(),
+      sewerTaxMonthlyInterest: json['sewerTaxMonthlyInterest']?.toString(),
+      billNo: json['billNo']?.toString(),
+      waterChargeDiscount: json['waterChargeDiscount']?.toString(),
+      waterTaxAdvance: json['waterTaxAdvance']?.toString(),
+      otherTaxAdvance: json['otherTaxAdvance']?.toString(),
+      waterTaxNetAmount: json['waterTaxNetAmount']?.toString(),
+      waterTaxDiscount: json['waterTaxDiscount']?.toString(),
+      sewerTaxNetAmount: json['sewerTaxNetAmount']?.toString(),
+      billDate: json['billDate']?.toString(),
+      waterChargeArrear: json['waterChargeArrear']?.toString(),
+      waterChargeNetAmount: json['waterChargeNetAmount']?.toString(),
+      houseTaxMonthlyInterest: json['houseTaxMonthlyInterest']?.toString(),
+      houseTaxInterest: json['houseTaxInterest']?.toString(),
+      sewerCurrentTax: json['sewerCurrentTax']?.toString(),
+      houseTaxNetAmount: json['houseTaxNetAmount']?.toString(),
+      otherTaxDiscount: json['otherTaxDiscount']?.toString(),
+      waterChargeInterest: json['waterChargeInterest']?.toString(),
+      waterChargeCurrent: json['waterChargeCurrent']?.toString(),
     );
   }
 }

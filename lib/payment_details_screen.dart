@@ -298,6 +298,14 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
   Widget _buildContent() {
     final bill = _details?.billDetails;
 
+    // Calculate Total Advance Tax Pay
+    final houseTaxAdvance = double.tryParse(bill?.houseTaxAdvance ?? '0') ?? 0.0;
+    final waterTaxAdvance = double.tryParse(bill?.waterTaxAdvance ?? '0') ?? 0.0;
+    final sewerTaxAdvance = double.tryParse(bill?.sewerTaxAdvance ?? '0') ?? 0.0;
+    final otherTaxAdvance = double.tryParse(bill?.otherTaxAdvance ?? '0') ?? 0.0;
+    final waterChargeAdvance = double.tryParse(bill?.waterChargeAdvance ?? '0') ?? 0.0;
+    final totalAdvancePay = (houseTaxAdvance + waterTaxAdvance + sewerTaxAdvance + otherTaxAdvance + waterChargeAdvance).toStringAsFixed(2);
+
     return Column(
       children: [
         Expanded(
@@ -349,13 +357,13 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
                     padding: EdgeInsets.symmetric(vertical: 12),
                     child: Divider(height: 1, thickness: 0.8),
                   ),
-                  _buildSummaryRow('House Tax Net Amount', '201.00'),
-                  _buildSummaryRow('Water Tax Net Amount', '201.00'),
-                  _buildSummaryRow('Sewer Tax Net Amount', '201.00'),
-                  _buildSummaryRow('Other Tax Net Amount', '201.00'),
-                  _buildSummaryRow('Water Charge Net Amount', '201.00'),
-                  _buildSummaryRow('Net Demand', 'null'),
-                  _buildSummaryRow('Total Advance Tax Pay', '10.0'),
+                  _buildSummaryRow('House Tax Net Amount', bill?.houseTaxNetAmount),
+                  _buildSummaryRow('Water Tax Net Amount', bill?.waterTaxNetAmount),
+                  _buildSummaryRow('Sewer Tax Net Amount', bill?.sewerTaxNetAmount),
+                  _buildSummaryRow('Other Tax Net Amount', bill?.othertaxNetAmount),
+                  _buildSummaryRow('Water Charge Net Amount', bill?.waterChargeNetAmount),
+                  _buildSummaryRow('Net Demand', bill?.netDemand),
+                  _buildSummaryRow('Total Advance Tax Pay', totalAdvancePay),
                   const SizedBox(height: 20),
                   Container(
                     padding: const EdgeInsets.all(16),
