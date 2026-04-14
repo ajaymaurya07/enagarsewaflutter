@@ -25,6 +25,31 @@ class StorageService {
     return prefs.getBool('is_property_verified') ?? false;
   }
 
+  static Future<void> saveUlbId(String ulbId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('selected_ulb_id', ulbId);
+  }
+
+  static Future<String?> getUlbId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('selected_ulb_id');
+  }
+
+  static Future<void> saveTotalArv(String totalArv) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('selected_property_total_arv', totalArv);
+  }
+
+  static Future<String?> getTotalArv() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('selected_property_total_arv');
+  }
+
+  static Future<void> saveEmailId(String email) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('email_id', email);
+  }
+
   static Future<String?> getAccessToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('access_token');
@@ -52,6 +77,8 @@ class StorageService {
     await prefs.remove('email_id');
     await prefs.remove('user_type');
     await prefs.remove('is_property_verified');
+    await prefs.remove('selected_ulb_id');
+    await prefs.remove('selected_property_total_arv');
   }
 
   static Future<bool> isLoggedIn() async {

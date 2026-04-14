@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'services/api_service.dart';
 import 'services/storage_service.dart';
 import 'services/database_service.dart';
@@ -17,9 +16,17 @@ class PropertySelectionScreen extends StatefulWidget {
 class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
   bool _isLoading = false;
   PropertyDetailsData? _currentPropertyDetails;
+  PropertyData? _selectedProperty;
 
-  void _handlePropertySelection(String propertyId) async {
-    setState(() => _isLoading = true);
+  void _handlePropertySelection(PropertyData property) async {
+    final propertyId = property.propertyId;
+    if (propertyId == null) return;
+
+    setState(() {
+      _isLoading = true;
+      _selectedProperty = property;
+    });
+    
     try {
       // 1. Get Property Details
       final res = await ApiService.getPropertyDetails(propertyId);
@@ -102,6 +109,14 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
                   try {
                     final res = await ApiService.verifyOtp(mobileNo, otpController.text);
                     if (res.success == true) {
+                      // Get Saved Data
+                      final ulbId = await StorageService.getUlbId();
+                      final totalArv = _selectedProperty?.totalArv?.toString() ?? "0.0";
+                      final userId = res.userId?.toString() ?? "0";
+                      
+                      // Save Total ARV to SharedPreferences for this specific selection
+                      await StorageService.saveTotalArv(totalArv);
+
                       // --- Database Storage Logic ---
                       final email = await StorageService.getEmailId();
                       final userType = await StorageService.getUserType();
@@ -115,6 +130,9 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
                           phoneNumber: mobileNo,
                           email: email,
                           userType: userType,
+                          ulbId: ulbId,
+                          arvValue: totalArv,
+                          userId: userId,
                         ),
                       );
 
@@ -239,7 +257,7 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
                 SizedBox(
                   height: 36,
                   child: ElevatedButton(
-                    onPressed: () => _handlePropertySelection(property.propertyId ?? ""),
+                    onPressed: () => _handlePropertySelection(property),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFE67514),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),

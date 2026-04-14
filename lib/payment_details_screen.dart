@@ -1,6 +1,10 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'services/api_service.dart';
+import 'services/storage_service.dart';
+import 'services/database_service.dart';
 
 class PaymentDetailsScreen extends StatefulWidget {
   final String propertyId;
@@ -20,6 +24,12 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
   void initState() {
     super.initState();
     _fetchDetails();
+  }
+
+  String _getCurrentTime() {
+    final now = DateTime.now();
+    return "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} "
+           "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}";
   }
 
   Future<void> _fetchDetails() async {
@@ -130,7 +140,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
                     final res = await ApiService.verifyOtp(mobileNo, otpController.text);
                     if (res.success == true) {
                       Navigator.pop(context); // Close OTP sheet
-                      _showPaymentOptions(); // Show Payment Options
+                      _handleCreateTransaction();
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text(res.message ?? 'Invalid OTP')),
@@ -159,7 +169,96 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
     );
   }
 
-  void _showPaymentOptions() {
+  Future<void> _handleCreateTransaction() async {
+    setState(() => _isLoading = true);
+    try {
+      // 1. Get critical identifiers from Database for this property
+      final propertyEntity = await DatabaseService.getPropertyById(widget.propertyId);
+      
+      final String ulbId = propertyEntity?.ulbId ?? "0";
+      final String totalArvValue = propertyEntity?.arvValue ?? "0.0";
+      final String userId = propertyEntity?.userId ?? "0";
+
+      // 2. Get email from SharedPreferences
+      final String? email = await StorageService.getEmailId();
+      
+      final bill = _details?.billDetails;
+      final owner = _details?.ownerDetails;
+
+      // Formatting timestamp and ID as requested
+      final String mobileId = "MOBTXN${DateTime.now().millisecondsSinceEpoch}";
+      final String timestamp = _getCurrentTime();
+      
+      final request = InitiateTransactionRequest(
+        mobileTransactionId: mobileId,
+        mobileTransactionTimestamp: timestamp,
+        billNo: bill?.billNo ?? "",
+        propertyId: widget.propertyId,
+        ulbId: ulbId,
+        financialYear: bill?.finYear ?? "",
+        ownerName: owner?.ownerName ?? "",
+        fatherName: owner?.fatherName ?? "",
+        mobileNo: owner?.mobileNo ?? "",
+        propertyTax: bill?.houseTaxNetAmount ?? "0",
+        waterTax: bill?.waterTaxNetAmount ?? "0",
+        sewerTax: bill?.sewerTaxNetAmount ?? "0",
+        otherTax: bill?.othertaxNetAmount ?? "0",
+        waterCharge: bill?.waterChargeNetAmount ?? "0",
+        netDemand: bill?.netDemand ?? "0",
+        netPayable: bill?.netPayble ?? "0",
+        totalArv: totalArvValue,
+        userId: userId,
+        emailId: email ?? "",
+      );
+
+      // --- LOGGING THE REQUEST DATA ---
+      if (kDebugMode) {
+        print('--- API CALL: create_transaction ---');
+        print('Payload: ${jsonEncode(request.toJson())}');
+        print('-------------------------------------');
+      }
+
+      final response = await ApiService.initiateTransaction(request);
+      
+      if (kDebugMode) {
+        print('--- API RESPONSE: create_transaction ---');
+        print('Status: ${response.status}');
+        print('Message: ${response.message}');
+        if (response.data != null) {
+          print('TxnID: ${response.data?.txnid}');
+        }
+        print('----------------------------------------');
+      }
+
+      setState(() => _isLoading = false);
+
+      if (response.status == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Transaction Initiated: ${response.data?.txnid}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _showPaymentOptions(response.data);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(response.message ?? 'Transaction failed')),
+        );
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+      if (kDebugMode) {
+        print('--- TRANSACTION ERROR ---');
+        print(e.toString());
+        print('--------------------------');
+      }
+    }
+  }
+
+  void _showPaymentOptions(Transaction? transactionData) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -177,15 +276,18 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
               'Select Payment Gateway',
               style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold),
             ),
+            const SizedBox(height: 8),
+            Text(
+              'Amount: ₹ ${transactionData?.amount ?? "0.0"}',
+              style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey.shade700),
+            ),
             const SizedBox(height: 24),
             _buildPaymentOptionCard('Pay with Pay', 'Safe & Secure', Icons.payment_rounded, () {
               Navigator.pop(context);
-              // Handle Pay gateway logic
             }),
             const SizedBox(height: 12),
             _buildPaymentOptionCard('Pay with SBI', 'Official SBI Gateway', Icons.account_balance_rounded, () {
               Navigator.pop(context);
-              // Handle SBI gateway logic
             }),
             const SizedBox(height: 24),
           ],
@@ -297,8 +399,6 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
 
   Widget _buildContent() {
     final bill = _details?.billDetails;
-
-    // Calculate Total Advance Tax Pay
     final houseTaxAdvance = double.tryParse(bill?.houseTaxAdvance ?? '0') ?? 0.0;
     final waterTaxAdvance = double.tryParse(bill?.waterTaxAdvance ?? '0') ?? 0.0;
     final sewerTaxAdvance = double.tryParse(bill?.sewerTaxAdvance ?? '0') ?? 0.0;
@@ -352,7 +452,12 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
                   _buildSummaryRow('Bill Date', bill?.billDate),
                   _buildSummaryRow('Bill Number', bill?.billNo),
                   _buildSummaryRow('Financial Year', bill?.finYear),
-                  _buildSummaryRow('Total Arv', '10.0'),
+                  FutureBuilder<PropertyEntity?>(
+                    future: DatabaseService.getPropertyById(widget.propertyId),
+                    builder: (context, snapshot) {
+                      return _buildSummaryRow('Total Arv', snapshot.data?.arvValue ?? '0.0');
+                    },
+                  ),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 12),
                     child: Divider(height: 1, thickness: 0.8),
@@ -399,7 +504,6 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
             ),
           ),
         ),
-        // Action Buttons at bottom
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(

@@ -9,6 +9,9 @@ class PropertyEntity {
   final String phoneNumber;
   final String? email;
   final String? userType;
+  final String? ulbId;
+  final String? arvValue;
+  final String? userId;
 
   PropertyEntity({
     required this.propertyId,
@@ -18,6 +21,9 @@ class PropertyEntity {
     required this.phoneNumber,
     this.email,
     this.userType,
+    this.ulbId,
+    this.arvValue,
+    this.userId,
   });
 
   Map<String, dynamic> toMap() {
@@ -29,6 +35,9 @@ class PropertyEntity {
       'phoneNumber': phoneNumber,
       'email': email,
       'userType': userType,
+      'ulbId': ulbId,
+      'arvValue': arvValue,
+      'userId': userId,
     };
   }
 
@@ -41,6 +50,9 @@ class PropertyEntity {
       phoneNumber: map['phoneNumber'],
       email: map['email'],
       userType: map['userType'],
+      ulbId: map['ulbId'],
+      arvValue: map['arvValue'],
+      userId: map['userId'],
     );
   }
 }
@@ -58,11 +70,20 @@ class DatabaseService {
     String path = join(await getDatabasesPath(), 'property_database.db');
     return await openDatabase(
       path,
-      version: 1,
+      version: 3,
       onCreate: (db, version) {
         return db.execute(
-          'CREATE TABLE property_table(propertyId TEXT PRIMARY KEY, ownerName TEXT, ward TEXT, mohalla TEXT, phoneNumber TEXT, email TEXT, userType TEXT)',
+          'CREATE TABLE property_table(propertyId TEXT PRIMARY KEY, ownerName TEXT, ward TEXT, mohalla TEXT, phoneNumber TEXT, email TEXT, userType TEXT, ulbId TEXT, arvValue TEXT, userId TEXT)',
         );
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute('ALTER TABLE property_table ADD COLUMN ulbId TEXT');
+          await db.execute('ALTER TABLE property_table ADD COLUMN arvValue TEXT');
+        }
+        if (oldVersion < 3) {
+          await db.execute('ALTER TABLE property_table ADD COLUMN userId TEXT');
+        }
       },
     );
   }
@@ -74,6 +95,17 @@ class DatabaseService {
       property.toMap(),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
+  }
+
+  static Future<PropertyEntity?> getPropertyById(String propertyId) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'property_table',
+      where: 'propertyId = ?',
+      whereArgs: [propertyId],
+    );
+    if (maps.isEmpty) return null;
+    return PropertyEntity.fromMap(maps.first);
   }
 
   static Future<List<PropertyEntity>> getAllProperties() async {

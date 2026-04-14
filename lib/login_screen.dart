@@ -3,6 +3,7 @@ import 'signup_screen.dart';
 import 'search_property_screen.dart';
 import 'services/api_service.dart';
 import 'services/device_service.dart';
+import 'services/storage_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -51,6 +52,10 @@ class _LoginScreenState extends State<LoginScreen> {
         });
 
         _showSuccess('Login successful!');
+
+        // Save email if present in the response or input
+        final emailToSave = response.data?.emailId ?? email;
+        await StorageService.saveEmailId(emailToSave);
 
         // Clear the fields first
         _emailController.clear();

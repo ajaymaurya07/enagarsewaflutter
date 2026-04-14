@@ -257,6 +257,25 @@ class ApiService {
     }
   }
 
+  // Create Transaction API
+  static Future<CreateTransactionResponse> initiateTransaction(InitiateTransactionRequest request) async {
+    try {
+      final response = await _makeAuthenticatedRequest((headers) => http.post(
+        Uri.parse('${AppConstants.baseUrl}api/Payment/create_transaction'),
+        headers: headers,
+        body: jsonEncode(request.toJson()),
+      ).timeout(Duration(seconds: AppConstants.networkTimeout)));
+
+      if (response.statusCode == 200) {
+        return CreateTransactionResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Transaction initiation failed: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Connection error: $e');
+    }
+  }
+
   // Secure Login Flow
   static Future<LoginResponse> secureLogin(String username, String password, String deviceId) async {
     try {
@@ -718,6 +737,128 @@ class OtpVerificationResponse {
       userId: json['userId'],
     );
   }
+}
+
+class InitiateTransactionRequest {
+  final String mobileTransactionId;
+  final String mobileTransactionTimestamp;
+  final String billNo;
+  final String propertyId;
+  final String ulbId;
+  final String financialYear;
+  final String ownerName;
+  final String fatherName;
+  final String mobileNo;
+  final String propertyTax;
+  final String waterTax;
+  final String sewerTax;
+  final String otherTax;
+  final String waterCharge;
+  final String netDemand;
+  final String netPayable;
+  final String totalArv;
+  final String userId;
+  final String emailId;
+
+  InitiateTransactionRequest({
+    required this.mobileTransactionId,
+    required this.mobileTransactionTimestamp,
+    required this.billNo,
+    required this.propertyId,
+    required this.ulbId,
+    required this.financialYear,
+    required this.ownerName,
+    required this.fatherName,
+    required this.mobileNo,
+    required this.propertyTax,
+    required this.waterTax,
+    required this.sewerTax,
+    required this.otherTax,
+    required this.waterCharge,
+    required this.netDemand,
+    required this.netPayable,
+    required this.totalArv,
+    required this.userId,
+    required this.emailId,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'mobile_transaction_id': mobileTransactionId,
+    'mobile_transaction_timestamp': mobileTransactionTimestamp,
+    'bill_no': billNo,
+    'property_id': propertyId,
+    'ulb_id': ulbId,
+    'financial_year': financialYear,
+    'ownerName': ownerName,
+    'fatherName': fatherName,
+    'mobileNo': mobileNo,
+    'property_tax': propertyTax,
+    'water_tax': waterTax,
+    'sewer_tax': sewerTax,
+    'other_tax': otherTax,
+    'water_charge': waterCharge,
+    'net_demand': netDemand,
+    'net_payable': netPayable,
+    'totalArv': totalArv,
+    'user_id': userId,
+    'email_id': emailId,
+  };
+}
+
+class CreateTransactionResponse {
+  final Transaction? data;
+  final String? message;
+  final bool? status;
+
+  CreateTransactionResponse({this.data, this.message, this.status});
+
+  factory CreateTransactionResponse.fromJson(Map<String, dynamic> json) {
+    final dataJson = json['data'];
+
+    return CreateTransactionResponse(
+      data: dataJson is Map<String, dynamic>
+          ? Transaction.fromJson(dataJson)
+          : null, // 👈 agar [] hai to null kar do
+      message: json['message'],
+      status: json['status'] ?? json['success'], // 👈 dono handle kar liya
+    );
+  }
+}
+
+class Transaction {
+  final String? amount;
+  final String? firstname;
+  final String? phone;
+  final String? furl;
+  final String? surl;
+  final String? productinfo;
+  final String? email;
+  final String? key;
+  final String? txnid;
+
+  Transaction({
+    this.amount,
+    this.firstname,
+    this.phone,
+    this.furl,
+    this.surl,
+    this.productinfo,
+    this.email,
+    this.key,
+    this.txnid,
+  });
+
+  factory Transaction.fromJson(Map<String, dynamic> json) => Transaction(
+    amount: json['amount']?.toString(),
+    firstname: json['firstname'],
+    phone: json['phone']?.toString(),
+    furl: json['furl'],
+    surl: json['surl'],
+    productinfo: json['productinfo'],
+    email: json['email'],
+    key: json['key'],
+    txnid: json['txnid']?.toString(),
+  );
 }
 
 class LoginResponse {

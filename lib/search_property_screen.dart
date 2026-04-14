@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:enagarsewa/services/api_service.dart';
+import 'package:enagarsewa/services/storage_service.dart';
 import 'property_selection_screen.dart';
 
 class SearchPropertyScreen extends StatefulWidget {
@@ -169,6 +170,15 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
       });
 
       if (properties.isNotEmpty) {
+        // 1. Save selected ULB ID
+        await StorageService.saveUlbId(_selectedUlb!.ulbId ?? "");
+        
+        // 2. Save totalArv from the first property
+        if (properties.first.totalArv != null) {
+          await StorageService.saveTotalArv(properties.first.totalArv.toString());
+        }
+
+        if (!mounted) return;
         Navigator.push(
           context,
           MaterialPageRoute(
