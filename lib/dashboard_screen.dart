@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'property_tax_screen.dart';
 import 'search_property_screen.dart';
 import 'transaction_history_screen.dart';
+import 'account_screen.dart';
 import 'services/storage_service.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -37,6 +38,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const TransactionHistoryScreen()),
+      );
+    } else if (index == 2) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const AccountScreen()),
       );
     } else {
       setState(() {
