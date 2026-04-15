@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'services/storage_service.dart';
+import 'services/api_service.dart';
+import 'services/database_service.dart';
 import 'login_screen.dart';
 
 class AccountScreen extends StatefulWidget {
@@ -12,7 +14,6 @@ class AccountScreen extends StatefulWidget {
 
 class _AccountScreenState extends State<AccountScreen> {
   String _email = "";
-  String _mobile = "";
   String _userType = "";
   bool _isLoading = true;
 
@@ -26,21 +27,78 @@ class _AccountScreenState extends State<AccountScreen> {
     final email = await StorageService.getEmailId();
     final type = await StorageService.getUserType();
 
-    setState(() {
-      _email = email ?? "N/A";
-      _userType = type ?? "N/A";
-      _isLoading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _email = email ?? "N/A";
+        _userType = type ?? "N/A";
+        _isLoading = false;
+      });
+    }
   }
 
   void _handleLogout() async {
-    await StorageService.logout();
-    if (mounted) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-        (route) => false,
-      );
+    // Show confirmation dialog
+    bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Logout', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+        content: Text('Are you sure you want to logout?', style: GoogleFonts.poppins()),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Cancel', style: GoogleFonts.poppins(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Logout', style: GoogleFonts.poppins(color: Colors.red, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    // Show loading overlay
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator(color: Color(0xFF0E3B90))),
+    );
+
+    try {
+      // 1. Call Logout API
+      try {
+        await ApiService.logout();
+      } catch (e) {
+        debugPrint("Logout API failed: $e");
+        // We continue logout even if API fails to ensure local data is cleared
+      }
+
+      // 2. Clear Database
+      await DatabaseService.clearDatabase();
+
+      // 3. Clear Storage
+      await StorageService.logout();
+
+      if (mounted) {
+        // Remove loading overlay
+        Navigator.pop(context);
+        
+        // Navigate to Login Screen
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Remove loading overlay
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Logout failed: $e')),
+        );
+      }
     }
   }
 

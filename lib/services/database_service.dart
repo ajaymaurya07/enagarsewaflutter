@@ -1,5 +1,6 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import 'package:flutter/foundation.dart';
 
 class PropertyEntity {
   final String propertyId;
@@ -61,7 +62,7 @@ class DatabaseService {
   static Database? _database;
 
   static Future<Database> get database async {
-    if (_database != null) return _database!;
+    if (_database != null && _database!.isOpen) return _database!;
     _database = await _initDatabase();
     return _database!;
   }
@@ -123,5 +124,21 @@ class DatabaseService {
       where: 'propertyId = ?',
       whereArgs: [id],
     );
+  }
+
+  static Future<void> clearDatabase() async {
+    try {
+      String path = join(await getDatabasesPath(), 'property_database.db');
+      
+      if (_database != null) {
+        await _database!.close();
+        _database = null;
+      }
+      
+      await deleteDatabase(path);
+      debugPrint("Database cleared and file deleted successfully.");
+    } catch (e) {
+      debugPrint("Database clear error: $e");
+    }
   }
 }

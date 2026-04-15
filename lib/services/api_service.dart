@@ -358,6 +358,24 @@ class ApiService {
     }
   }
 
+  // Logout API
+  static Future<LogoutResponse> logout() async {
+    try {
+      final response = await _makeAuthenticatedRequest((headers) => http.post(
+            Uri.parse('${AppConstants.baseUrl}api/house_tax/logout'),
+            headers: headers,
+          ).timeout(Duration(seconds: AppConstants.networkTimeout)));
+
+      if (response.statusCode == 200) {
+        return LogoutResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Logout failed: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Connection error: $e');
+    }
+  }
+
   // Refresh Token API
   static Future<RefreshTokenResponse> refreshToken(String refreshToken) async {
     try {
@@ -948,6 +966,26 @@ class LoginResponse {
     responseCode: json['responseCode'],
     data: json['data'] != null ? SignIn.fromJson(json['data']) : null,
   );
+}
+
+class LogoutResponse {
+  final bool status;
+  final String message;
+  final int responseCode;
+
+  LogoutResponse({
+    required this.status,
+    required this.message,
+    required this.responseCode,
+  });
+
+  factory LogoutResponse.fromJson(Map<String, dynamic> json) {
+    return LogoutResponse(
+      status: json['status'] ?? false,
+      message: json['message'] ?? '',
+      responseCode: json['responseCode'] ?? 0,
+    );
+  }
 }
 
 class SignIn {
