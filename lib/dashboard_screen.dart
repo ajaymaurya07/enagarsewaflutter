@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'property_tax_screen.dart';
 import 'search_property_screen.dart';
+import 'transaction_history_screen.dart';
 import 'services/storage_service.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -29,6 +30,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _displayName = (_userType.toLowerCase() == "admin") ? "Admin" : _userType;
       if (_displayName.isEmpty) _displayName = "User";
     });
+  }
+
+  void _onItemTapped(int index) {
+    if (index == 1) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const TransactionHistoryScreen()),
+      );
+    } else {
+      setState(() {
+        _selectedIndex = index;
+      });
+    }
   }
 
   @override
@@ -224,7 +238,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         child: BottomNavigationBar(
           currentIndex: _selectedIndex,
-          onTap: (index) => setState(() => _selectedIndex = index),
+          onTap: _onItemTapped,
           selectedItemColor: const Color(0xFF0E3B90),
           unselectedItemColor: const Color(0xFF999999),
           backgroundColor: Colors.white,

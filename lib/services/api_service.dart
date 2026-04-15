@@ -276,6 +276,25 @@ class ApiService {
     }
   }
 
+  // Fetch Transactions By Email API
+  static Future<TransactionsByEmailResponse> getTransactionsByEmail(String emailId) async {
+    try {
+      final response = await _makeAuthenticatedRequest((headers) => http.post(
+        Uri.parse('${AppConstants.baseUrl}api/payment/get_transactions_by_email'),
+        headers: headers,
+        body: jsonEncode({'email_id': emailId}),
+      ).timeout(Duration(seconds: AppConstants.networkTimeout)));
+
+      if (response.statusCode == 200) {
+        return TransactionsByEmailResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Failed to load transactions: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Connection error: $e');
+    }
+  }
+
   // Secure Login Flow
   static Future<LoginResponse> secureLogin(String username, String password, String deviceId) async {
     try {
@@ -859,6 +878,62 @@ class Transaction {
     key: json['key'],
     txnid: json['txnid']?.toString(),
   );
+}
+
+class TransactionsByEmailResponse {
+  final bool? status;
+  final String? message;
+  final List<TransactionData>? data;
+
+  TransactionsByEmailResponse({this.status, this.message, this.data});
+
+  factory TransactionsByEmailResponse.fromJson(Map<String, dynamic> json) {
+    return TransactionsByEmailResponse(
+      status: json['status'],
+      message: json['message'],
+      data: json['data'] != null
+          ? (json['data'] as List).map((i) => TransactionData.fromJson(i)).toList()
+          : null,
+    );
+  }
+}
+
+class TransactionData {
+  final String? paymentAmount;
+  final String? billNo;
+  final String? propertyId;
+  final String? txnId;
+  final String? dateTime;
+  final String? financialYear;
+  final String? paymentMode;
+  final String? bankRefNo;
+  final String? transactionStatus;
+
+  TransactionData({
+    this.paymentAmount,
+    this.billNo,
+    this.propertyId,
+    this.txnId,
+    this.dateTime,
+    this.financialYear,
+    this.paymentMode,
+    this.bankRefNo,
+    this.transactionStatus,
+  });
+
+  factory TransactionData.fromJson(Map<String, dynamic> json) {
+    return TransactionData(
+      paymentAmount: json['payment_amount']?.toString(),
+      billNo: json['bill_no']?.toString(),
+      propertyId: json['property_id']?.toString(),
+      txnId: json['txnid']?.toString(),
+      dateTime: json['date_time'],
+      financialYear: json['financial_year'],
+      paymentMode: json['payment_mode'],
+      bankRefNo: json['bank_ref_no']?.toString(),
+      transactionStatus: json['transaction_status'],
+    );
+  }
 }
 
 class LoginResponse {
