@@ -2,11 +2,16 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:http/http.dart' as http;
 import 'package:crypto/crypto.dart';
+import 'package:flutter/material.dart';
 import 'storage_service.dart';
 import 'device_service.dart';
+import 'database_service.dart';
 import '../constants/app_constants.dart';
+import '../login_screen.dart';
 
 class ApiService {
+  static GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
   static Future<Map<String, String>> _getHeaders() async {
     final token = await StorageService.getAccessToken();
     final deviceId = await DeviceService.getDeviceId();
@@ -19,6 +24,18 @@ class ApiService {
       'device_id': deviceId,
       if (token != null) 'Authorization': 'Bearer $token',
     };
+  }
+
+  static Future<void> _handleSessionExpired() async {
+    await DatabaseService.clearDatabase();
+    await StorageService.logout();
+    
+    if (navigatorKey.currentState != null) {
+      navigatorKey.currentState!.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (route) => false,
+      );
+    }
   }
 
   static Future<http.Response> _makeAuthenticatedRequest(
@@ -36,14 +53,19 @@ class ApiService {
             await StorageService.updateAccessToken(refreshResponse.data!.accessToken!);
             headers = await _getHeaders();
             response = await requestFn(headers);
+            
+            // Agar retry ke baad bhi 403 aata hai
+            if (response.statusCode == 403) {
+              await _handleSessionExpired();
+            }
           } else {
-            await StorageService.logout();
+            await _handleSessionExpired();
           }
         } catch (e) {
-          await StorageService.logout();
+          await _handleSessionExpired();
         }
       } else {
-        await StorageService.logout();
+        await _handleSessionExpired();
       }
     }
     return response;
