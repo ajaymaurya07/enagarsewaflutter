@@ -4,6 +4,7 @@ import 'property_tax_screen.dart';
 import 'search_property_screen.dart';
 import 'transaction_history_screen.dart';
 import 'account_screen.dart';
+import 'track_grievance_screen.dart';
 import 'services/storage_service.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -224,7 +225,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       );
                     },
                   ),
-                  _buildServiceCard('Track Grievance', 'Manage all property grievances', Icons.assignment_outlined, cardWidth),
+                  _buildServiceCard(
+                    'Track Grievance', 
+                    'Manage all property grievances', 
+                    Icons.assignment_outlined, 
+                    cardWidth,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const TrackGrievanceScreen()),
+                      );
+                    },
+                  ),
                   _buildServiceCard('ARV Change History', 'Manage all ARV change history', Icons.history_outlined, cardWidth),
                   _buildServiceCard('Property Tax Assessment', 'Manage all property assessments', Icons.assessment_outlined, cardWidth),
                   _buildServiceCard('Mutation', 'Manage name transfer and mutation', Icons.swap_horiz_outlined, cardWidth),
