@@ -443,6 +443,25 @@ class ApiService {
     }
   }
 
+  // Get Grievance Details API
+  static Future<GrievanceDetailsResponse> getGrievanceDetails(String emailId) async {
+    try {
+      final response = await _makeAuthenticatedRequest((headers) => http.post(
+        Uri.parse('${AppConstants.baseUrl}api/house_tax/getGrievanceDetails'),
+        headers: headers,
+        body: jsonEncode({'email_id': emailId}),
+      ).timeout(Duration(seconds: AppConstants.networkTimeout)));
+
+      if (response.statusCode == 200) {
+        return GrievanceDetailsResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Failed to load grievance details: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Connection error: $e');
+    }
+  }
+
   // Secure Login Flow
   static Future<LoginResponse> secureLogin(String username, String password, String deviceId) async {
     try {
@@ -1230,4 +1249,60 @@ class RefreshTokenData {
   factory RefreshTokenData.fromJson(Map<String, dynamic> json) => RefreshTokenData(
     accessToken: json['access_token'],
   );
+}
+
+class GrievanceDetailsResponse {
+  final bool? success;
+  final String? message;
+  final List<GrievanceDetails>? data;
+
+  GrievanceDetailsResponse({this.success, this.message, this.data});
+
+  factory GrievanceDetailsResponse.fromJson(Map<String, dynamic> json) {
+    return GrievanceDetailsResponse(
+      success: json['success'],
+      message: json['message'],
+      data: json['data'] != null
+          ? (json['data'] as List).map((i) => GrievanceDetails.fromJson(i)).toList()
+          : null,
+    );
+  }
+}
+
+class GrievanceDetails {
+  final String? grievanceNo;
+  final String? description;
+  final String? name;
+  final String? fatherName;
+  final String? mobileNo;
+  final String? email;
+  final String? updatedAt;
+  final String? categoryName;
+  final String? subcategoryName;
+
+  GrievanceDetails({
+    this.grievanceNo,
+    this.description,
+    this.name,
+    this.fatherName,
+    this.mobileNo,
+    this.email,
+    this.updatedAt,
+    this.categoryName,
+    this.subcategoryName,
+  });
+
+  factory GrievanceDetails.fromJson(Map<String, dynamic> json) {
+    return GrievanceDetails(
+      grievanceNo: json['grievance_no']?.toString(),
+      description: json['description'],
+      name: json['name'],
+      fatherName: json['father_name'],
+      mobileNo: json['mobile_no']?.toString(),
+      email: json['email'],
+      updatedAt: json['updated_at'],
+      categoryName: json['category_name'],
+      subcategoryName: json['subcategory_name'],
+    );
+  }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'apply_grievance_screen.dart';
+import 'grievance_status_screen.dart';
 
 class TrackGrievanceScreen extends StatelessWidget {
   const TrackGrievanceScreen({super.key});
@@ -48,7 +49,10 @@ class TrackGrievanceScreen extends StatelessWidget {
               icon: Icons.track_changes_rounded,
               color: const Color(0xFFE67514),
               onTap: () {
-                // TODO: Navigate to Grievance Status Screen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const GrievanceStatusScreen()),
+                );
               },
             ),
           ],
@@ -75,7 +79,7 @@ class TrackGrievanceScreen extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
+              color: Colors.black.withOpacity(0.05),
               blurRadius: 15,
               offset: const Offset(0, 8),
             ),
@@ -86,7 +90,7 @@ class TrackGrievanceScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
+                color: color.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: color, size: 32),
