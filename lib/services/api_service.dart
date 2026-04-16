@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:math';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
@@ -68,6 +69,108 @@ class ApiService {
       }
     }
     return response;
+  }
+
+  // Save Grievance API (Multipart)
+  static Future<SaveGrievanceResponse> saveGrievance({
+    required String ulbId,
+    required String zoneId,
+    required String wardId,
+    required String mohallaId,
+    required String categoryId,
+    required String subCategoryId,
+    required String landmark,
+    required String description,
+    required String name,
+    required String fatherName,
+    required String mobileNo,
+    required String email,
+    required String address,
+    required String propertyId,
+    File? imageFile,
+  }) async {
+    try {
+      final token = await StorageService.getAccessToken();
+      final deviceId = await DeviceService.getDeviceId();
+      
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('${AppConstants.baseUrl}api/house_tax/saveGrievance'),
+      );
+
+      // Headers
+      request.headers.addAll({
+        'Accept': 'application/json',
+        'X-App-Version': AppConstants.apiVersion,
+        'X-Device-Id': deviceId,
+        if (token != null) 'Authorization': 'Bearer $token',
+      });
+
+      // Fields
+      request.fields['ulbId'] = ulbId;
+      request.fields['zoneId'] = zoneId;
+      request.fields['wardId'] = wardId;
+      request.fields['mohallaId'] = mohallaId;
+      request.fields['categoryId'] = categoryId;
+      request.fields['subCategoryId'] = subCategoryId;
+      request.fields['landmark'] = landmark;
+      request.fields['description'] = description;
+      request.fields['name'] = name;
+      request.fields['fatherName'] = fatherName;
+      request.fields['mobileNo'] = mobileNo;
+      request.fields['email'] = email;
+      request.fields['address'] = address;
+      request.fields['propertyId'] = propertyId;
+
+      // File
+      if (imageFile != null) {
+        request.files.add(await http.MultipartFile.fromPath(
+          'file',
+          imageFile.path,
+        ));
+      }
+
+      final streamedResponse = await request.send().timeout(Duration(seconds: AppConstants.networkTimeout));
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) {
+        return SaveGrievanceResponse.fromJson(jsonDecode(response.body));
+      } else if (response.statusCode == 403) {
+        await _handleSessionExpired();
+        throw Exception('Session expired. Please login again.');
+      } else {
+        throw Exception('Failed to save grievance: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Connection error: $e');
+    }
+  }
+
+  // Register Grievance Verify OTP API
+  static Future<OtpVerificationResponse> registerGrievanceVerifyOtp({
+    required String mobileNo,
+    required String otp,
+    required String grievanceId,
+  }) async {
+    try {
+      final response = await _makeAuthenticatedRequest((headers) => http.post(
+        Uri.parse('${AppConstants.baseUrl}api/house_tax/registerGrievanceAfterOtp'),
+        headers: headers,
+        body: jsonEncode({
+          'mobileNo': mobileNo,
+          'otp': otp,
+          'grievance_id': grievanceId,
+        }),
+      ).timeout(Duration(seconds: AppConstants.networkTimeout)));
+
+      if (response.statusCode == 200) {
+        return OtpVerificationResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Verification failed: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Connection error: $e');
+    }
   }
 
   // Fetch Grievance Categories API
@@ -455,6 +558,32 @@ class ApiService {
 }
 
 // --- Models ---
+
+class SaveGrievanceResponse {
+  final bool success;
+  final int responseCode;
+  final String message;
+  final GrievanceData? data;
+
+  SaveGrievanceResponse({required this.success, required this.responseCode, required this.message, this.data});
+
+  factory SaveGrievanceResponse.fromJson(Map<String, dynamic> json) {
+    return SaveGrievanceResponse(
+      success: json['success'] ?? false,
+      responseCode: json['responseCode'] ?? 0,
+      message: json['message'] ?? '',
+      data: json['data'] != null ? GrievanceData.fromJson(json['data']) : null,
+    );
+  }
+}
+
+class GrievanceData {
+  final String? grievanceId;
+  GrievanceData({this.grievanceId});
+  factory GrievanceData.fromJson(Map<String, dynamic> json) => GrievanceData(
+    grievanceId: json['grievance_id']?.toString(),
+  );
+}
 
 class GrievanceCategory {
   final int? serviceCode;

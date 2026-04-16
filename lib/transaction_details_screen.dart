@@ -76,8 +76,9 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
     final bool isPending = widget.transaction.transactionStatus?.toLowerCase() == 'pending';
 
     Color statusColor = Colors.red;
-    if (isSuccess) statusColor = Colors.green;
-    else if (isPending) statusColor = const Color(0xFFE6A23C);
+    if (isSuccess) {
+      statusColor = Colors.green;
+    } else if (isPending) statusColor = const Color(0xFFE6A23C);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF0F2F5),

@@ -169,7 +169,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         ),
                       ),
                     );
-                  }).toList(),
+                  }),
                 ]
                 // CASE 2: No phone numbers detected - Show input field only
                 else ...[
@@ -341,7 +341,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         ),
                       ),
                     );
-                  }).toList(),
+                  }),
                 ]
                 // CASE 2: No emails detected - Show input field only
                 else ...[

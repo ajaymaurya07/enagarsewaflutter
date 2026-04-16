@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'services/api_service.dart';
-import 'services/storage_service.dart';
 import 'services/database_service.dart';
 
 class ApplyGrievanceScreen extends StatefulWidget {
@@ -17,6 +16,7 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
   final _formKey = GlobalKey<FormState>();
   final ImagePicker _picker = ImagePicker();
   File? _selectedImage;
+  bool _isSubmitting = false;
 
   // Personal Info Controllers
   final TextEditingController _fullNameController = TextEditingController();
@@ -254,178 +254,191 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildSectionTitle('Property Information'),
-              const SizedBox(height: 12),
-              _buildSelectableField(
-                hint: _selectedProperty?.propertyId ?? 'Select Property ID',
-                onTap: _savedProperties.isEmpty 
-                  ? null 
-                  : () => _showSelectionSheet(
-                    title: 'Select Property',
-                    items: _savedProperties.map((e) => e.propertyId).toList(),
-                    onSelected: (index) => _onPropertySelected(_savedProperties[index]),
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSectionTitle('Property Information'),
+                  const SizedBox(height: 12),
+                  _buildSelectableField(
+                    hint: _selectedProperty?.propertyId ?? 'Select Property ID',
+                    onTap: _savedProperties.isEmpty 
+                      ? null 
+                      : () => _showSelectionSheet(
+                        title: 'Select Property',
+                        items: _savedProperties.map((e) => e.propertyId).toList(),
+                        onSelected: (index) => _onPropertySelected(_savedProperties[index]),
+                      ),
                   ),
-              ),
-              const SizedBox(height: 24),
+                  const SizedBox(height: 24),
 
-              _buildSectionTitle('Personal Information'),
-              const SizedBox(height: 12),
-              _buildTextField('Full Name', _fullNameController, icon: Icons.person_outline, enabled: false),
-              _buildTextField('Mobile Number', _mobileController, icon: Icons.phone_android_outlined, keyboardType: TextInputType.phone, enabled: false),
-              _buildTextField('Email ID', _emailController, icon: Icons.email_outlined, enabled: false),
-              _buildTextField('Father/Husband Name', _fatherNameController, icon: Icons.family_restroom_outlined, enabled: false),
-              _buildTextField('Address', _addressController, icon: Icons.location_on_outlined, maxLines: 2, enabled: false),
-              
-              const SizedBox(height: 24),
-              _buildSectionTitle('Location Details'),
-              const SizedBox(height: 12),
-              
-              // Select ULB
-              _buildSelectableField(
-                hint: _isLoadingUlbs ? 'Loading ULBs...' : (_selectedUlb?.toString() ?? 'Select ULB'),
-                onTap: _isLoadingUlbs ? null : () => _showSelectionSheet(
-                  title: 'Select ULB',
-                  items: _ulbList.map((e) => e.toString()).toList(),
-                  onSelected: (index) {
-                    setState(() {
-                      _selectedUlb = _ulbList[index];
-                      _selectedZone = null;
-                      _selectedWard = null;
-                      _selectedMohalla = null;
-                      _zoneList = [];
-                      _wardList = [];
-                      _mohallaList = [];
-                    });
-                    _fetchZones(_selectedUlb!.ulbId!);
-                  },
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Select Zone
-              _buildSelectableField(
-                hint: _isLoadingZones ? 'Loading Zones...' : (_selectedZone?.zoneName ?? 'Select Zone'),
-                onTap: (_selectedUlb == null || _isLoadingZones) ? null : () => _showSelectionSheet(
-                  title: 'Select Zone',
-                  items: _zoneList.map((e) => e.zoneName).toList(),
-                  onSelected: (index) {
-                    setState(() {
-                      _selectedZone = _zoneList[index];
-                      _selectedWard = null;
-                      _selectedMohalla = null;
-                      _wardList = [];
-                      _mohallaList = [];
-                    });
-                    _fetchWards(_selectedUlb!.ulbId!, _selectedZone!.zoneId);
-                  },
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Select Ward
-              _buildSelectableField(
-                hint: _isLoadingWards ? 'Loading Wards...' : (_selectedWard?.wardName ?? 'Select Ward'),
-                onTap: (_selectedZone == null || _isLoadingWards) ? null : () => _showSelectionSheet(
-                  title: 'Select Ward',
-                  items: _wardList.map((e) => e.wardName).toList(),
-                  onSelected: (index) {
-                    setState(() {
-                      _selectedWard = _wardList[index];
-                      _selectedMohalla = null;
-                      _mohallaList = [];
-                    });
-                    _fetchMohallas(_selectedUlb!.ulbId!, _selectedZone!.zoneId, _selectedWard!.wardId);
-                  },
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Select Mohalla
-              _buildSelectableField(
-                hint: _isLoadingMohallas ? 'Loading Mohallas...' : (_selectedMohalla?.mohallaName ?? 'Select Mohalla'),
-                onTap: (_selectedWard == null || _isLoadingMohallas) ? null : () => _showSelectionSheet(
-                  title: 'Select Mohalla',
-                  items: _mohallaList.map((e) => e.mohallaName).toList(),
-                  onSelected: (index) {
-                    setState(() {
-                      _selectedMohalla = _mohallaList[index];
-                    });
-                  },
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              _buildTextField('Landmark', _landmarkController, icon: Icons.pin_drop_outlined, isRequired: true),
-
-              const SizedBox(height: 24),
-              _buildSectionTitle('Grievance Details'),
-              const SizedBox(height: 12),
-              
-              // Select Category
-              _buildSelectableField(
-                hint: _isLoadingCategories ? 'Loading Categories...' : (_selectedCategory?.serviceName ?? 'Select Category'),
-                onTap: _isLoadingCategories ? null : () => _showSelectionSheet(
-                  title: 'Select Category',
-                  items: _grievanceCategories.map((e) => e.serviceName ?? '').toList(),
-                  onSelected: (index) {
-                    setState(() {
-                      _selectedCategory = _grievanceCategories[index];
-                      _selectedSubCategory = null;
-                    });
-                  },
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Select Sub Category
-              _buildSelectableField(
-                hint: _selectedCategory == null ? 'Select Category First' : (_selectedSubCategory?.subName ?? 'Select Sub Category'),
-                onTap: _selectedCategory == null ? null : () => _showSelectionSheet(
-                  title: 'Select Sub Category',
-                  items: _selectedCategory!.subCategories!.map((e) => e.subName ?? '').toList(),
-                  onSelected: (index) {
-                    setState(() {
-                      _selectedSubCategory = _selectedCategory!.subCategories![index];
-                    });
-                  },
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              _buildTextField('Grievance Description', _descriptionController, maxLines: 4, isRequired: true),
-              
-              const SizedBox(height: 16),
-              _buildPhotoUploadSection(),
-
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: _submitGrievance,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0E3B90),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    elevation: 0,
+                  _buildSectionTitle('Personal Information'),
+                  const SizedBox(height: 12),
+                  _buildTextField('Full Name', _fullNameController, icon: Icons.person_outline, enabled: false),
+                  _buildTextField('Mobile Number', _mobileController, icon: Icons.phone_android_outlined, keyboardType: TextInputType.phone, enabled: false),
+                  _buildTextField('Email ID', _emailController, icon: Icons.email_outlined, enabled: false),
+                  _buildTextField('Father/Husband Name', _fatherNameController, icon: Icons.family_restroom_outlined, enabled: false),
+                  _buildTextField('Address', _addressController, icon: Icons.location_on_outlined, maxLines: 2, enabled: false),
+                  
+                  const SizedBox(height: 24),
+                  _buildSectionTitle('Location Details'),
+                  const SizedBox(height: 12),
+                  
+                  // Select ULB
+                  _buildSelectableField(
+                    hint: _isLoadingUlbs ? 'Loading ULBs...' : (_selectedUlb?.toString() ?? 'Select ULB'),
+                    onTap: _isLoadingUlbs ? null : () => _showSelectionSheet(
+                      title: 'Select ULB',
+                      items: _ulbList.map((e) => e.toString()).toList(),
+                      onSelected: (index) {
+                        setState(() {
+                          _selectedUlb = _ulbList[index];
+                          _selectedZone = null;
+                          _selectedWard = null;
+                          _selectedMohalla = null;
+                          _zoneList = [];
+                          _wardList = [];
+                          _mohallaList = [];
+                        });
+                        _fetchZones(_selectedUlb!.ulbId!);
+                      },
+                    ),
                   ),
-                  child: Text(
-                    'Submit Grievance',
-                    style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold),
+                  const SizedBox(height: 16),
+
+                  // Select Zone
+                  _buildSelectableField(
+                    hint: _isLoadingZones ? 'Loading Zones...' : (_selectedZone?.zoneName ?? 'Select Zone'),
+                    onTap: (_selectedUlb == null || _isLoadingZones) ? null : () => _showSelectionSheet(
+                      title: 'Select Zone',
+                      items: _zoneList.map((e) => e.zoneName).toList(),
+                      onSelected: (index) {
+                        setState(() {
+                          _selectedZone = _zoneList[index];
+                          _selectedWard = null;
+                          _selectedMohalla = null;
+                          _wardList = [];
+                          _mohallaList = [];
+                        });
+                        _fetchWards(_selectedUlb!.ulbId!, _selectedZone!.zoneId);
+                      },
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 16),
+
+                  // Select Ward
+                  _buildSelectableField(
+                    hint: _isLoadingWards ? 'Loading Wards...' : (_selectedWard?.wardName ?? 'Select Ward'),
+                    onTap: (_selectedZone == null || _isLoadingWards) ? null : () => _showSelectionSheet(
+                      title: 'Select Ward',
+                      items: _wardList.map((e) => e.wardName).toList(),
+                      onSelected: (index) {
+                        setState(() {
+                          _selectedWard = _wardList[index];
+                          _selectedMohalla = null;
+                          _mohallaList = [];
+                        });
+                        _fetchMohallas(_selectedUlb!.ulbId!, _selectedZone!.zoneId, _selectedWard!.wardId);
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Select Mohalla
+                  _buildSelectableField(
+                    hint: _isLoadingMohallas ? 'Loading Mohallas...' : (_selectedMohalla?.mohallaName ?? 'Select Mohalla'),
+                    onTap: (_selectedWard == null || _isLoadingMohallas) ? null : () => _showSelectionSheet(
+                      title: 'Select Mohalla',
+                      items: _mohallaList.map((e) => e.mohallaName).toList(),
+                      onSelected: (index) {
+                        setState(() {
+                          _selectedMohalla = _mohallaList[index];
+                        });
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  _buildTextField('Landmark', _landmarkController, icon: Icons.pin_drop_outlined, isRequired: true),
+
+                  const SizedBox(height: 24),
+                  _buildSectionTitle('Grievance Details'),
+                  const SizedBox(height: 12),
+                  
+                  // Select Category
+                  _buildSelectableField(
+                    hint: _isLoadingCategories ? 'Loading Categories...' : (_selectedCategory?.serviceName ?? 'Select Category'),
+                    onTap: _isLoadingCategories ? null : () => _showSelectionSheet(
+                      title: 'Select Category',
+                      items: _grievanceCategories.map((e) => e.serviceName ?? '').toList(),
+                      onSelected: (index) {
+                        setState(() {
+                          _selectedCategory = _grievanceCategories[index];
+                          _selectedSubCategory = null;
+                        });
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Select Sub Category
+                  _buildSelectableField(
+                    hint: _selectedCategory == null ? 'Select Category First' : (_selectedSubCategory?.subName ?? 'Select Sub Category'),
+                    onTap: _selectedCategory == null ? null : () => _showSelectionSheet(
+                      title: 'Select Sub Category',
+                      items: _selectedCategory!.subCategories!.map((e) => e.subName ?? '').toList(),
+                      onSelected: (index) {
+                        setState(() {
+                          _selectedSubCategory = _selectedCategory!.subCategories![index];
+                        });
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  _buildTextField('Grievance Description', _descriptionController, maxLines: 4, isRequired: true),
+                  
+                  const SizedBox(height: 16),
+                  _buildPhotoUploadSection(),
+
+                  const SizedBox(height: 32),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: _isSubmitting ? null : _submitGrievance,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0E3B90),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        elevation: 0,
+                      ),
+                      child: _isSubmitting 
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : Text(
+                            'Submit Grievance',
+                            style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                ],
               ),
-              const SizedBox(height: 40),
-            ],
+            ),
           ),
-        ),
+          if (_isSubmitting)
+            Container(
+              color: Colors.black.withOpacity(0.3),
+              child: const Center(
+                child: CircularProgressIndicator(color: Color(0xFF0E3B90)),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -573,14 +586,15 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
     );
   }
 
-  void _submitGrievance() {
+  Future<void> _submitGrievance() async {
     // 1. Validate Form Fields (Edittexts)
     if (!_formKey.currentState!.validate()) return;
 
     // 2. Validate Custom Selectable Fields
     String? errorMessage;
-    if (_selectedProperty == null) errorMessage = 'Please select Property ID';
-    else if (_selectedUlb == null) errorMessage = 'Please select ULB';
+    if (_selectedProperty == null) {
+      errorMessage = 'Please select Property ID';
+    } else if (_selectedUlb == null) errorMessage = 'Please select ULB';
     else if (_selectedZone == null) errorMessage = 'Please select Zone';
     else if (_selectedWard == null) errorMessage = 'Please select Ward';
     else if (_selectedMohalla == null) errorMessage = 'Please select Mohalla';
@@ -594,9 +608,175 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
       return;
     }
 
-    // Success - All mandatory fields are present (Photo is optional)
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Grievance Submitted Successfully!'), backgroundColor: Colors.green),
+    setState(() => _isSubmitting = true);
+
+    try {
+      final response = await ApiService.saveGrievance(
+        ulbId: _selectedUlb!.ulbId!,
+        zoneId: _selectedZone!.zoneId,
+        wardId: _selectedWard!.wardId,
+        mohallaId: _selectedMohalla!.mohallaId,
+        categoryId: _selectedCategory!.serviceCode.toString(),
+        subCategoryId: _selectedSubCategory!.subCatCode.toString(),
+        landmark: _landmarkController.text.trim(),
+        description: _descriptionController.text.trim(),
+        name: _fullNameController.text.trim(),
+        fatherName: _fatherNameController.text.trim(),
+        mobileNo: _mobileController.text.trim(),
+        email: _emailController.text.trim(),
+        address: _addressController.text.trim(),
+        propertyId: _selectedProperty!.propertyId,
+        imageFile: _selectedImage,
+      );
+
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+        if (response.success && response.data?.grievanceId != null) {
+          // Open OTP Bottom Sheet on Success
+          _showOtpVerificationSheet(_mobileController.text.trim(), response.data!.grievanceId!);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(response.message), backgroundColor: Colors.red),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  void _showOtpVerificationSheet(String mobileNo, String grievanceId) {
+    final TextEditingController otpController = TextEditingController();
+    bool isVerifying = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            top: 24, left: 24, right: 24
+          ),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Verify OTP',
+                style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Enter the OTP sent to $mobileNo to complete your grievance registration.',
+                style: GoogleFonts.poppins(color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 24),
+              TextField(
+                controller: otpController,
+                keyboardType: TextInputType.number,
+                maxLength: 6,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(fontSize: 24, letterSpacing: 8, fontWeight: FontWeight.bold),
+                decoration: InputDecoration(
+                  hintText: '000000',
+                  counterText: "",
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: isVerifying ? null : () async {
+                  if (otpController.text.length < 4) return;
+                  
+                  setModalState(() => isVerifying = true);
+                  try {
+                    final res = await ApiService.registerGrievanceVerifyOtp(
+                      mobileNo: mobileNo,
+                      otp: otpController.text,
+                      grievanceId: grievanceId,
+                    );
+                    print(res.message);
+                    if (res.success == true) {
+                      if (!mounted) return;
+                      Navigator.pop(context); // Close OTP sheet
+                      _showSuccessDialog(res.message ?? 'Grievance Registered Successfully!', grievanceId);
+                    } else {
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(res.message ?? 'Invalid OTP')),
+                      );
+                    }
+                  } catch (e) {
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(e.toString())),
+                    );
+                  } finally {
+                    if (mounted) setModalState(() => isVerifying = false);
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0E3B90),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: isVerifying 
+                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : Text('Verify & Register', style: GoogleFonts.poppins(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(height: 32),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showSuccessDialog(String message, String? grievanceId) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.check_circle_outline_rounded, color: Colors.green, size: 28),
+            const SizedBox(width: 10),
+            Text('Success', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(message, style: GoogleFonts.poppins()),
+            if (grievanceId != null) ...[
+              const SizedBox(height: 12),
+              Text('Grievance ID:', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14)),
+              Text(grievanceId, style: GoogleFonts.poppins(color: const Color(0xFF0E3B90), fontWeight: FontWeight.bold, fontSize: 18)),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              Navigator.pop(context); // Go back from Apply Screen
+            },
+            child: Text('OK', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
     );
   }
 }
