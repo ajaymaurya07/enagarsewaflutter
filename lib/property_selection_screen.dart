@@ -133,6 +133,8 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
                           ulbId: ulbId,
                           arvValue: totalArv,
                           userId: userId,
+                          fatherName: _selectedProperty?.fatherHusbandName ?? "N/A", // 👈 Added fatherName
+                          address: _selectedProperty?.address ?? "N/A", // 👈 Added address
                         ),
                       );
 

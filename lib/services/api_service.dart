@@ -54,7 +54,6 @@ class ApiService {
             headers = await _getHeaders();
             response = await requestFn(headers);
             
-            // Agar retry ke baad bhi 403 aata hai
             if (response.statusCode == 403) {
               await _handleSessionExpired();
             }
@@ -69,6 +68,30 @@ class ApiService {
       }
     }
     return response;
+  }
+
+  // Fetch Grievance Categories API
+  static Future<List<GrievanceCategory>> getGrievanceCategories() async {
+    try {
+      final response = await _makeAuthenticatedRequest((headers) => http.get(
+        Uri.parse('${AppConstants.baseUrl}api/House_tax/grievanceCategory'),
+        headers: headers,
+      ).timeout(Duration(seconds: AppConstants.networkTimeout)));
+
+      if (response.statusCode == 200) {
+        final decodedData = json.decode(response.body);
+        if (decodedData['success'] == true && decodedData['data'] != null) {
+          return (decodedData['data'] as List)
+              .map((item) => GrievanceCategory.fromJson(item))
+              .toList();
+        }
+        throw Exception(decodedData['message'] ?? 'Failed to load categories');
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Connection error: $e');
+    }
   }
 
   // Fetch ULB Data
@@ -432,6 +455,40 @@ class ApiService {
 }
 
 // --- Models ---
+
+class GrievanceCategory {
+  final int? serviceCode;
+  final String? serviceName;
+  final List<GrievanceSubCategory>? subCategories;
+
+  GrievanceCategory({this.serviceCode, this.serviceName, this.subCategories});
+
+  factory GrievanceCategory.fromJson(Map<String, dynamic> json) {
+    return GrievanceCategory(
+      serviceCode: json['serviceCode'],
+      serviceName: json['serviceName'],
+      subCategories: json['subCategories'] != null
+          ? (json['subCategories'] as List)
+              .map((i) => GrievanceSubCategory.fromJson(i))
+              .toList()
+          : null,
+    );
+  }
+}
+
+class GrievanceSubCategory {
+  final int? subCatCode;
+  final String? subName;
+
+  GrievanceSubCategory({this.subCatCode, this.subName});
+
+  factory GrievanceSubCategory.fromJson(Map<String, dynamic> json) {
+    return GrievanceSubCategory(
+      subCatCode: json['subCatCode'],
+      subName: json['subName'],
+    );
+  }
+}
 
 class UlbData {
   final String? ulbName;
@@ -877,9 +934,9 @@ class CreateTransactionResponse {
     return CreateTransactionResponse(
       data: dataJson is Map<String, dynamic>
           ? Transaction.fromJson(dataJson)
-          : null, // 👈 agar [] hai to null kar do
+          : null,
       message: json['message'],
-      status: json['status'] ?? json['success'], // 👈 dono handle kar liya
+      status: json['status'] ?? json['success'],
     );
   }
 }

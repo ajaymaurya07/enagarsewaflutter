@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'apply_grievance_screen.dart';
 
 class TrackGrievanceScreen extends StatelessWidget {
   const TrackGrievanceScreen({super.key});
@@ -33,7 +34,10 @@ class TrackGrievanceScreen extends StatelessWidget {
               icon: Icons.add_task_rounded,
               color: const Color(0xFF0E3B90),
               onTap: () {
-                // TODO: Navigate to Apply Grievance Screen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ApplyGrievanceScreen()),
+                );
               },
             ),
             const SizedBox(height: 20),

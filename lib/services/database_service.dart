@@ -13,6 +13,8 @@ class PropertyEntity {
   final String? ulbId;
   final String? arvValue;
   final String? userId;
+  final String? fatherName;
+  final String? address;
 
   PropertyEntity({
     required this.propertyId,
@@ -25,6 +27,8 @@ class PropertyEntity {
     this.ulbId,
     this.arvValue,
     this.userId,
+    this.fatherName,
+    this.address,
   });
 
   Map<String, dynamic> toMap() {
@@ -39,6 +43,8 @@ class PropertyEntity {
       'ulbId': ulbId,
       'arvValue': arvValue,
       'userId': userId,
+      'fatherName': fatherName,
+      'address': address,
     };
   }
 
@@ -54,6 +60,8 @@ class PropertyEntity {
       ulbId: map['ulbId'],
       arvValue: map['arvValue'],
       userId: map['userId'],
+      fatherName: map['fatherName'],
+      address: map['address'],
     );
   }
 }
@@ -71,10 +79,10 @@ class DatabaseService {
     String path = join(await getDatabasesPath(), 'property_database.db');
     return await openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: (db, version) {
         return db.execute(
-          'CREATE TABLE property_table(propertyId TEXT PRIMARY KEY, ownerName TEXT, ward TEXT, mohalla TEXT, phoneNumber TEXT, email TEXT, userType TEXT, ulbId TEXT, arvValue TEXT, userId TEXT)',
+          'CREATE TABLE property_table(propertyId TEXT PRIMARY KEY, ownerName TEXT, ward TEXT, mohalla TEXT, phoneNumber TEXT, email TEXT, userType TEXT, ulbId TEXT, arvValue TEXT, userId TEXT, fatherName TEXT, address TEXT)',
         );
       },
       onUpgrade: (db, oldVersion, newVersion) async {
@@ -84,6 +92,10 @@ class DatabaseService {
         }
         if (oldVersion < 3) {
           await db.execute('ALTER TABLE property_table ADD COLUMN userId TEXT');
+        }
+        if (oldVersion < 4) {
+          await db.execute('ALTER TABLE property_table ADD COLUMN fatherName TEXT');
+          await db.execute('ALTER TABLE property_table ADD COLUMN address TEXT');
         }
       },
     );
