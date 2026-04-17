@@ -26,6 +26,7 @@ dependencies:
   printing: ^5.11.1
   screenshot: ^3.0.0
   image_picker: ^1.0.7
+  payu_checkoutpro_flutter: ^1.4.2
 
 dev_dependencies:
   flutter_test:

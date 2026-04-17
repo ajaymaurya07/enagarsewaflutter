@@ -424,6 +424,32 @@ class ApiService {
     }
   }
 
+  // Generate hash for PayU (form-urlencoded)
+  static Future<HashResponse> generateHash(String hashName, String hashString) async {
+    try {
+      final response = await _makeAuthenticatedRequest((headers) {
+        headers['Content-Type'] = 'application/x-www-form-urlencoded';
+        final body = 'hashName=${Uri.encodeComponent(hashName)}&hashString=${Uri.encodeComponent(hashString)}';
+        return http.post(
+          Uri.parse('${AppConstants.baseUrl}api/Payment/generate_hash'),
+          headers: headers,
+          body: body,
+        ).timeout(Duration(seconds: AppConstants.networkTimeout));
+      });
+
+      if (response.statusCode == 200) {
+        return HashResponse.fromJson(jsonDecode(response.body));
+      } else if (response.statusCode == 403) {
+        await _handleSessionExpired();
+        throw Exception('Session expired. Please login again.');
+      } else {
+        throw Exception('Failed to generate hash: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Connection error: $e');
+    }
+  }
+
   // Fetch Transactions By Email API
   static Future<TransactionsByEmailResponse> getTransactionsByEmail(String emailId) async {
     try {
@@ -1142,6 +1168,22 @@ class Transaction {
     key: json['key'],
     txnid: json['txnid']?.toString(),
   );
+}
+
+class HashResponse {
+  final String? data;
+  final String? message;
+  final bool? status;
+
+  HashResponse({this.data, this.message, this.status});
+
+  factory HashResponse.fromJson(Map<String, dynamic> json) {
+    return HashResponse(
+      data: json['data']?.toString(),
+      message: json['message'],
+      status: json['status'] ?? json['success'],
+    );
+  }
 }
 
 class TransactionsByEmailResponse {

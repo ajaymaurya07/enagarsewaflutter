@@ -5,6 +5,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'services/api_service.dart';
 import 'services/storage_service.dart';
 import 'services/database_service.dart';
+import 'package:payu_checkoutpro_flutter/payu_checkoutpro_flutter.dart';
+import 'package:payu_checkoutpro_flutter/PayUConstantKeys.dart';
+import 'payment_result_screen.dart';
 
 class PaymentDetailsScreen extends StatefulWidget {
   final String propertyId;
@@ -13,6 +16,165 @@ class PaymentDetailsScreen extends StatefulWidget {
 
   @override
   State<PaymentDetailsScreen> createState() => _PaymentDetailsScreenState();
+}
+
+class _PayuDelegate implements PayUCheckoutProProtocol {
+  final BuildContext context;
+  PayUCheckoutProFlutter? _payu;
+  _PayuDelegate(this.context);
+
+  void setPayuInstance(PayUCheckoutProFlutter payu) {
+    _payu = payu;
+  }
+
+  @override
+  generateHash(Map response) async {
+    if (kDebugMode) print('generateHash callback: $response');
+    try {
+      String? hashName;
+      String? hashString;
+
+      if (response.containsKey('hashName') && response.containsKey('hashString')) {
+        hashName = response['hashName']?.toString();
+        hashString = response['hashString']?.toString();
+      } else {
+        // Sometimes map is like {"payment_hash": null} or {hashName:..., hashString:...}
+        for (final k in response.keys) {
+          hashName = k?.toString();
+          final v = response[k];
+          hashString = v?.toString();
+          break;
+        }
+      }
+
+      if (hashName == null || hashString == null) {
+        if (kDebugMode) print('generateHash: missing hashName/hashString');
+        return;
+      }
+
+      final hashRes = await ApiService.generateHash(hashName, hashString);
+      final hash = hashRes.data;
+      if (kDebugMode) print('Server returned hash for $hashName: $hash');
+
+      if (hash == null || hash.isEmpty) {
+        if (kDebugMode) print('generateHash: empty hash from server');
+        return;
+      }
+
+      // send back to native SDK via plugin
+      await _payu?.hashGenerated(hash: {hashName: hash});
+    } catch (e) {
+      if (kDebugMode) print('generateHash error: $e');
+    }
+  }
+
+  Map<String, String> _extractDetails(dynamic response) {
+    final details = <String, String>{};
+    try {
+      Map? payuResp;
+      if (response is Map) {
+        final raw = response['payuResponse'];
+        if (raw is Map) {
+          payuResp = raw;
+        } else if (raw is String && raw.isNotEmpty) {
+          payuResp = jsonDecode(raw) as Map?;
+        }
+      }
+      if (payuResp != null) {
+        if (payuResp['txnid'] != null) details['Transaction ID'] = payuResp['txnid'].toString();
+        if (payuResp['amount'] != null) details['Amount'] = '₹ ${payuResp['amount']}';
+        if (payuResp['mode'] != null) details['Payment Mode'] = payuResp['mode'].toString();
+        if (payuResp['status'] != null) details['Status'] = payuResp['status'].toString();
+        if (payuResp['bank_ref_num'] != null && payuResp['bank_ref_num'].toString().isNotEmpty) {
+          details['Bank Ref No'] = payuResp['bank_ref_num'].toString();
+        }
+        if (payuResp['mihpayid'] != null && payuResp['mihpayid'].toString().isNotEmpty) {
+          details['PayU ID'] = payuResp['mihpayid'].toString();
+        }
+        if (payuResp['addedon'] != null) details['Date'] = payuResp['addedon'].toString();
+      }
+    } catch (e) {
+      if (kDebugMode) print('Error extracting PayU details: $e');
+    }
+    return details;
+  }
+
+  String? _extractField(dynamic response, String field) {
+    try {
+      if (response is Map) {
+        final raw = response['payuResponse'];
+        Map? payuResp;
+        if (raw is Map) {
+          payuResp = raw;
+        } else if (raw is String && raw.isNotEmpty) {
+          payuResp = jsonDecode(raw) as Map?;
+        }
+        return payuResp?[field]?.toString();
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  @override
+  onError(Map? response) {
+    if (kDebugMode) print('PayU error: $response');
+    final errorMsg = response?['errorMsg']?.toString() ?? 'Something went wrong';
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => PaymentResultScreen(
+        status: PaymentStatus.failure,
+        message: errorMsg,
+      ),
+    ));
+  }
+
+  @override
+  onPaymentCancel(Map? response) {
+    if (kDebugMode) print('PayU cancelled: $response');
+    final isTxnInitiated = response?['isTxnInitiated'] == true;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => PaymentResultScreen(
+        status: isTxnInitiated ? PaymentStatus.pending : PaymentStatus.failure,
+        message: isTxnInitiated
+            ? 'Payment was initiated but cancelled. It may still be processing.'
+            : 'Payment was cancelled.',
+      ),
+    ));
+  }
+
+  @override
+  onPaymentFailure(response) {
+    if (kDebugMode) print('PayU failure: $response');
+    final details = _extractDetails(response);
+    final txnId = _extractField(response, 'txnid');
+    final amount = _extractField(response, 'amount');
+    final status = _extractField(response, 'status');
+    
+    final isPending = status?.toLowerCase() == 'pending';
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => PaymentResultScreen(
+        status: isPending ? PaymentStatus.pending : PaymentStatus.failure,
+        txnId: txnId,
+        amount: amount,
+        details: details,
+      ),
+    ));
+  }
+
+  @override
+  onPaymentSuccess(response) {
+    if (kDebugMode) print('PayU success: $response');
+    final details = _extractDetails(response);
+    final txnId = _extractField(response, 'txnid');
+    final amount = _extractField(response, 'amount');
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => PaymentResultScreen(
+        status: PaymentStatus.success,
+        txnId: txnId,
+        amount: amount,
+        details: details,
+      ),
+    ));
+  }
 }
 
 class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
@@ -285,6 +447,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
             const SizedBox(height: 24),
             _buildPaymentOptionCard('Pay with Pay', 'Safe & Secure', Icons.payment_rounded, () {
               Navigator.pop(context);
+              _startPayuFlow(transactionData);
             }),
             const SizedBox(height: 12),
             _buildPaymentOptionCard('Pay with SBI', 'Official SBI Gateway', Icons.account_balance_rounded, () {
@@ -295,6 +458,83 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _startPayuFlow(Transaction? txnData) async {
+    if (txnData == null) return;
+    setState(() => _isLoading = true);
+    try {
+      final key = txnData.key ?? '';
+      final txnid = txnData.txnid ?? 'TXN${DateTime.now().millisecondsSinceEpoch}';
+      final amount = txnData.amount ?? '0';
+      final productinfo = txnData.productinfo ?? 'Property Tax';
+      final firstname = txnData.firstname ?? '';
+      final email = txnData.email ?? '';
+
+      if (kDebugMode) print('Starting PayU flow for txnid=$txnid amount=$amount');
+
+      String makeSafeUrl(String? url) {
+        const defaultUrl = 'https://www.payu.in/txnstatus';
+        if (url == null) return defaultUrl;
+        final trimmed = url.trim();
+        try {
+          final uri = Uri.parse(trimmed);
+          if ((uri.scheme == 'https' || uri.scheme == 'http') && trimmed.isNotEmpty) {
+            final host = uri.host.toLowerCase();
+            // Only allow PayU domains; otherwise return default to satisfy SDK validation
+            if (host.contains('payu')) return trimmed;
+          }
+        } catch (_) {}
+        return defaultUrl;
+      }
+
+      final surl = makeSafeUrl(txnData.surl);
+      final furl = makeSafeUrl(txnData.furl);
+
+      if (kDebugMode) print('Starting PayU with txnid=$txnid, amount=$amount, key=$key');
+
+      try {
+        // Use the PayU plugin's actual API: PayUCheckoutProFlutter with a delegate.
+        final delegate = _PayuDelegate(context);
+        final payu = PayUCheckoutProFlutter(delegate);
+        delegate.setPayuInstance(payu);
+
+        final payUPaymentParams = <String, dynamic>{
+          PayUPaymentParamKey.key: key,
+          PayUPaymentParamKey.amount: amount,
+          PayUPaymentParamKey.transactionId: txnid,
+          PayUPaymentParamKey.productInfo: productinfo,
+          PayUPaymentParamKey.firstName: firstname,
+          PayUPaymentParamKey.email: email,
+          PayUPaymentParamKey.phone: txnData.phone ?? '',
+          PayUPaymentParamKey.android_surl: surl,
+          PayUPaymentParamKey.android_furl: furl,
+          PayUPaymentParamKey.ios_surl: surl,
+          PayUPaymentParamKey.ios_furl: furl,
+          PayUPaymentParamKey.environment: '1', // 0 = production, 1 = test/sandbox
+          PayUPaymentParamKey.userCredential: '$key:$email',
+        };
+
+        final payUCheckoutProConfig = <String, dynamic>{
+          PayUCheckoutProConfigKeys.merchantName: 'eNagarSewa',
+        };
+
+        final result = await payu.openCheckoutScreen(
+          payUPaymentParams: payUPaymentParams,
+          payUCheckoutProConfig: payUCheckoutProConfig,
+        );
+
+        if (kDebugMode) print('PayU openCheckoutScreen returned: $result');
+      } catch (e) {
+        if (kDebugMode) print('PayU plugin error: $e');
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to start PayU payment: $e')));
+      }
+    } catch (e) {
+      if (kDebugMode) print('Payment error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   Widget _buildPaymentOptionCard(String title, String subtitle, IconData icon, VoidCallback onTap) {
