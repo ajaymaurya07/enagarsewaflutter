@@ -119,7 +119,7 @@ class _PayuDelegate implements PayUCheckoutProProtocol {
   onError(Map? response) {
     if (kDebugMode) print('PayU error: $response');
     final errorMsg = response?['errorMsg']?.toString() ?? 'Something went wrong';
-    Navigator.of(context).push(MaterialPageRoute(
+    Navigator.of(context).pushReplacement(MaterialPageRoute(
       builder: (_) => PaymentResultScreen(
         status: PaymentStatus.failure,
         message: errorMsg,
@@ -131,7 +131,7 @@ class _PayuDelegate implements PayUCheckoutProProtocol {
   onPaymentCancel(Map? response) {
     if (kDebugMode) print('PayU cancelled: $response');
     final isTxnInitiated = response?['isTxnInitiated'] == true;
-    Navigator.of(context).push(MaterialPageRoute(
+    Navigator.of(context).pushReplacement(MaterialPageRoute(
       builder: (_) => PaymentResultScreen(
         status: isTxnInitiated ? PaymentStatus.pending : PaymentStatus.failure,
         message: isTxnInitiated
@@ -150,7 +150,7 @@ class _PayuDelegate implements PayUCheckoutProProtocol {
     final status = _extractField(response, 'status');
     
     final isPending = status?.toLowerCase() == 'pending';
-    Navigator.of(context).push(MaterialPageRoute(
+    Navigator.of(context).pushReplacement(MaterialPageRoute(
       builder: (_) => PaymentResultScreen(
         status: isPending ? PaymentStatus.pending : PaymentStatus.failure,
         txnId: txnId,
@@ -166,7 +166,7 @@ class _PayuDelegate implements PayUCheckoutProProtocol {
     final details = _extractDetails(response);
     final txnId = _extractField(response, 'txnid');
     final amount = _extractField(response, 'amount');
-    Navigator.of(context).push(MaterialPageRoute(
+    Navigator.of(context).pushReplacement(MaterialPageRoute(
       builder: (_) => PaymentResultScreen(
         status: PaymentStatus.success,
         txnId: txnId,
