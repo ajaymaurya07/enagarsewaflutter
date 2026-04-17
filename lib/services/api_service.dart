@@ -462,6 +462,25 @@ class ApiService {
     }
   }
 
+  // Get Grievance Status API
+  static Future<GrievanceStatusResponse> getGrievanceStatus(String grievanceNo) async {
+    try {
+      final response = await _makeAuthenticatedRequest((headers) => http.post(
+        Uri.parse('${AppConstants.baseUrl}api/house_tax/getGrievanceStatus'),
+        headers: headers,
+        body: jsonEncode({'grievanceNo': grievanceNo}),
+      ).timeout(Duration(seconds: AppConstants.networkTimeout)));
+
+      if (response.statusCode == 200) {
+        return GrievanceStatusResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Failed to load grievance status: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Connection error: $e');
+    }
+  }
+
   // Secure Login Flow
   static Future<LoginResponse> secureLogin(String username, String password, String deviceId) async {
     try {
@@ -1303,6 +1322,129 @@ class GrievanceDetails {
       updatedAt: json['updated_at'],
       categoryName: json['category_name'],
       subcategoryName: json['subcategory_name'],
+    );
+  }
+}
+
+class GrievanceStatusResponse {
+  final bool success;
+  final int responseCode;
+  final String message;
+  final List<GrievanceStatusData>? data;
+
+  GrievanceStatusResponse({
+    this.success = false,
+    this.responseCode = 0,
+    this.message = "",
+    this.data,
+  });
+
+  factory GrievanceStatusResponse.fromJson(Map<String, dynamic> json) {
+    return GrievanceStatusResponse(
+      success: json['success'] ?? false,
+      responseCode: json['responseCode'] ?? 0,
+      message: json['message'] ?? "",
+      data: json['data'] != null
+          ? (json['data'] as List).map((i) => GrievanceStatusData.fromJson(i)).toList()
+          : [],
+    );
+  }
+}
+
+class GrievanceStatusData {
+  final String? ulbName;
+  final String? mohallaName;
+  final String? zoneName;
+  final String? wardName;
+  final String? complaintId;
+  final String? complaintDate;
+  final String? categoryName;
+  final String? subCategoryName;
+  final String? landmark;
+  final String? complaintDesc;
+  final String? name;
+  final String? fatherHusbandName;
+  final String? mobile;
+  final String? email;
+  final String? address1;
+  final String? address2;
+  final String? assignedEmpName;
+  final String? assignedEmpMobile;
+  final String? assignedEmpPost;
+  final String? assignedOffName;
+  final String? assignedOffMobile;
+  final String? assignedOffPost;
+  final String? status;
+  final String? closeDate;
+  final String? closeRemark;
+  final String? complaintTime;
+  final String? closeTime;
+  final int? reComplain;
+  final String? dueDate;
+
+  GrievanceStatusData({
+    this.ulbName,
+    this.mohallaName,
+    this.zoneName,
+    this.wardName,
+    this.complaintId,
+    this.complaintDate,
+    this.categoryName,
+    this.subCategoryName,
+    this.landmark,
+    this.complaintDesc,
+    this.name,
+    this.fatherHusbandName,
+    this.mobile,
+    this.email,
+    this.address1,
+    this.address2,
+    this.assignedEmpName,
+    this.assignedEmpMobile,
+    this.assignedEmpPost,
+    this.assignedOffName,
+    this.assignedOffMobile,
+    this.assignedOffPost,
+    this.status,
+    this.closeDate,
+    this.closeRemark,
+    this.complaintTime,
+    this.closeTime,
+    this.reComplain,
+    this.dueDate,
+  });
+
+  factory GrievanceStatusData.fromJson(Map<String, dynamic> json) {
+    return GrievanceStatusData(
+      ulbName: json['ulbName'],
+      mohallaName: json['mohallaName'],
+      zoneName: json['zoneName'],
+      wardName: json['wardName'],
+      complaintId: json['complaintId']?.toString(),
+      complaintDate: json['complaintDate'],
+      categoryName: json['categoryName'],
+      subCategoryName: json['subCategoryName'],
+      landmark: json['landmark'],
+      complaintDesc: json['complaintDesc'],
+      name: json['name'],
+      fatherHusbandName: json['fatherHusbandName'],
+      mobile: json['mobile']?.toString(),
+      email: json['email'],
+      address1: json['address1'],
+      address2: json['address2'],
+      assignedEmpName: json['assignedEmpName'],
+      assignedEmpMobile: json['assignedEmpMobile']?.toString(),
+      assignedEmpPost: json['assignedEmpPost'],
+      assignedOffName: json['assignedOffName'],
+      assignedOffMobile: json['assignedOffMobile']?.toString(),
+      assignedOffPost: json['assignedOffPost'],
+      status: json['status'],
+      closeDate: json['closeDate'],
+      closeRemark: json['closeRemark'],
+      complaintTime: json['complaintTime'],
+      closeTime: json['closeTime'],
+      reComplain: json['reComplain'],
+      dueDate: json['dueDate'],
     );
   }
 }

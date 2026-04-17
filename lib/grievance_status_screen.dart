@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'services/api_service.dart';
 import 'services/storage_service.dart';
+import 'grievance_status_details_screen.dart';
 
 class GrievanceStatusScreen extends StatefulWidget {
   const GrievanceStatusScreen({super.key});
@@ -62,7 +63,7 @@ class _GrievanceStatusScreenState extends State<GrievanceStatusScreen> {
             itemCount: grievances.length,
             itemBuilder: (context, index) {
               final grievance = grievances[index];
-              return _buildGrievanceCard(grievance);
+              return _buildGrievanceCard(context, grievance);
             },
           );
         },
@@ -70,57 +71,69 @@ class _GrievanceStatusScreenState extends State<GrievanceStatusScreen> {
     );
   }
 
-  Widget _buildGrievanceCard(GrievanceDetails grievance) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'ID: ${grievance.grievanceNo ?? "N/A"}',
-                style: GoogleFonts.poppins(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: const Color(0xFF0E3B90),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  'Pending',
+  Widget _buildGrievanceCard(BuildContext context, GrievanceDetails grievance) {
+    return GestureDetector(
+      onTap: () {
+        if (grievance.grievanceNo != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => GrievanceStatusDetailsScreen(grievanceNo: grievance.grievanceNo!),
+            ),
+          );
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'ID: ${grievance.grievanceNo ?? "N/A"}',
                   style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    color: Colors.orange,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: const Color(0xFF0E3B90),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const Divider(height: 24),
-          _buildInfoRow('Category', grievance.categoryName ?? 'N/A'),
-          _buildInfoRow('Sub-category', grievance.subcategoryName ?? 'N/A'),
-          _buildInfoRow('Date & Time', grievance.updatedAt ?? 'N/A'),
-        ],
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'Pending',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: Colors.orange,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+            _buildInfoRow('Category', grievance.categoryName ?? 'N/A'),
+            _buildInfoRow('Sub-category', grievance.subcategoryName ?? 'N/A'),
+            _buildInfoRow('Date & Time', grievance.updatedAt ?? 'N/A'),
+          ],
+        ),
       ),
     );
   }
