@@ -19,6 +19,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
   bool _isLoading = true;
   PropertyDetailsData? _details;
   String? _errorMessage;
+  bool _showPropertyDetails = false;
 
   @override
   void initState() {
@@ -399,6 +400,9 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
 
   Widget _buildContent() {
     final bill = _details?.billDetails;
+    final prop = _details?.propertyDetailsInfo;
+    final owner = _details?.ownerDetails;
+
     final houseTaxAdvance = double.tryParse(bill?.houseTaxAdvance ?? '0') ?? 0.0;
     final waterTaxAdvance = double.tryParse(bill?.waterTaxAdvance ?? '0') ?? 0.0;
     final sewerTaxAdvance = double.tryParse(bill?.sewerTaxAdvance ?? '0') ?? 0.0;
@@ -406,165 +410,212 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
     final waterChargeAdvance = double.tryParse(bill?.waterChargeAdvance ?? '0') ?? 0.0;
     final totalAdvancePay = (houseTaxAdvance + waterTaxAdvance + sewerTaxAdvance + otherTaxAdvance + waterChargeAdvance).toStringAsFixed(2);
 
-    return Column(
-      children: [
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE8F0FE),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(Icons.receipt_long_rounded, color: Color(0xFF0E3B90), size: 20),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          // 1. Tax Summary Card
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE8F0FE),
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      const SizedBox(width: 12),
+                      child: const Icon(Icons.receipt_long_rounded, color: Color(0xFF0E3B90), size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Tax Summary',
+                      style: GoogleFonts.poppins(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF333333),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                _buildSummaryRow('Bill Date', bill?.billDate),
+                _buildSummaryRow('Bill Number', bill?.billNo),
+                _buildSummaryRow('Financial Year', bill?.finYear),
+                FutureBuilder<PropertyEntity?>(
+                  future: DatabaseService.getPropertyById(widget.propertyId),
+                  builder: (context, snapshot) {
+                    return _buildSummaryRow('Total Arv', snapshot.data?.arvValue ?? '0.0');
+                  },
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Divider(height: 1, thickness: 0.8),
+                ),
+                _buildSummaryRow('House Tax Net Amount', bill?.houseTaxNetAmount),
+                _buildSummaryRow('Water Tax Net Amount', bill?.waterTaxNetAmount),
+                _buildSummaryRow('Sewer Tax Net Amount', bill?.sewerTaxNetAmount),
+                _buildSummaryRow('Other Tax Net Amount', bill?.othertaxNetAmount),
+                _buildSummaryRow('Water Charge Net Amount', bill?.waterChargeNetAmount),
+                _buildSummaryRow('Net Demand', bill?.netDemand),
+                _buildSummaryRow('Total Advance Tax Pay', totalAdvancePay),
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEDF3FF),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFD1E1FF), width: 1),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
                       Text(
-                        'Tax Summary',
+                        'Net Payable',
                         style: GoogleFonts.poppins(
-                          fontSize: 17,
+                          fontSize: 16,
                           fontWeight: FontWeight.w700,
-                          color: const Color(0xFF333333),
+                          color: const Color(0xFF1A3B8E),
+                        ),
+                      ),
+                      Text(
+                        '₹ ${bill?.netPayble ?? "0.0"}',
+                        style: GoogleFonts.poppins(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF0E3B90),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
-                  _buildSummaryRow('Bill Date', bill?.billDate),
-                  _buildSummaryRow('Bill Number', bill?.billNo),
-                  _buildSummaryRow('Financial Year', bill?.finYear),
-                  FutureBuilder<PropertyEntity?>(
-                    future: DatabaseService.getPropertyById(widget.propertyId),
-                    builder: (context, snapshot) {
-                      return _buildSummaryRow('Total Arv', snapshot.data?.arvValue ?? '0.0');
-                    },
-                  ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    child: Divider(height: 1, thickness: 0.8),
-                  ),
-                  _buildSummaryRow('House Tax Net Amount', bill?.houseTaxNetAmount),
-                  _buildSummaryRow('Water Tax Net Amount', bill?.waterTaxNetAmount),
-                  _buildSummaryRow('Sewer Tax Net Amount', bill?.sewerTaxNetAmount),
-                  _buildSummaryRow('Other Tax Net Amount', bill?.othertaxNetAmount),
-                  _buildSummaryRow('Water Charge Net Amount', bill?.waterChargeNetAmount),
-                  _buildSummaryRow('Net Demand', bill?.netDemand),
-                  _buildSummaryRow('Total Advance Tax Pay', totalAdvancePay),
-                  const SizedBox(height: 20),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEDF3FF),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFD1E1FF), width: 1),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Net Payable',
-                          style: GoogleFonts.poppins(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: const Color(0xFF1A3B8E),
-                          ),
-                        ),
-                        Text(
-                          '₹ ${bill?.netPayble ?? "0.0"}',
-                          style: GoogleFonts.poppins(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                            color: const Color(0xFF0E3B90),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 10,
-                offset: const Offset(0, -5),
-              ),
-            ],
-          ),
-          child: SafeArea(
-            top: false,
-            child: Column(
-              children: [
-                _buildPrimaryButton('Pay Your Tax Online', _handlePayTax),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(child: _buildSecondaryButton('Print Property', Icons.print_outlined, () {})),
-                    const SizedBox(width: 12),
-                    Expanded(child: _buildSecondaryButton('Add Grievance', Icons.add_comment_outlined, () {})),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(child: _buildSecondaryButton('ARV History', Icons.history_rounded, () {})),
-                    const SizedBox(width: 12),
-                    Expanded(child: _buildSecondaryButton('Payment History', Icons.payment_rounded, () {})),
-                  ],
                 ),
               ],
             ),
           ),
-        ),
-      ],
+          
+          const SizedBox(height: 20),
+
+          // 2. Main Action Buttons (Moved inside scroll view)
+          _buildPrimaryButton('Pay Your Tax Online', _handlePayTax),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: _buildSecondaryButton('Print Property', Icons.print_outlined, () {})),
+              const SizedBox(width: 12),
+              Expanded(child: _buildSecondaryButton('Add Grievance', Icons.add_comment_outlined, () {})),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: _buildSecondaryButton('ARV History', Icons.history_rounded, () {})),
+              const SizedBox(width: 12),
+              Expanded(child: _buildSecondaryButton('Payment History', Icons.payment_rounded, () {})),
+            ],
+          ),
+
+          const SizedBox(height: 20),
+
+          // 3. Property Details Card (Moved below buttons)
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                ListTile(
+                  onTap: () => setState(() => _showPropertyDetails = !_showPropertyDetails),
+                  title: Text(
+                    'Property Details',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF333333),
+                    ),
+                  ),
+                  trailing: Icon(
+                    _showPropertyDetails ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                    color: const Color(0xFF0E3B90),
+                  ),
+                ),
+                if (_showPropertyDetails)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    child: Column(
+                      children: [
+                        const Divider(height: 1),
+                        const SizedBox(height: 12),
+                        _buildSummaryRow('Property/House Id', widget.propertyId),
+                        _buildSummaryRow('Zone Name', prop?.zoneName),
+                        _buildSummaryRow('Ward Name', prop?.wardName),
+                        _buildSummaryRow('Mohalla Name', prop?.mohallaName),
+                        _buildSummaryRow('House No.', prop?.houseNo),
+                        _buildSummaryRow('Property Address', prop?.address),
+                        _buildSummaryRow('Owner/Occupier Name', owner?.ownerName),
+                        _buildSummaryRow('Owner Mobile Number', owner?.mobileNo),
+                        _buildSummaryRow('Owner Father Name', owner?.fatherName),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 32),
+        ],
+      ),
     );
   }
 
   Widget _buildSummaryRow(String label, String? value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: GoogleFonts.poppins(
-              fontSize: 13,
-              color: Colors.grey.shade600,
-              fontWeight: FontWeight.w500,
+          Expanded(
+            flex: 3,
+            child: Text(
+              label,
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
-          Text(
-            value ?? "N/A",
-            style: GoogleFonts.poppins(
-              fontSize: 13,
-              color: const Color(0xFF444444),
-              fontWeight: FontWeight.w600,
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 4,
+            child: Text(
+              value ?? "N/A",
+              textAlign: TextAlign.right,
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                color: const Color(0xFF444444),
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -579,13 +630,13 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         gradient: const LinearGradient(
-          colors: [Color(0xFF0E3B90), Color(0xFF2D4BA0)],
+          colors: [Color(0xFFE67514), Color(0xFFF0852D)],
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0E3B90).withValues(alpha: 0.3),
+            color: const Color(0xFFE67514).withValues(alpha: 0.3),
             blurRadius: 12,
             offset: const Offset(0, 6),
           ),
@@ -613,17 +664,19 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
   Widget _buildSecondaryButton(String text, IconData icon, VoidCallback onTap) {
     return SizedBox(
       height: 50,
-      child: OutlinedButton(
+      child: ElevatedButton(
         onPressed: onTap,
-        style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: Color(0xFF0E3B90), width: 1.5),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFFE67514),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           padding: EdgeInsets.zero,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 16, color: const Color(0xFF0E3B90)),
+            Icon(icon, size: 16, color: Colors.white),
             const SizedBox(width: 6),
             Flexible(
               child: Text(
@@ -634,7 +687,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
                 style: GoogleFonts.poppins(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: const Color(0xFF0E3B90),
+                  color: Colors.white,
                 ),
               ),
             ),
