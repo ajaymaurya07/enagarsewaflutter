@@ -42,7 +42,7 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
   // Step 3 fields
   final _rentAreaController = TextEditingController();
   final _ownAreaController = TextEditingController();
-  final _constructionYearController = TextEditingController(text: '2010');
+  final _constructionYearController = TextEditingController();
 
   // Computed
   double _areaRate = 0.0;
@@ -82,7 +82,7 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
   }
 
   int get _ageOfConstruction {
-    final year = int.tryParse(_constructionYearController.text) ?? 2010;
+    final year = int.tryParse(_constructionYearController.text) ?? DateTime.now().year;
     return DateTime.now().year - year;
   }
 
@@ -105,8 +105,12 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
   bool _isStepValid(int step) {
     switch (step) {
       case 1:
-        if (_roadWidth == null || _constructionType == null || _selectedWardNo == null) {
-          _showToast('Ward, Road Width & Construction Type are mandatory!');
+        if (_roadWidth == null || _constructionType == null) {
+          _showToast('Road Width & Construction Type are mandatory!');
+          return false;
+        }
+        if (_selectedWardNo == null && _savedProperties.isNotEmpty) {
+          _showToast('Please select a property!');
           return false;
         }
         return true;
@@ -117,8 +121,8 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
         }
         return true;
       case 3:
-        if (_rentAreaController.text.isEmpty || _ownAreaController.text.isEmpty) {
-          _showToast('Rent Area and Own Area are mandatory!');
+        if (_rentAreaController.text.isEmpty || _ownAreaController.text.isEmpty || _constructionYearController.text.isEmpty) {
+          _showToast('Rent Area, Own Area and Construction Year are mandatory!');
           return false;
         }
         return true;
@@ -400,16 +404,19 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
       _mobileNoController.text = property.phoneNumber;
       if (property.fatherName != null) _fatherNameController.text = property.fatherName!;
 
-      // Try to match ward number from ward list
-      final wardText = property.ward.trim();
+      // Match ward by WardName from rate_master
+      final wardText = property.ward.trim().toLowerCase();
+      _selectedWardNo = null;
       for (final w in _wardList) {
-        if (w['WardNo'] == wardText || w['WardName'] == wardText ||
-            '${w['WardNo']} - ${w['WardName']}' == wardText) {
+        if ((w['WardName'] ?? '').toLowerCase() == wardText ||
+            w['WardNo'] == wardText) {
           _selectedWardNo = w['WardNo'];
-          _updateAreaRate();
           break;
         }
       }
+      // If no match found, use default ward "0"
+      _selectedWardNo ??= '0';
+      _updateAreaRate();
     });
   }
 
@@ -433,7 +440,7 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
               value: _selectedProperty?.propertyId,
               items: _savedProperties.map((p) => DropdownMenuItem(
                 value: p.propertyId,
-                child: Text('${p.propertyId} - ${p.ownerName}',
+                child: Text(p.propertyId,
                     style: GoogleFonts.poppins(fontSize: 13)),
               )).toList(),
               onChanged: (val) {
@@ -460,24 +467,7 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
           ],
           const Divider(height: 32),
         ],
-        _sectionTitle('Ward Selection'),
-        const SizedBox(height: 12),
-        _buildDropdownCard(
-          label: 'Select Ward',
-          value: _selectedWardNo,
-          items: _wardList.map((w) => DropdownMenuItem(
-            value: w['WardNo'],
-            child: Text('${w['WardNo']} - ${w['WardName']}',
-                style: GoogleFonts.poppins(fontSize: 13)),
-          )).toList(),
-          onChanged: (val) {
-            setState(() {
-              _selectedWardNo = val;
-              _updateAreaRate();
-            });
-          },
-        ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 4),
         _sectionTitle('Road Width'),
         const SizedBox(height: 12),
         _buildRadioGroup<int>(
@@ -577,28 +567,87 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionTitle('Assessment ARV'),
-        const SizedBox(height: 12),
-        _buildResultCard([
-          _resultRow('MRV Owner', data.mrvOwner),
-          _resultRow('MRV Rented', data.mrvRented),
-          _resultRow('ARV Owner', data.arvOwner),
-          _resultRow('ARV Rented', data.arvRented),
-          _resultRow('Depreciation', data.depreciation),
-          _resultRow('Appreciation', data.appreciation),
-          _resultRow('Final ARV (Owner)', data.finalArvOwner),
-          _resultRow('Final ARV (Rent)', data.finalArvRented),
-          _resultRow('Total Assessment ARV', data.finalArvOwner + data.finalArvRented, highlight: true),
-        ]),
-        const SizedBox(height: 24),
-        _sectionTitle('Assessment Tax'),
-        const SizedBox(height: 12),
-        _buildResultCard([
-          _resultRow('Net Owner Tax', data.ownerTax),
-          _resultRow('Net Rented Tax', data.rentedTax),
-          _resultRow('Total Assessment Tax', data.totalTax, highlight: true),
-        ]),
+        // Row 1: MRV Owner | MRV Rented
+        Row(
+          children: [
+            Expanded(child: _readOnlyField('MRV Owner', data.mrvOwner.toStringAsFixed(2))),
+            const SizedBox(width: 12),
+            Expanded(child: _readOnlyField('MRV Rented', data.mrvRented.toStringAsFixed(2))),
+          ],
+        ),
+        const SizedBox(height: 14),
+        // Row 2: ARV Owner | ARV Rented
+        Row(
+          children: [
+            Expanded(child: _readOnlyField('ARV Owner', data.arvOwner.toStringAsFixed(2))),
+            const SizedBox(width: 12),
+            Expanded(child: _readOnlyField('ARV Rented', data.arvRented.toStringAsFixed(2))),
+          ],
+        ),
+        const SizedBox(height: 14),
+        // Row 3: Depreciation | Appreciation
+        Row(
+          children: [
+            Expanded(child: _readOnlyField('Depreciation', data.depreciation.toStringAsFixed(2))),
+            const SizedBox(width: 12),
+            Expanded(child: _readOnlyField('Appreciation', data.appreciation.toStringAsFixed(2))),
+          ],
+        ),
+        const SizedBox(height: 14),
+        // Row 4: Final ARV(Own) | Final ARV(Rent)
+        Row(
+          children: [
+            Expanded(child: _readOnlyField('Final ARV(Own)', data.finalArvOwner.toStringAsFixed(2))),
+            const SizedBox(width: 12),
+            Expanded(child: _readOnlyField('Final ARV(Rent)', data.finalArvRented.toStringAsFixed(2))),
+          ],
+        ),
+        const SizedBox(height: 14),
+        // Row 5: Net Owner Tax | Net Rented Tax
+        Row(
+          children: [
+            Expanded(child: _readOnlyField('Net Owner Tax', data.ownerTax.toStringAsFixed(2))),
+            const SizedBox(width: 12),
+            Expanded(child: _readOnlyField('Net Rented Tax', data.rentedTax.toStringAsFixed(2))),
+          ],
+        ),
+        const SizedBox(height: 14),
+        // Full width: Total Assessment ARV(Own+Rent)
+        _readOnlyField('Total Assessment ARV(Own+Rent)',
+            (data.finalArvOwner + data.finalArvRented).toStringAsFixed(2)),
+        const SizedBox(height: 14),
+        // Full width: Total Assessment Tax(Own+Rent)
+        _readOnlyField('Total Assessment Tax(Own+Rent)', data.totalTax.toStringAsFixed(2)),
+        const SizedBox(height: 14),
+        // Full width: Current ARV (empty for now)
+        _readOnlyField('Current ARV', ''),
+        const SizedBox(height: 14),
+        // Full width: Current Tax (empty for now)
+        _readOnlyField('Current Tax', ''),
       ],
+    );
+  }
+
+  Widget _readOnlyField(String label, String value) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
+              style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey.shade600)),
+          const SizedBox(height: 4),
+          Text(value.isEmpty ? '-' : value,
+              style: GoogleFonts.poppins(
+                  fontSize: 15, fontWeight: FontWeight.w600, color: const Color(0xFF333333))),
+        ],
+      ),
     );
   }
 

@@ -1,5 +1,21 @@
 [
   {
+    "WardNo": "0",
+    "WardName": "Default",
+    "Pakka Bhawan RCC or RBC >24m road": "1.00",
+    "Pakka Bhawan RCC or RBC 12 to 24m road": "0.90",
+    "Pakka Bhawan RCC or RBC <12m road": "0.80",
+    "Other Pakka Bhawan >24m road": "0.90",
+    "Other Pakka Bhawan 12 to 24m road": "0.80",
+    "Other Pakka Bhawan <12m road": "0.70",
+    "Kacha Bhawan >24m road": "0.80",
+    "Kacha Bhawan 12 to 24m road": "0.70",
+    "Kacha Bhawan <12m road": "0.60",
+    "Residential Plot In Which Building is Not Constructed >24m road": "0.20",
+    "Residential Plot In Which Building is Not Constructed 12 to 24m road": "0.15",
+    "Residential Plot In Which Building is Not Constructed <12m road": "0.15"
+  },
+  {
     "WardNo": "1",
     "WardName": "Old Kanpur",
     "Pakka Bhawan RCC or RBC >24m road": "1.67",
