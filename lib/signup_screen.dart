@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'services/sim_service.dart';
 import 'services/email_service.dart';
 
@@ -127,13 +128,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           decoration: BoxDecoration(
                             border: Border.all(
                               color: _selectedPhone == phone
-                                  ? Colors.blue
+                                  ? const Color(0xFFE67514)
                                   : Colors.grey.shade300,
                               width: _selectedPhone == phone ? 2 : 1,
                             ),
                             borderRadius: BorderRadius.circular(8),
                             color: _selectedPhone == phone
-                                ? Colors.blue.shade50
+                                ? const Color(0xFFFFF3E0)
                                 : Colors.transparent,
                           ),
                           child: Row(
@@ -141,28 +142,28 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             Icon(
                               Icons.phone,
                               color: _selectedPhone == phone
-                                  ? const Color(0xFFffbd18)
+                                  ? const Color(0xFFE67514)
                                   : Colors.grey,
                             ),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
                                   phone,
-                                  style: TextStyle(
-                                    fontSize: 16,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 15,
                                     fontWeight: _selectedPhone == phone
-                                        ? FontWeight.bold
+                                        ? FontWeight.w600
                                         : FontWeight.normal,
                                     color: _selectedPhone == phone
-                                        ? Colors.blue
-                                        : Colors.black,
+                                        ? const Color(0xFFE67514)
+                                        : Colors.black87,
                                   ),
                                 ),
                               ),
                               if (_selectedPhone == phone)
                                 const Icon(
                                   Icons.check_circle,
-                                  color: Color(0xFFffbd18),
+                                  color: Color(0xFFE67514),
                                 ),
                             ],
                           ),
@@ -225,7 +226,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: Text('Cancel', style: GoogleFonts.poppins(color: Colors.grey.shade600)),
             ),
             // Show action button only for manual entry case
             if (_phoneNumbers.isEmpty)
@@ -246,9 +247,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   });
                   Navigator.pop(context);
                 },
-                child: const Text(
+                child: Text(
                   'Use This',
-                  style: TextStyle(color: Colors.blue),
+                  style: GoogleFonts.poppins(color: const Color(0xFFE67514), fontWeight: FontWeight.w600),
                 ),
               ),
           ],
@@ -298,13 +299,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           decoration: BoxDecoration(
                             border: Border.all(
                               color: _selectedEmail == email
-                                  ? Colors.blue
+                                  ? const Color(0xFFE67514)
                                   : Colors.grey.shade300,
                               width: _selectedEmail == email ? 2 : 1,
                             ),
                             borderRadius: BorderRadius.circular(8),
                             color: _selectedEmail == email
-                                ? Colors.blue.shade50
+                                ? const Color(0xFFFFF3E0)
                                 : Colors.transparent,
                           ),
                           child: Row(
@@ -312,21 +313,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               Icon(
                                 Icons.email,
                                 color: _selectedEmail == email
-                                    ? const Color(0xFFffbd18)
+                                    ? const Color(0xFFE67514)
                                     : Colors.grey,
                               ),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
                                   email,
-                                  style: TextStyle(
-                                    fontSize: 16,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 15,
                                     fontWeight: _selectedEmail == email
-                                        ? FontWeight.bold
+                                        ? FontWeight.w600
                                         : FontWeight.normal,
                                     color: _selectedEmail == email
-                                        ? Colors.blue
-                                        : Colors.black,
+                                        ? const Color(0xFFE67514)
+                                        : Colors.black87,
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -334,7 +335,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               if (_selectedEmail == email)
                                 const Icon(
                                   Icons.check_circle,
-                                  color: Color(0xFFffbd18),
+                                  color: Color(0xFFE67514),
                                 ),
                             ],
                           ),
@@ -395,7 +396,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: Text('Cancel', style: GoogleFonts.poppins(color: Colors.grey.shade600)),
             ),
             // Show action button only for manual entry case
             if (_availableEmails.isEmpty)
@@ -416,9 +417,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   });
                   Navigator.pop(context);
                 },
-                child: const Text(
+                child: Text(
                   'Use This',
-                  style: TextStyle(color: Colors.blue),
+                  style: GoogleFonts.poppins(color: const Color(0xFFE67514), fontWeight: FontWeight.w600),
                 ),
               ),
           ],
@@ -496,8 +497,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
-        backgroundColor: const Color(0xFFE67514),
+        content: Text(message, style: GoogleFonts.poppins()),
+        backgroundColor: Colors.red.shade600,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        duration: const Duration(seconds: 3),
       ),
     );
   }
@@ -505,8 +509,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
   void _showSuccess(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
-        backgroundColor: const Color(0xFFffbd18),
+        content: Text(message, style: GoogleFonts.poppins()),
+        backgroundColor: Colors.green.shade600,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        duration: const Duration(seconds: 2),
       ),
     );
   }
@@ -514,379 +521,360 @@ class _SignUpScreenState extends State<SignUpScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 10),
-                // Back Button and Title
-                Row(
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFFFCEFD8), Color(0xFFF8F9FB)],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // AppBar
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                child: Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back),
+                      icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                          color: Color(0xFFE67514), size: 20),
                       onPressed: () => Navigator.pop(context),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
                     ),
-                    const SizedBox(width: 10),
-                    const Text(
+                    Text(
                       'Create Account',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+                      style: GoogleFonts.poppins(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF333333),
                       ),
                     ),
                   ],
                 ),
-              
-                const SizedBox(height: 32),
-                // Name Input
-                Text(
-                  'Full Name',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade800,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _nameController,
-                  decoration: InputDecoration(
-                    hintText: 'Enter your full name',
-                    prefixIcon: const Icon(Icons.person_outline),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(
-                        color: Colors.blue,
-                        width: 2,
-                      ),
-                    ),
-                    filled: true,
-                    fillColor: Colors.grey.shade50,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                // Phone Number Input
-                Text(
-                  'Phone Number',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade800,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                GestureDetector(
-                  onTap: _loadingPhoneNumbers ? null : _showPhoneSelectionDialog,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
-                      borderRadius: BorderRadius.circular(12),
-                      color: Colors.grey.shade50,
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 16,
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.phone_outlined,
-                              color: Color(0xFFffbd18),
-                            ),
-                            const SizedBox(width: 12),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Select Phone Number',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  _phoneController.text.isNotEmpty
-                                      ? _phoneController.text
-                                      : 'Tap to select',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                    color: _phoneController.text.isNotEmpty
-                                        ? Colors.black
-                                        : Colors.grey.shade600,
-                                  ),
-                                ),
-                              ],
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 8),
+                      // Card
+                      Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.06),
+                              blurRadius: 20,
+                              offset: const Offset(0, 8),
                             ),
                           ],
                         ),
-                        if (_loadingPhoneNumbers)
-                          const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        else
-                          Icon(
-                            Icons.arrow_forward_ios,
-                            color: Colors.grey.shade400,
-                            size: 16,
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                // Email Input
-                Text(
-                  'Email ID',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade800,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                GestureDetector(
-                  onTap: _loadingEmails ? null : _showEmailSelectionDialog,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
-                      borderRadius: BorderRadius.circular(12),
-                      color: Colors.grey.shade50,
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 16,
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(
-                              Icons.email_outlined,
-                              color: Color(0xFFffbd18),
+                            Text(
+                              'Join e-Nagarseva',
+                              style: GoogleFonts.poppins(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF333333),
+                              ),
                             ),
-                            const SizedBox(width: 12),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Select Email Address',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey.shade600,
+                            const SizedBox(height: 4),
+                            Text(
+                              'Create your account to get started',
+                              style: GoogleFonts.poppins(
+                                fontSize: 13,
+                                color: Colors.grey.shade500,
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+
+                            // Full Name
+                            _fieldLabel('Full Name'),
+                            const SizedBox(height: 8),
+                            TextField(
+                              controller: _nameController,
+                              style: GoogleFonts.poppins(fontSize: 14),
+                              decoration: _inputDecoration(
+                                hint: 'Enter your full name',
+                                icon: Icons.person_outline,
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+
+                            // Phone Number
+                            _fieldLabel('Phone Number'),
+                            const SizedBox(height: 8),
+                            _SelectorTile(
+                              label: 'Select Phone Number',
+                              value: _phoneController.text.isNotEmpty
+                                  ? _phoneController.text
+                                  : null,
+                              icon: Icons.phone_outlined,
+                              isLoading: _loadingPhoneNumbers,
+                              onTap: _loadingPhoneNumbers
+                                  ? null
+                                  : _showPhoneSelectionDialog,
+                            ),
+                            const SizedBox(height: 20),
+
+                            // Email
+                            _fieldLabel('Email ID'),
+                            const SizedBox(height: 8),
+                            _SelectorTile(
+                              label: 'Select Email Address',
+                              value: _emailController.text.isNotEmpty
+                                  ? _emailController.text
+                                  : null,
+                              icon: Icons.email_outlined,
+                              isLoading: _loadingEmails,
+                              onTap: _loadingEmails
+                                  ? null
+                                  : _showEmailSelectionDialog,
+                            ),
+                            const SizedBox(height: 20),
+
+                            // Password
+                            _fieldLabel('Password'),
+                            const SizedBox(height: 8),
+                            TextField(
+                              controller: _passwordController,
+                              obscureText: _obscurePassword,
+                              style: GoogleFonts.poppins(fontSize: 14),
+                              decoration: _inputDecoration(
+                                hint: 'Enter your password',
+                                icon: Icons.lock_outlined,
+                              ).copyWith(
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _obscurePassword
+                                        ? Icons.visibility_off_outlined
+                                        : Icons.visibility_outlined,
+                                    color: Colors.grey.shade500,
+                                    size: 20,
                                   ),
+                                  onPressed: () => setState(
+                                      () => _obscurePassword = !_obscurePassword),
                                 ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  _emailController.text.isNotEmpty
-                                      ? _emailController.text
-                                      : 'Tap to select',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                    color: _emailController.text.isNotEmpty
-                                        ? Colors.black
-                                        : Colors.grey.shade600,
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+
+                            // Confirm Password
+                            _fieldLabel('Confirm Password'),
+                            const SizedBox(height: 8),
+                            TextField(
+                              controller: _confirmPasswordController,
+                              obscureText: _obscureConfirmPassword,
+                              style: GoogleFonts.poppins(fontSize: 14),
+                              decoration: _inputDecoration(
+                                hint: 'Re-enter your password',
+                                icon: Icons.lock_outlined,
+                              ).copyWith(
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _obscureConfirmPassword
+                                        ? Icons.visibility_off_outlined
+                                        : Icons.visibility_outlined,
+                                    color: Colors.grey.shade500,
+                                    size: 20,
                                   ),
-                                  overflow: TextOverflow.ellipsis,
+                                  onPressed: () => setState(() =>
+                                      _obscureConfirmPassword =
+                                          !_obscureConfirmPassword),
                                 ),
-                              ],
+                              ),
+                            ),
+                            const SizedBox(height: 28),
+
+                            // Sign Up Button
+                            SizedBox(
+                              width: double.infinity,
+                              height: 52,
+                              child: ElevatedButton(
+                                onPressed: _isLoading ? null : _handleSignUp,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFE67514),
+                                  disabledBackgroundColor:
+                                      const Color(0xFFE67514).withOpacity(0.6),
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14)),
+                                ),
+                                child: _isLoading
+                                    ? const SizedBox(
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2.5,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                  Colors.white),
+                                        ),
+                                      )
+                                    : Text(
+                                        'Create Account',
+                                        style: GoogleFonts.poppins(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w700),
+                                      ),
+                              ),
                             ),
                           ],
                         ),
-                        if (_loadingEmails)
-                          const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        else
-                          Icon(
-                            Icons.arrow_forward_ios,
-                            color: Colors.grey.shade400,
-                            size: 16,
+                      ),
+
+                      const SizedBox(height: 24),
+                      // Login link
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Already have an account? ',
+                            style: GoogleFonts.poppins(
+                                color: Colors.grey.shade600, fontSize: 14),
                           ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                // Password Input
-                Text(
-                  'Password',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade800,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _passwordController,
-                  obscureText: _obscurePassword,
-                  decoration: InputDecoration(
-                    hintText: 'Enter your password',
-                    prefixIcon: const Icon(Icons.lock_outlined),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _obscurePassword = !_obscurePassword;
-                        });
-                      },
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(
-                        color: Colors.blue,
-                        width: 2,
-                      ),
-                    ),
-                    filled: true,
-                    fillColor: Colors.grey.shade50,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                // Confirm Password Input
-                Text(
-                  'Confirm Password',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade800,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _confirmPasswordController,
-                  obscureText: _obscureConfirmPassword,
-                  decoration: InputDecoration(
-                    hintText: 'Re-enter your password',
-                    prefixIcon: const Icon(Icons.lock_outlined),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscureConfirmPassword
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _obscureConfirmPassword = !_obscureConfirmPassword;
-                        });
-                      },
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(
-                        color: Colors.blue,
-                        width: 2,
-                      ),
-                    ),
-                    filled: true,
-                    fillColor: Colors.grey.shade50,
-                  ),
-                ),
-                const SizedBox(height: 32),
-                // Sign Up Button
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _handleSignUp,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFE67514),
-                    disabledBackgroundColor: const Color(0xFFE67514).withOpacity(0.6),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
+                          GestureDetector(
+                            onTap: () => Navigator.pop(context),
+                            child: Text(
+                              'Login',
+                              style: GoogleFonts.poppins(
+                                color: const Color(0xFFE67514),
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
-                        )
-                      : const Text(
-                          'Sign Up',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                ),
-                const SizedBox(height: 16),
-                // Already have account link
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      'Already have an account? ',
-                      style: TextStyle(
-                        color: Colors.grey,
-                        fontSize: 14,
+                        ],
                       ),
-                    ),
-                    GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: const Text(
-                        'Login',
-                        style: TextStyle(
-                          color: Color(0xFFE67514),
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
+                      const SizedBox(height: 32),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 32),
-              ],
-            ),
+              ),
+            ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _fieldLabel(String text) {
+    return Text(
+      text,
+      style: GoogleFonts.poppins(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: Colors.grey.shade700,
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration(
+      {required String hint, required IconData icon}) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade400),
+      prefixIcon: Icon(icon, color: const Color(0xFFE67514), size: 20),
+      filled: true,
+      fillColor: const Color(0xFFF8F9FB),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey.shade200),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide:
+            const BorderSide(color: Color(0xFFE67514), width: 1.5),
+      ),
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    );
+  }
+}
+
+class _SelectorTile extends StatelessWidget {
+  final String label;
+  final String? value;
+  final IconData icon;
+  final bool isLoading;
+  final VoidCallback? onTap;
+
+  const _SelectorTile({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.isLoading,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8F9FB),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: const Color(0xFFE67514), size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: GoogleFonts.poppins(
+                        fontSize: 11, color: Colors.grey.shade500),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    value ?? 'Tap to select',
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      fontWeight: value != null
+                          ? FontWeight.w500
+                          : FontWeight.normal,
+                      color: value != null
+                          ? Colors.black87
+                          : Colors.grey.shade400,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            if (isLoading)
+              const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                        Color(0xFFE67514))),
+              )
+            else
+              Icon(Icons.arrow_forward_ios_rounded,
+                  color: Colors.grey.shade400, size: 14),
+          ],
         ),
       ),
     );
