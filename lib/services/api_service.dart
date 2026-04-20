@@ -361,6 +361,70 @@ class ApiService {
     }
   }
 
+  // Forgot Password - Send OTP
+  static Future<ForgotPasswordResponse> forgotPasswordSendOtp(String username) async {
+    try {
+      final headers = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'X-App-Version': AppConstants.apiVersion,
+      };
+
+      final response = await http.post(
+        Uri.parse('${AppConstants.baseUrl}api/house_tax/forgot_password_request'),
+        headers: headers,
+        body: jsonEncode({
+          'username': username,
+        }),
+      ).timeout(Duration(seconds: AppConstants.networkTimeout));
+
+      if (response.statusCode == 200) {
+        return ForgotPasswordResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Failed to send OTP: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Connection error: $e');
+    }
+  }
+
+  // Forgot Password - Verify OTP & Reset Password
+  static Future<VerifyForgotPasswordOtpResponse> resetPassword({
+    required String username,
+    required String otp,
+    required String newPassword,
+    required String confirmPassword,
+  }) async {
+    try {
+      final headers = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'X-App-Version': AppConstants.apiVersion,
+      };
+
+      final response = await http.post(
+        Uri.parse('${AppConstants.baseUrl}api/house_tax/verify_forgot_password_otp'),
+        headers: headers,
+        body: jsonEncode({
+          'username': username,
+          'otp': otp,
+          'new_password': newPassword,
+          'confirm_password': confirmPassword,
+        }),
+      ).timeout(Duration(seconds: AppConstants.networkTimeout));
+
+      if (response.statusCode == 200) {
+        return VerifyForgotPasswordOtpResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Password reset failed: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Connection error: $e');
+    }
+  }
+
   // Send OTP API
   static Future<SendOtpResponse> sendOtp(String mobileNo, String propertyId) async {
     try {
@@ -1044,6 +1108,46 @@ class ReceiptDetailsItem {
       sewerTaxPaidAmount: json['sewerTaxPaidAmount']?.toString(),
       otherTaxPaidAmount: json['otherTaxPaidAmount']?.toString(),
       waterChargePaidAmount: json['waterChargePaidAmount']?.toString(),
+    );
+  }
+}
+
+class ForgotPasswordResponse {
+  final bool status;
+  final String message;
+  final int? responseCode;
+
+  ForgotPasswordResponse({required this.status, required this.message, this.responseCode});
+
+  factory ForgotPasswordResponse.fromJson(Map<String, dynamic> json) {
+    return ForgotPasswordResponse(
+      status: json['status'] == true,
+      message: json['message']?.toString() ?? '',
+      responseCode: json['responseCode'],
+    );
+  }
+}
+
+class VerifyForgotPasswordOtpResponse {
+  final bool status;
+  final String message;
+  final int? responseCode;
+  final int? attemptsLeft;
+
+  VerifyForgotPasswordOtpResponse({
+    required this.status,
+    required this.message,
+    this.responseCode,
+    this.attemptsLeft,
+  });
+
+  factory VerifyForgotPasswordOtpResponse.fromJson(Map<String, dynamic> json) {
+    final data = json['data'] as Map<String, dynamic>?;
+    return VerifyForgotPasswordOtpResponse(
+      status: json['status'] == true,
+      message: json['message']?.toString() ?? '',
+      responseCode: json['responseCode'],
+      attemptsLeft: data?['attempts_left'],
     );
   }
 }

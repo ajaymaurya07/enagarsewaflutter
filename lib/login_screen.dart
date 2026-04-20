@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'signup_screen.dart';
+import 'forgot_password_screen.dart';
 import 'search_property_screen.dart';
 import 'services/api_service.dart';
 import 'services/device_service.dart';
@@ -243,8 +244,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           alignment: Alignment.centerRight,
                           child: TextButton(
                             onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Forgot password feature coming soon!')),
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()),
                               );
                             },
                             style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 30)),
