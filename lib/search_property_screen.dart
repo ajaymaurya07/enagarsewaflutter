@@ -307,13 +307,7 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFFFCEFD8), Color(0xFFF8F9FB)],
-          ),
-        ),
+        color: Colors.white,
         child: SafeArea(
           child: Column(
             children: [

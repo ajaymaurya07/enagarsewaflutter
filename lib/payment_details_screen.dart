@@ -255,79 +255,187 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
   void _showOtpAndPaymentDialog(String mobileNo) {
     final otpController = TextEditingController();
     bool isVerifying = false;
+    String? sheetError;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => Container(
+        builder: (context, setModalState) => Padding(
           padding: EdgeInsets.only(
             bottom: MediaQuery.of(context).viewInsets.bottom,
-            top: 24, left: 24, right: 24
           ),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Verification Required',
-                style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Enter the OTP sent to $mobileNo to proceed with payment.',
-                style: GoogleFonts.poppins(color: Colors.grey.shade600),
-              ),
-              const SizedBox(height: 24),
-              TextField(
-                controller: otpController,
-                keyboardType: TextInputType.number,
-                maxLength: 6,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 24, letterSpacing: 8, fontWeight: FontWeight.bold),
-                decoration: InputDecoration(
-                  hintText: '000000',
-                  counterText: "",
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Verification Required',
+                  style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF333333),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: isVerifying ? null : () async {
-                  if (otpController.text.length < 4) return;
-                  setModalState(() => isVerifying = true);
-                  try {
-                    final res = await ApiService.verifyOtp(mobileNo, otpController.text);
-                    if (res.success == true) {
-                      Navigator.pop(context); // Close OTP sheet
-                      _handleCreateTransaction();
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(res.message ?? 'Invalid OTP')),
-                      );
-                    }
-                  } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
-                  } finally {
-                    setModalState(() => isVerifying = false);
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0E3B90),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                const SizedBox(height: 4),
+                Text(
+                  'Enter the OTP sent to $mobileNo to proceed with payment.',
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    color: Colors.grey.shade500,
+                  ),
                 ),
-                child: isVerifying 
-                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Text('Verify & Proceed', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-              ),
-              const SizedBox(height: 32),
-            ],
+                const SizedBox(height: 16),
+                if (sheetError != null) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.red.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.error_outline, color: Colors.red.shade600, size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            sheetError!,
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              color: Colors.red.shade700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                Text(
+                  'Enter OTP',
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: otpController,
+                  keyboardType: TextInputType.number,
+                  maxLength: 6,
+                  style: GoogleFonts.poppins(fontSize: 14, letterSpacing: 4),
+                  decoration: InputDecoration(
+                    hintText: '------',
+                    hintStyle: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade400),
+                    prefixIcon: const Icon(Icons.pin_outlined, color: Color(0xFFE67514), size: 20),
+                    counterText: '',
+                    filled: true,
+                    fillColor: const Color(0xFFF8F9FB),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey.shade200),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFFE67514), width: 1.5),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: isVerifying ? null : () async {
+                      if (otpController.text.trim().isEmpty) {
+                        setModalState(() => sheetError = 'Please enter OTP');
+                        return;
+                      }
+                      if (otpController.text.length < 4) {
+                        setModalState(() => sheetError = 'Please enter valid OTP');
+                        return;
+                      }
+                      setModalState(() {
+                        isVerifying = true;
+                        sheetError = null;
+                      });
+                      try {
+                        final res = await ApiService.verifyOtp(mobileNo, otpController.text);
+                        if (res.success == true) {
+                          Navigator.pop(context);
+                          _handleCreateTransaction();
+                        } else {
+                          setModalState(() => sheetError = res.message ?? 'Invalid OTP');
+                        }
+                      } catch (e) {
+                        setModalState(() => sheetError = e.toString().replaceFirst('Exception: ', ''));
+                      } finally {
+                        if (mounted) setModalState(() => isVerifying = false);
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFE67514),
+                      disabledBackgroundColor: const Color(0xFFE67514).withOpacity(0.6),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    child: isVerifying
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : Text(
+                            'Verify & Proceed',
+                            style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w700),
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed: isVerifying ? null : () => Navigator.pop(context),
+                    child: Text(
+                      'Cancel',
+                      style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey.shade600),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            ),
           ),
         ),
       ),
@@ -550,7 +658,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
         ),
         child: Row(
           children: [
-            Icon(icon, color: const Color(0xFF0E3B90), size: 28),
+            Icon(icon, color: const Color(0xFFE67514), size: 28),
             const SizedBox(width: 16),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -583,47 +691,61 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FB),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        toolbarHeight: 70,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF333333), size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-        centerTitle: false,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Payment Details',
-              style: GoogleFonts.poppins(
-                color: const Color(0xFF333333),
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        color: const Color(0xFFF5F5F5),
+        child: SafeArea(
+          child: Column(
+            children: [
+              Container(
+                color: const Color(0xFFF5F5F5),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                          color: Color(0xFFE67514), size: 20),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Payment Details',
+                          style: GoogleFonts.poppins(
+                            color: const Color(0xFF333333),
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        Text(
+                          'PID: ${widget.propertyId}',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-            Text(
-              'PID: ${widget.propertyId}',
-              style: GoogleFonts.poppins(
-                fontSize: 12,
-                color: Colors.grey.shade600,
-                fontWeight: FontWeight.w500,
+              Expanded(
+                child: Container(
+                  color: Colors.white,
+                  child: _isLoading
+                      ? const Center(child: CircularProgressIndicator(color: Color(0xFFE67514)))
+                      : _errorMessage != null
+                          ? _buildErrorState()
+                          : _buildContent(),
+                ),
               ),
-            ),
-          ],
-        ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Divider(height: 1, color: Colors.grey.shade200),
+            ],
+          ),
         ),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFFE67514)))
-          : _errorMessage != null
-              ? _buildErrorState()
-              : _buildContent(),
     );
   }
 
@@ -691,10 +813,10 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE8F0FE),
+                        color: const Color(0xFFFFF4E5),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Icon(Icons.receipt_long_rounded, color: Color(0xFF0E3B90), size: 20),
+                      child: const Icon(Icons.receipt_long_rounded, color: Color(0xFFE67514), size: 20),
                     ),
                     const SizedBox(width: 12),
                     Text(
@@ -732,9 +854,9 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEDF3FF),
+                    color: const Color(0xFFFFF4E5),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFD1E1FF), width: 1),
+                    border: Border.all(color: const Color(0xFFFFE0B2), width: 1),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -744,7 +866,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
                         style: GoogleFonts.poppins(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
-                          color: const Color(0xFF1A3B8E),
+                          color: const Color(0xFFE67514),
                         ),
                       ),
                       Text(
@@ -752,7 +874,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
                         style: GoogleFonts.poppins(
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
-                          color: const Color(0xFF0E3B90),
+                          color: const Color(0xFFE67514),
                         ),
                       ),
                     ],
@@ -822,7 +944,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
                   ),
                   trailing: Icon(
                     _showPropertyDetails ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
-                    color: const Color(0xFF0E3B90),
+                    color: const Color(0xFFE67514),
                   ),
                 ),
                 if (_showPropertyDetails)
