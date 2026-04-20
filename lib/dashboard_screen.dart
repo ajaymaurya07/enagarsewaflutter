@@ -58,50 +58,63 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final cardWidth = (MediaQuery.of(context).size.width - 32 - 14) / 2;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FB),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        toolbarHeight: 80,
-        automaticallyImplyLeading: false,
-        title: Padding(
-          padding: const EdgeInsets.only(top: 12.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Welcome',
-                style: GoogleFonts.poppins(
-                  color: const Color(0xFF555555),
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              Text(
-                _displayName,
-                style: GoogleFonts.poppins(
-                  color: const Color(0xFF2D4BA0),
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFFF8F9FB), Color(0xFFF8F9FB)],
           ),
         ),
-      ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
+        child: SafeArea(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // AppBar
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Welcome',
+                            style: GoogleFonts.poppins(
+                              color: Colors.grey.shade600,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          Text(
+                            _displayName,
+                            style: GoogleFonts.poppins(
+                              color: const Color(0xFFE67514),
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
               // Fast Online Payment Card
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF0F6FF),
+                  color: const Color(0xFFFFF4E5),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFDDE8FF), width: 1),
+                  border: Border.all(color: const Color(0xFFFFE0B2), width: 1),
                 ),
                 child: Row(
                   children: [
@@ -114,7 +127,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           Text(
                             'Fast Online Payment',
                             style: GoogleFonts.poppins(
-                              color: const Color(0xFF1A3B8E),
+                              color: const Color(0xFFE67514),
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
                             ),
@@ -252,6 +265,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ],
               ),
               const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -265,7 +282,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: BottomNavigationBar(
           currentIndex: _selectedIndex,
           onTap: _onItemTapped,
-          selectedItemColor: const Color(0xFF0E3B90),
+          selectedItemColor: const Color(0xFFE67514),
           unselectedItemColor: const Color(0xFF999999),
           backgroundColor: Colors.white,
           type: BottomNavigationBarType.fixed,
@@ -293,7 +310,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
+              color: Colors.black.withOpacity(0.05),
               blurRadius: 15,
               offset: const Offset(0, 8),
             ),
@@ -306,10 +323,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFFF0F4FF),
+                color: const Color(0xFFFFF4E5),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: const Color(0xFF0E3B90), size: 26),
+              child: Icon(icon, color: const Color(0xFFE67514), size: 26),
             ),
             const SizedBox(height: 16),
             Text(
