@@ -9,6 +9,7 @@ import 'package:payu_checkoutpro_flutter/payu_checkoutpro_flutter.dart';
 import 'package:payu_checkoutpro_flutter/PayUConstantKeys.dart';
 import 'payment_result_screen.dart';
 import 'payment_grievance_screen.dart';
+import 'payment_history_screen.dart';
 
 class PaymentDetailsScreen extends StatefulWidget {
   final String propertyId;
@@ -566,6 +567,19 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
     );
   }
 
+  void _showPaymentHistory() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PaymentHistoryScreen(
+          propertyId: widget.propertyId,
+          currReceiptDetails: _details?.currReceiptDetails ?? [],
+          prevReceiptDetails: _details?.prevReceiptDetails ?? [],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -775,7 +789,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
             children: [
               Expanded(child: _buildSecondaryButton('ARV History', Icons.history_rounded, () {})),
               const SizedBox(width: 12),
-              Expanded(child: _buildSecondaryButton('Payment History', Icons.payment_rounded, () {})),
+              Expanded(child: _buildSecondaryButton('Payment History', Icons.payment_rounded, _showPaymentHistory)),
             ],
           ),
 

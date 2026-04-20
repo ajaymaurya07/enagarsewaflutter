@@ -1000,16 +1000,50 @@ class PropertyInfo {
 
 class ReceiptDetailsItem {
   final String? receiptNo;
+  final String? billNo;
   final String? receiptDate;
+  final String? paymentMode;
+  final String? paymentDate;
+  final String? challanId;
+  final String? chequeNo;
+  final String? propertyTaxNetAmount;
   final String? propertyTaxPaidAmount;
+  final String? waterTaxPaidAmount;
+  final String? sewerTaxPaidAmount;
+  final String? otherTaxPaidAmount;
+  final String? waterChargePaidAmount;
 
-  ReceiptDetailsItem({this.receiptNo, this.receiptDate, this.propertyTaxPaidAmount});
+  ReceiptDetailsItem({
+    this.receiptNo,
+    this.billNo,
+    this.receiptDate,
+    this.paymentMode,
+    this.paymentDate,
+    this.challanId,
+    this.chequeNo,
+    this.propertyTaxNetAmount,
+    this.propertyTaxPaidAmount,
+    this.waterTaxPaidAmount,
+    this.sewerTaxPaidAmount,
+    this.otherTaxPaidAmount,
+    this.waterChargePaidAmount,
+  });
 
   factory ReceiptDetailsItem.fromJson(Map<String, dynamic> json) {
     return ReceiptDetailsItem(
       receiptNo: json['receiptNo']?.toString(),
+      billNo: json['billNo']?.toString(),
       receiptDate: json['receiptDate']?.toString(),
+      paymentMode: json['paymentMode']?.toString(),
+      paymentDate: json['paymentDate']?.toString(),
+      challanId: json['challanId']?.toString(),
+      chequeNo: json['chequeNo']?.toString(),
+      propertyTaxNetAmount: json['propertyTaxNetAmount']?.toString(),
       propertyTaxPaidAmount: json['propertyTaxPaidAmount']?.toString(),
+      waterTaxPaidAmount: json['waterTaxPaidAmount']?.toString(),
+      sewerTaxPaidAmount: json['sewerTaxPaidAmount']?.toString(),
+      otherTaxPaidAmount: json['otherTaxPaidAmount']?.toString(),
+      waterChargePaidAmount: json['waterChargePaidAmount']?.toString(),
     );
   }
 }
