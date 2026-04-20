@@ -16,7 +16,7 @@ class MyApp extends StatelessWidget {
       title: AppConstants.appName,
       navigatorKey: ApiService.navigatorKey, // 👈 navigatorKey yahan add kiya
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFE67514)),
         useMaterial3: true,
       ),
       home: const SplashScreen(),

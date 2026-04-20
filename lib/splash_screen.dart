@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'login_screen.dart';
 import 'search_property_screen.dart';
 import 'dashboard_screen.dart';
@@ -12,39 +13,48 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+  late AnimationController _animController;
+  late Animation<double> _fadeIn;
+  late Animation<double> _scaleAnim;
+
   @override
   void initState() {
     super.initState();
+    _animController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
+    _fadeIn = CurvedAnimation(parent: _animController, curve: Curves.easeIn);
+    _scaleAnim = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeOutBack),
+    );
+    _animController.forward();
     _checkLoginStatus();
   }
 
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
+
   Future<void> _checkLoginStatus() async {
-    // Show splash for 3 seconds
     await Future.delayed(const Duration(seconds: 3));
-    
-    // Check if user is logged in
+
     final bool loggedIn = await StorageService.isLoggedIn();
-    
-    // Check if property is verified
     final bool propertyVerified = await StorageService.isPropertyVerified();
 
     if (!mounted) return;
 
     if (loggedIn) {
       if (propertyVerified) {
-        // If logged in AND property verified, go to Dashboard
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => const DashboardScreen()),
         );
       } else {
-        // If logged in BUT property NOT verified, go to Search Screen
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => const SearchPropertyScreen()),
         );
       }
     } else {
-      // If not logged in, go to Login Screen
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (context) => const LoginScreen()),
       );
@@ -61,59 +71,87 @@ class _SplashScreenState extends State<SplashScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFFFCEFD8), Color(0xFFFFFFFF)],
+            colors: [Color(0xFFFCEFD8), Color(0xFFFFE5C0), Color(0xFFFFF8F0)],
           ),
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              flex: 2,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Image.asset('assets/images/e_nagar_seva_logo.png', width: 200, height: 200),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Welcome ${AppConstants.appName}',
-                    style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Color(0xFF0E3B90)),
-                    textAlign: TextAlign.center,
+        child: FadeTransition(
+          opacity: _fadeIn,
+          child: ScaleTransition(
+            scale: _scaleAnim,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Spacer(flex: 3),
+
+                // Logo with glow
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFE67514).withOpacity(0.3),
+                        blurRadius: 40,
+                        spreadRadius: 8,
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                  child: Image.asset(
+                    'assets/images/e_nagar_seva_logo.png',
+                    width: 100,
+                    height: 100,
+                  ),
+                ),
+                const SizedBox(height: 28),
+
+                // App Name
+                Text(
+                  AppConstants.appName,
+                  style: GoogleFonts.poppins(
+                    fontSize: 30,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFFE67514),
+                    letterSpacing: 1,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Smart Urban Services at Your Fingertips',
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w400,
+                    color: const Color(0xFFE67514).withOpacity(0.7),
+                  ),
+                ),
+
+                const Spacer(flex: 2),
+
+                // Loader
+                SizedBox(
+                  width: 36,
+                  height: 36,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 3,
+                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFE67514)),
+                    backgroundColor: const Color(0xFFE67514).withOpacity(0.15),
+                  ),
+                ),
+
+                const Spacer(flex: 1),
+
+                // Version
+                Text(
+                  'Version ${AppConstants.appDisplayVersion}',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: Colors.grey.shade400,
+                  ),
+                ),
+                const SizedBox(height: 32),
+              ],
             ),
-            Expanded(
-              flex: 1,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFF57C00)),
-                    backgroundColor: Color(0xFFFFE6CC),
-                    strokeWidth: 4,
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              flex: 1,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Text(
-                    'Smart Urban Services at Your Fingertips',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFFF57C00)),
-                    textAlign: TextAlign.center,
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'App Version ${AppConstants.appDisplayVersion}',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                ],
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

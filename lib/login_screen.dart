@@ -173,7 +173,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           decoration: InputDecoration(
                             hintText: 'Enter email or phone number',
                             hintStyle: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade400),
-                            prefixIcon: const Icon(Icons.email_outlined, color: Color(0xFF0E3B90), size: 20),
+                            prefixIcon: const Icon(Icons.email_outlined, color: Color(0xFFE67514), size: 20),
                             filled: true,
                             fillColor: const Color(0xFFF8F9FB),
                             border: OutlineInputBorder(
@@ -186,7 +186,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Color(0xFF0E3B90), width: 1.5),
+                              borderSide: const BorderSide(color: Color(0xFFE67514), width: 1.5),
                             ),
                             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                           ),
@@ -210,7 +210,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           decoration: InputDecoration(
                             hintText: 'Enter your password',
                             hintStyle: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade400),
-                            prefixIcon: const Icon(Icons.lock_outlined, color: Color(0xFF0E3B90), size: 20),
+                            prefixIcon: const Icon(Icons.lock_outlined, color: Color(0xFFE67514), size: 20),
                             suffixIcon: IconButton(
                               icon: Icon(
                                 _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
@@ -231,7 +231,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Color(0xFF0E3B90), width: 1.5),
+                              borderSide: const BorderSide(color: Color(0xFFE67514), width: 1.5),
                             ),
                             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                           ),
@@ -267,8 +267,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: ElevatedButton(
                             onPressed: _isLoading ? null : _handleLogin,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF0E3B90),
-                              disabledBackgroundColor: const Color(0xFF0E3B90).withOpacity(0.6),
+                              backgroundColor: const Color(0xFFE67514),
+                              disabledBackgroundColor: const Color(0xFFE67514).withOpacity(0.6),
                               foregroundColor: Colors.white,
                               elevation: 0,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
