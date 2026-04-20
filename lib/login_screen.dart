@@ -107,7 +107,7 @@ class _LoginScreenState extends State<LoginScreen> {
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 28),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -116,8 +116,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   // Logo
                   Image.asset(
                     'assets/images/e_nagar_seva_logo.png',
-                    width: 120,
-                    height: 120,
+                    width: 150,
+                    height: 150,
                   ),
                   const SizedBox(height: 36),
 
