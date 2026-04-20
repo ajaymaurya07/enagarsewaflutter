@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:enagarsewa/services/api_service.dart';
 import 'package:enagarsewa/services/storage_service.dart';
 import 'property_selection_screen.dart';
@@ -303,184 +304,269 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: const Text(
-          'Search Property For Login',
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Divider(height: 1, color: Colors.grey.shade300),
-        ),
-      ),
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: BoxDecoration(
-          image: DecorationImage(
-            image: const AssetImage('assets/images/background_pattern.png'),
-            fit: BoxFit.cover,
-            colorFilter: ColorFilter.mode(
-              Colors.white.withValues(alpha: 0.9),
-              BlendMode.lighten,
-            ),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFFFCEFD8), Color(0xFFF8F9FB)],
           ),
         ),
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
+        child: SafeArea(
+          child: Column(
+            children: [
+              // AppBar
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                child: Row(
                   children: [
-                    Expanded(child: _buildModeButton('By Owner')),
                     const SizedBox(width: 8),
-                    Expanded(child: _buildModeButton('By Property ID')),
-                    const SizedBox(width: 8),
-                    Expanded(child: _buildModeButton('By House No')),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    const Expanded(flex: 1, child: SizedBox()),
-                    Expanded(flex: 5, child: _buildModeButton('By Location')),
-                    const SizedBox(width: 8),
-                    Expanded(flex: 5, child: _buildModeButton('By Mobile No')),
-                    const Expanded(flex: 1, child: SizedBox()),
-                  ],
-                ),
-                const SizedBox(height: 40),
-
-                // Common ULB Picker
-                _buildSelectableField(
-                  hint: _isLoadingUlbs ? 'Loading ULBs...' : (_selectedUlb?.ulbName ?? 'Choose ULB'),
-                  isSelected: _selectedUlb != null,
-                  onTap: _isLoadingUlbs ? null : _showUlbSelection,
-                ),
-                
-                if (_errorMessage != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8.0, left: 4.0),
-                    child: Text(
-                      _errorMessage!,
-                      style: const TextStyle(color: Colors.red, fontSize: 12),
-                    ),
-                  ),
-                
-                const SizedBox(height: 16),
-                
-                // Dynamic Fields based on Search Mode
-                if (_searchMode == 'By Owner') ...[
-                  _buildTextField('Enter owner name', _ownerController),
-                  const SizedBox(height: 16),
-                  _buildTextField('Enter father name', _fatherController),
-                ] else if (_searchMode == 'By Property ID') ...[
-                  _buildTextField('Enter property ID', _propertyIdController),
-                ] else if (_searchMode == 'By House No') ...[
-                  _buildSelectableField(
-                    hint: _isLoadingZones ? 'Loading Zones...' : (_selectedZone?.zoneName ?? 'Choose Zone'),
-                    isSelected: _selectedZone != null,
-                    onTap: _showZoneSelection,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildSelectableField(
-                    hint: _isLoadingWards ? 'Loading Wards...' : (_selectedWard?.wardName ?? 'Choose Ward'),
-                    isSelected: _selectedWard != null,
-                    onTap: _showWardSelection,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildTextField('Enter house number', _houseNoController),
-                ] else if (_searchMode == 'By Location') ...[
-                  _buildSelectableField(
-                    hint: _isLoadingZones ? 'Loading Zones...' : (_selectedZone?.zoneName ?? 'Choose Zone'),
-                    isSelected: _selectedZone != null,
-                    onTap: _showZoneSelection,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildSelectableField(
-                    hint: _isLoadingWards ? 'Loading Wards...' : (_selectedWard?.wardName ?? 'Choose Ward'),
-                    isSelected: _selectedWard != null,
-                    onTap: _showWardSelection,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildSelectableField(
-                    hint: _isLoadingMohallas ? 'Loading Mohallas...' : (_selectedMohalla?.mohallaName ?? 'Choose Mohalla'),
-                    isSelected: _selectedMohalla != null,
-                    onTap: _showMohallaSelection,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildTextField('Enter house number', _houseNoController),
-                ] else if (_searchMode == 'By Mobile No') ...[
-                  _buildTextField('Enter mobile number', _mobileController),
-                ],
-
-                const SizedBox(height: 30),
-
-                SizedBox(
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: _isSearching ? null : _handleSearch,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFE67514),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                    Text(
+                      'Search Property',
+                      style: GoogleFonts.poppins(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF333333),
                       ),
                     ),
-                    child: _isSearching 
-                      ? const SizedBox(
-                          height: 20, 
-                          width: 20, 
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
-                        )
-                      : const Text(
-                          'Search',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 8),
+                      // Search Mode Tabs
+                      Padding(
+                        padding: const EdgeInsets.all(6),
+                        child: Column(
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(child: _buildModeChip('By Owner')),
+                                const SizedBox(width: 6),
+                                Expanded(child: _buildModeChip('By Property ID')),
+                                const SizedBox(width: 6),
+                                Expanded(child: _buildModeChip('By House No')),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                const Expanded(flex: 1, child: SizedBox()),
+                                Expanded(flex: 5, child: _buildModeChip('By Location')),
+                                const SizedBox(width: 6),
+                                Expanded(flex: 5, child: _buildModeChip('By Mobile No')),
+                                const Expanded(flex: 1, child: SizedBox()),
+                              ],
+                            ),
+                          ],
                         ),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Form Card
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.06),
+                              blurRadius: 20,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // ULB Picker
+                            _fieldLabel('Select ULB'),
+                            const SizedBox(height: 8),
+                            _buildSelectableField(
+                              hint: _isLoadingUlbs
+                                  ? 'Loading ULBs...'
+                                  : (_selectedUlb?.ulbName ?? 'Choose ULB'),
+                              isSelected: _selectedUlb != null,
+                              onTap: _isLoadingUlbs ? null : _showUlbSelection,
+                            ),
+
+                            if (_errorMessage != null) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                _errorMessage!,
+                                style: GoogleFonts.poppins(
+                                    color: Colors.red.shade600, fontSize: 12),
+                              ),
+                            ],
+
+                            const SizedBox(height: 16),
+
+                            // Dynamic Fields
+                            if (_searchMode == 'By Owner') ...[
+                              _fieldLabel('Owner Name'),
+                              const SizedBox(height: 8),
+                              _buildTextField('Enter owner name', _ownerController),
+                              const SizedBox(height: 16),
+                              _fieldLabel('Father Name'),
+                              const SizedBox(height: 8),
+                              _buildTextField('Enter father name', _fatherController),
+                            ] else if (_searchMode == 'By Property ID') ...[
+                              _fieldLabel('Property ID'),
+                              const SizedBox(height: 8),
+                              _buildTextField('Enter property ID', _propertyIdController),
+                            ] else if (_searchMode == 'By House No') ...[
+                              _fieldLabel('Zone'),
+                              const SizedBox(height: 8),
+                              _buildSelectableField(
+                                hint: _isLoadingZones
+                                    ? 'Loading Zones...'
+                                    : (_selectedZone?.zoneName ?? 'Choose Zone'),
+                                isSelected: _selectedZone != null,
+                                onTap: _showZoneSelection,
+                              ),
+                              const SizedBox(height: 16),
+                              _fieldLabel('Ward'),
+                              const SizedBox(height: 8),
+                              _buildSelectableField(
+                                hint: _isLoadingWards
+                                    ? 'Loading Wards...'
+                                    : (_selectedWard?.wardName ?? 'Choose Ward'),
+                                isSelected: _selectedWard != null,
+                                onTap: _showWardSelection,
+                              ),
+                              const SizedBox(height: 16),
+                              _fieldLabel('House Number'),
+                              const SizedBox(height: 8),
+                              _buildTextField('Enter house number', _houseNoController),
+                            ] else if (_searchMode == 'By Location') ...[
+                              _fieldLabel('Zone'),
+                              const SizedBox(height: 8),
+                              _buildSelectableField(
+                                hint: _isLoadingZones
+                                    ? 'Loading Zones...'
+                                    : (_selectedZone?.zoneName ?? 'Choose Zone'),
+                                isSelected: _selectedZone != null,
+                                onTap: _showZoneSelection,
+                              ),
+                              const SizedBox(height: 16),
+                              _fieldLabel('Ward'),
+                              const SizedBox(height: 8),
+                              _buildSelectableField(
+                                hint: _isLoadingWards
+                                    ? 'Loading Wards...'
+                                    : (_selectedWard?.wardName ?? 'Choose Ward'),
+                                isSelected: _selectedWard != null,
+                                onTap: _showWardSelection,
+                              ),
+                              const SizedBox(height: 16),
+                              _fieldLabel('Mohalla'),
+                              const SizedBox(height: 8),
+                              _buildSelectableField(
+                                hint: _isLoadingMohallas
+                                    ? 'Loading Mohallas...'
+                                    : (_selectedMohalla?.mohallaName ?? 'Choose Mohalla'),
+                                isSelected: _selectedMohalla != null,
+                                onTap: _showMohallaSelection,
+                              ),
+                              const SizedBox(height: 16),
+                              _fieldLabel('House Number'),
+                              const SizedBox(height: 8),
+                              _buildTextField('Enter house number', _houseNoController),
+                            ] else if (_searchMode == 'By Mobile No') ...[
+                              _fieldLabel('Mobile Number'),
+                              const SizedBox(height: 8),
+                              _buildTextField('Enter mobile number', _mobileController),
+                            ],
+
+                            const SizedBox(height: 28),
+
+                            // Search Button
+                            SizedBox(
+                              width: double.infinity,
+                              height: 52,
+                              child: ElevatedButton(
+                                onPressed: _isSearching ? null : _handleSearch,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFE67514),
+                                  disabledBackgroundColor:
+                                      const Color(0xFFE67514).withOpacity(0.6),
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14)),
+                                ),
+                                child: _isSearching
+                                    ? const SizedBox(
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2.5,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                  Colors.white),
+                                        ),
+                                      )
+                                    : Text(
+                                        'Search',
+                                        style: GoogleFonts.poppins(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w700),
+                                      ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                    ],
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildModeButton(String title) {
+  Widget _fieldLabel(String text) {
+    return Text(
+      text,
+      style: GoogleFonts.poppins(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: Colors.grey.shade700,
+      ),
+    );
+  }
+
+  Widget _buildModeChip(String title) {
     final isSelected = _searchMode == title;
     return GestureDetector(
       onTap: () => setState(() {
         _searchMode = title;
       }),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFFBB017) : Colors.white,
+          color: isSelected ? const Color(0xFFE67514) : const Color(0xFFF8F9FB),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: isSelected ? Colors.transparent : Colors.grey.shade300,
-          ),
         ),
         child: Center(
           child: Text(
             title,
-            style: TextStyle(
-              fontSize: 12,
+            style: GoogleFonts.poppins(
+              fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: isSelected ? Colors.black87 : Colors.grey.shade700,
+              color: isSelected ? Colors.white : Colors.grey.shade400,
             ),
           ),
         ),
@@ -488,30 +574,32 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
     );
   }
 
-  Widget _buildSelectableField({required String hint, required bool isSelected, VoidCallback? onTap}) {
+  Widget _buildSelectableField(
+      {required String hint, required bool isSelected, VoidCallback? onTap}) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: Colors.grey.shade400),
+          color: const Color(0xFFF8F9FB),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade200),
         ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Expanded(
               child: Text(
                 hint,
-                style: TextStyle(
-                  color: isSelected ? Colors.black : Colors.grey.shade700,
-                  fontSize: 16
+                style: GoogleFonts.poppins(
+                  color: isSelected ? Colors.black87 : Colors.grey.shade400,
+                  fontSize: 13,
+                  fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            Icon(Icons.arrow_drop_down, color: Colors.grey.shade700),
+            Icon(Icons.keyboard_arrow_down_rounded,
+                color: Colors.grey.shade400, size: 20),
           ],
         ),
       ),
@@ -521,21 +609,29 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
   Widget _buildTextField(String hint, TextEditingController controller) {
     return TextField(
       controller: controller,
-      keyboardType: hint.contains('mobile') ? TextInputType.phone : TextInputType.text,
+      keyboardType:
+          hint.contains('mobile') ? TextInputType.phone : TextInputType.text,
+      style: GoogleFonts.poppins(fontSize: 14),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey.shade700, fontSize: 16),
+        hintStyle:
+            GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade400),
         filled: true,
-        fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        fillColor: const Color(0xFFF8F9FB),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(4),
-          borderSide: BorderSide(color: Colors.grey.shade400),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(4),
-          borderSide: BorderSide(color: Colors.grey.shade400),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade200),
         ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE67514), width: 1.5),
+        ),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
     );
   }
@@ -578,54 +674,85 @@ class _SelectionSheetState extends State<SelectionSheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: MediaQuery.of(context).size.height * 0.8,
+      height: MediaQuery.of(context).size.height * 0.75,
       decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Column(
         children: [
+          // Handle bar
+          const SizedBox(height: 12),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.fromLTRB(20, 16, 12, 0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   widget.title,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: GoogleFonts.poppins(
+                      fontSize: 17, fontWeight: FontWeight.w700),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close),
+                  icon: Icon(Icons.close, color: Colors.grey.shade500),
                   onPressed: () => Navigator.pop(context),
                 ),
               ],
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             child: TextField(
               controller: _searchController,
               onChanged: _filterSearch,
+              style: GoogleFonts.poppins(fontSize: 14),
               decoration: InputDecoration(
                 hintText: 'Search...',
-                prefixIcon: const Icon(Icons.search),
+                hintStyle: GoogleFonts.poppins(
+                    fontSize: 13, color: Colors.grey.shade400),
+                prefixIcon: Icon(Icons.search,
+                    color: const Color(0xFFE67514), size: 20),
+                filled: true,
+                fillColor: const Color(0xFFF8F9FB),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
                 ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey.shade200),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide:
+                      const BorderSide(color: Color(0xFFE67514), width: 1.5),
+                ),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
             ),
           ),
-          const SizedBox(height: 10),
           Expanded(
             child: ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
               itemCount: filteredList.length,
-              separatorBuilder: (context, index) => const Divider(height: 1),
+              separatorBuilder: (context, index) =>
+                  Divider(height: 1, color: Colors.grey.shade100),
               itemBuilder: (context, index) {
                 final item = filteredList[index];
                 return ListTile(
-                  title: Text(item, style: const TextStyle(fontSize: 15)),
+                  title: Text(item,
+                      style: GoogleFonts.poppins(fontSize: 14)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
                   onTap: () {
                     final originalIndex = widget.items.indexOf(item);
                     widget.onSelected(originalIndex);
