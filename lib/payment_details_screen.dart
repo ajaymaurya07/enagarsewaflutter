@@ -8,6 +8,7 @@ import 'services/database_service.dart';
 import 'package:payu_checkoutpro_flutter/payu_checkoutpro_flutter.dart';
 import 'package:payu_checkoutpro_flutter/PayUConstantKeys.dart';
 import 'payment_result_screen.dart';
+import 'payment_grievance_screen.dart';
 
 class PaymentDetailsScreen extends StatefulWidget {
   final String propertyId;
@@ -756,7 +757,17 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
             children: [
               Expanded(child: _buildSecondaryButton('Print Property', Icons.print_outlined, () {})),
               const SizedBox(width: 12),
-              Expanded(child: _buildSecondaryButton('Add Grievance', Icons.add_comment_outlined, () {})),
+              Expanded(child: _buildSecondaryButton('Add Grievance', Icons.add_comment_outlined, () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => PaymentGrievanceScreen(
+                      propertyId: widget.propertyId,
+                      propertyDetails: _details,
+                    ),
+                  ),
+                );
+              })),
             ],
           ),
           const SizedBox(height: 12),
