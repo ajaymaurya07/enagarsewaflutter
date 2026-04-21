@@ -16,7 +16,7 @@ class ApiService {
   static Future<Map<String, String>> _getHeaders() async {
     final token = await StorageService.getAccessToken();
     final deviceId = await DeviceService.getDeviceId();
-    
+
     return {
       'Accept': 'application/json',
       'Content-Type': 'application/json',
@@ -30,7 +30,7 @@ class ApiService {
   static Future<void> _handleSessionExpired() async {
     await DatabaseService.clearDatabase();
     await StorageService.logout();
-    
+
     if (navigatorKey.currentState != null) {
       navigatorKey.currentState!.pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const LoginScreen()),
@@ -50,11 +50,14 @@ class ApiService {
       if (refreshTokenStr != null) {
         try {
           final refreshResponse = await refreshToken(refreshTokenStr);
-          if (refreshResponse.status == true && refreshResponse.data?.accessToken != null) {
-            await StorageService.updateAccessToken(refreshResponse.data!.accessToken!);
+          if (refreshResponse.status == true &&
+              refreshResponse.data?.accessToken != null) {
+            await StorageService.updateAccessToken(
+              refreshResponse.data!.accessToken!,
+            );
             headers = await _getHeaders();
             response = await requestFn(headers);
-            
+
             if (response.statusCode == 403) {
               await _handleSessionExpired();
             }
@@ -92,7 +95,7 @@ class ApiService {
     try {
       final token = await StorageService.getAccessToken();
       final deviceId = await DeviceService.getDeviceId();
-      
+
       var request = http.MultipartRequest(
         'POST',
         Uri.parse('${AppConstants.baseUrl}api/house_tax/saveGrievance'),
@@ -124,13 +127,14 @@ class ApiService {
 
       // File
       if (imageFile != null) {
-        request.files.add(await http.MultipartFile.fromPath(
-          'file',
-          imageFile.path,
-        ));
+        request.files.add(
+          await http.MultipartFile.fromPath('file', imageFile.path),
+        );
       }
 
-      final streamedResponse = await request.send().timeout(Duration(seconds: AppConstants.networkTimeout));
+      final streamedResponse = await request.send().timeout(
+        Duration(seconds: AppConstants.networkTimeout),
+      );
       final response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200) {
@@ -153,15 +157,21 @@ class ApiService {
     required String grievanceId,
   }) async {
     try {
-      final response = await _makeAuthenticatedRequest((headers) => http.post(
-        Uri.parse('${AppConstants.baseUrl}api/house_tax/registerGrievanceAfterOtp'),
-        headers: headers,
-        body: jsonEncode({
-          'mobileNo': mobileNo,
-          'otp': otp,
-          'grievance_id': grievanceId,
-        }),
-      ).timeout(Duration(seconds: AppConstants.networkTimeout)));
+      final response = await _makeAuthenticatedRequest(
+        (headers) => http
+            .post(
+              Uri.parse(
+                '${AppConstants.baseUrl}api/house_tax/registerGrievanceAfterOtp',
+              ),
+              headers: headers,
+              body: jsonEncode({
+                'mobileNo': mobileNo,
+                'otp': otp,
+                'grievance_id': grievanceId,
+              }),
+            )
+            .timeout(Duration(seconds: AppConstants.networkTimeout)),
+      );
 
       if (response.statusCode == 200) {
         return OtpVerificationResponse.fromJson(jsonDecode(response.body));
@@ -176,10 +186,16 @@ class ApiService {
   // Fetch Grievance Categories API
   static Future<List<GrievanceCategory>> getGrievanceCategories() async {
     try {
-      final response = await _makeAuthenticatedRequest((headers) => http.get(
-        Uri.parse('${AppConstants.baseUrl}api/House_tax/grievanceCategory'),
-        headers: headers,
-      ).timeout(Duration(seconds: AppConstants.networkTimeout)));
+      final response = await _makeAuthenticatedRequest(
+        (headers) => http
+            .get(
+              Uri.parse(
+                '${AppConstants.baseUrl}api/House_tax/grievanceCategory',
+              ),
+              headers: headers,
+            )
+            .timeout(Duration(seconds: AppConstants.networkTimeout)),
+      );
 
       if (response.statusCode == 200) {
         final decodedData = json.decode(response.body);
@@ -200,10 +216,14 @@ class ApiService {
   // Fetch ULB Data
   static Future<List<UlbData>> getUlbData() async {
     try {
-      final response = await _makeAuthenticatedRequest((headers) => http.get(
-        Uri.parse('${AppConstants.baseUrl}api/House_tax/ulbdata'),
-        headers: headers,
-      ).timeout(Duration(seconds: AppConstants.networkTimeout)));
+      final response = await _makeAuthenticatedRequest(
+        (headers) => http
+            .get(
+              Uri.parse('${AppConstants.baseUrl}api/House_tax/ulbdata'),
+              headers: headers,
+            )
+            .timeout(Duration(seconds: AppConstants.networkTimeout)),
+      );
 
       if (response.statusCode == 200) {
         final decodedData = json.decode(response.body);
@@ -224,10 +244,14 @@ class ApiService {
   // Fetch Zone Data
   static Future<List<ZoneData>> getZoneData(String ulbId) async {
     try {
-      final response = await _makeAuthenticatedRequest((headers) => http.get(
-        Uri.parse('${AppConstants.baseUrl}api/House_tax/zonedata/$ulbId'),
-        headers: headers,
-      ).timeout(Duration(seconds: AppConstants.networkTimeout)));
+      final response = await _makeAuthenticatedRequest(
+        (headers) => http
+            .get(
+              Uri.parse('${AppConstants.baseUrl}api/House_tax/zonedata/$ulbId'),
+              headers: headers,
+            )
+            .timeout(Duration(seconds: AppConstants.networkTimeout)),
+      );
 
       if (response.statusCode == 200) {
         final decodedData = json.decode(response.body);
@@ -248,10 +272,16 @@ class ApiService {
   // Fetch Ward Data
   static Future<List<WardData>> getWardData(String ulbId, String zoneId) async {
     try {
-      final response = await _makeAuthenticatedRequest((headers) => http.get(
-        Uri.parse('${AppConstants.baseUrl}api/House_tax/warddata/$ulbId/$zoneId'),
-        headers: headers,
-      ).timeout(Duration(seconds: AppConstants.networkTimeout)));
+      final response = await _makeAuthenticatedRequest(
+        (headers) => http
+            .get(
+              Uri.parse(
+                '${AppConstants.baseUrl}api/House_tax/warddata/$ulbId/$zoneId',
+              ),
+              headers: headers,
+            )
+            .timeout(Duration(seconds: AppConstants.networkTimeout)),
+      );
 
       if (response.statusCode == 200) {
         final decodedData = json.decode(response.body);
@@ -270,12 +300,22 @@ class ApiService {
   }
 
   // Fetch Mohalla Data
-  static Future<List<MohallaData>> getMohallaData(String ulbId, String zoneId, String wardId) async {
+  static Future<List<MohallaData>> getMohallaData(
+    String ulbId,
+    String zoneId,
+    String wardId,
+  ) async {
     try {
-      final response = await _makeAuthenticatedRequest((headers) => http.get(
-        Uri.parse('${AppConstants.baseUrl}api/House_tax/mohalladata/$ulbId/$zoneId/$wardId'),
-        headers: headers,
-      ).timeout(Duration(seconds: AppConstants.networkTimeout)));
+      final response = await _makeAuthenticatedRequest(
+        (headers) => http
+            .get(
+              Uri.parse(
+                '${AppConstants.baseUrl}api/House_tax/mohalladata/$ulbId/$zoneId/$wardId',
+              ),
+              headers: headers,
+            )
+            .timeout(Duration(seconds: AppConstants.networkTimeout)),
+      );
 
       if (response.statusCode == 200) {
         final decodedData = json.decode(response.body);
@@ -308,23 +348,27 @@ class ApiService {
     String houseNo = "",
   }) async {
     try {
-      final response = await _makeAuthenticatedRequest((headers) => http.post(
-        Uri.parse('${AppConstants.baseUrl}api/House_tax/propertysearch'),
-        headers: headers,
-        body: jsonEncode({
-          'propertyId': propertyId,
-          'ownerName': ownerName,
-          'fatherName': fatherName,
-          'mobileNo': mobileNo,
-          'zoneId': zoneId,
-          'wardId': wardId,
-          'mohallaId': mohallaId,
-          'chukNo': chukNo,
-          'houseNo': houseNo,
-          'ulbId': ulbId,
-          'searchType': searchType,
-        }),
-      ).timeout(Duration(seconds: AppConstants.networkTimeout)));
+      final response = await _makeAuthenticatedRequest(
+        (headers) => http
+            .post(
+              Uri.parse('${AppConstants.baseUrl}api/House_tax/propertysearch'),
+              headers: headers,
+              body: jsonEncode({
+                'propertyId': propertyId,
+                'ownerName': ownerName,
+                'fatherName': fatherName,
+                'mobileNo': mobileNo,
+                'zoneId': zoneId,
+                'wardId': wardId,
+                'mohallaId': mohallaId,
+                'chukNo': chukNo,
+                'houseNo': houseNo,
+                'ulbId': ulbId,
+                'searchType': searchType,
+              }),
+            )
+            .timeout(Duration(seconds: AppConstants.networkTimeout)),
+      );
 
       if (response.statusCode == 200) {
         final decodedData = json.decode(response.body);
@@ -343,18 +387,26 @@ class ApiService {
   }
 
   // Fetch Property Details API
-  static Future<PropertyDetailsResponse> getPropertyDetails(String propertyId) async {
+  static Future<PropertyDetailsResponse> getPropertyDetails(
+    String propertyId,
+  ) async {
     try {
-      final response = await _makeAuthenticatedRequest((headers) => http.post(
-        Uri.parse('${AppConstants.baseUrl}api/House_tax/propertydetails'),
-        headers: headers,
-        body: jsonEncode({'propertyId': propertyId}),
-      ).timeout(Duration(seconds: AppConstants.networkTimeout)));
+      final response = await _makeAuthenticatedRequest(
+        (headers) => http
+            .post(
+              Uri.parse('${AppConstants.baseUrl}api/House_tax/propertydetails'),
+              headers: headers,
+              body: jsonEncode({'propertyId': propertyId}),
+            )
+            .timeout(Duration(seconds: AppConstants.networkTimeout)),
+      );
 
       if (response.statusCode == 200) {
         return PropertyDetailsResponse.fromJson(jsonDecode(response.body));
       } else {
-        throw Exception('Failed to load property details: ${response.statusCode}');
+        throw Exception(
+          'Failed to load property details: ${response.statusCode}',
+        );
       }
     } catch (e) {
       throw Exception('Connection error: $e');
@@ -362,7 +414,9 @@ class ApiService {
   }
 
   // Forgot Password - Send OTP
-  static Future<ForgotPasswordResponse> forgotPasswordSendOtp(String username) async {
+  static Future<ForgotPasswordResponse> forgotPasswordSendOtp(
+    String username,
+  ) async {
     try {
       final headers = {
         'Accept': 'application/json',
@@ -370,13 +424,15 @@ class ApiService {
         'X-App-Version': AppConstants.apiVersion,
       };
 
-      final response = await http.post(
-        Uri.parse('${AppConstants.baseUrl}api/house_tax/forgot_password_request'),
-        headers: headers,
-        body: jsonEncode({
-          'username': username,
-        }),
-      ).timeout(Duration(seconds: AppConstants.networkTimeout));
+      final response = await http
+          .post(
+            Uri.parse(
+              '${AppConstants.baseUrl}api/house_tax/forgot_password_request',
+            ),
+            headers: headers,
+            body: jsonEncode({'username': username}),
+          )
+          .timeout(Duration(seconds: AppConstants.networkTimeout));
 
       if (response.statusCode == 200) {
         return ForgotPasswordResponse.fromJson(jsonDecode(response.body));
@@ -397,25 +453,35 @@ class ApiService {
     required String confirmPassword,
   }) async {
     try {
+      final hashedPassword = sha512
+          .convert(utf8.encode(newPassword))
+          .toString();
+
       final headers = {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
         'X-App-Version': AppConstants.apiVersion,
       };
 
-      final response = await http.post(
-        Uri.parse('${AppConstants.baseUrl}api/house_tax/verify_forgot_password_otp'),
-        headers: headers,
-        body: jsonEncode({
-          'username': username,
-          'otp': otp,
-          'new_password': newPassword,
-          'confirm_password': confirmPassword,
-        }),
-      ).timeout(Duration(seconds: AppConstants.networkTimeout));
+      final response = await http
+          .post(
+            Uri.parse(
+              '${AppConstants.baseUrl}api/house_tax/verify_forgot_password_otp',
+            ),
+            headers: headers,
+            body: jsonEncode({
+              'username': username,
+              'otp': otp,
+              'new_password': hashedPassword,
+              'confirm_password': hashedPassword,
+            }),
+          )
+          .timeout(Duration(seconds: AppConstants.networkTimeout));
 
       if (response.statusCode == 200) {
-        return VerifyForgotPasswordOtpResponse.fromJson(jsonDecode(response.body));
+        return VerifyForgotPasswordOtpResponse.fromJson(
+          jsonDecode(response.body),
+        );
       } else {
         throw Exception('Password reset failed: ${response.statusCode}');
       }
@@ -426,16 +492,23 @@ class ApiService {
   }
 
   // Send OTP API
-  static Future<SendOtpResponse> sendOtp(String mobileNo, String propertyId) async {
+  static Future<SendOtpResponse> sendOtp(
+    String mobileNo,
+    String propertyId,
+  ) async {
     try {
-      final response = await _makeAuthenticatedRequest((headers) => http.post(
-        Uri.parse('${AppConstants.baseUrl}api/house_tax/sendOtp'),
-        headers: headers,
-        body: jsonEncode({
-          'mobileNo': mobileNo,
-          'propertyId': propertyId,
-        }),
-      ).timeout(Duration(seconds: AppConstants.networkTimeout)));
+      final response = await _makeAuthenticatedRequest(
+        (headers) => http
+            .post(
+              Uri.parse('${AppConstants.baseUrl}api/house_tax/sendOtp'),
+              headers: headers,
+              body: jsonEncode({
+                'mobileNo': mobileNo,
+                'propertyId': propertyId,
+              }),
+            )
+            .timeout(Duration(seconds: AppConstants.networkTimeout)),
+      );
 
       if (response.statusCode == 200) {
         return SendOtpResponse.fromJson(jsonDecode(response.body));
@@ -448,16 +521,20 @@ class ApiService {
   }
 
   // Verify OTP API
-  static Future<OtpVerificationResponse> verifyOtp(String mobileNo, String otp) async {
+  static Future<OtpVerificationResponse> verifyOtp(
+    String mobileNo,
+    String otp,
+  ) async {
     try {
-      final response = await _makeAuthenticatedRequest((headers) => http.post(
-        Uri.parse('${AppConstants.baseUrl}api/house_tax/verifyOtp'),
-        headers: headers,
-        body: jsonEncode({
-          'mobileNo': mobileNo,
-          'otp': otp,
-        }),
-      ).timeout(Duration(seconds: AppConstants.networkTimeout)));
+      final response = await _makeAuthenticatedRequest(
+        (headers) => http
+            .post(
+              Uri.parse('${AppConstants.baseUrl}api/house_tax/verifyOtp'),
+              headers: headers,
+              body: jsonEncode({'mobileNo': mobileNo, 'otp': otp}),
+            )
+            .timeout(Duration(seconds: AppConstants.networkTimeout)),
+      );
 
       if (response.statusCode == 200) {
         return OtpVerificationResponse.fromJson(jsonDecode(response.body));
@@ -470,18 +547,28 @@ class ApiService {
   }
 
   // Create Transaction API
-  static Future<CreateTransactionResponse> initiateTransaction(InitiateTransactionRequest request) async {
+  static Future<CreateTransactionResponse> initiateTransaction(
+    InitiateTransactionRequest request,
+  ) async {
     try {
-      final response = await _makeAuthenticatedRequest((headers) => http.post(
-        Uri.parse('${AppConstants.baseUrl}api/Payment/create_transaction'),
-        headers: headers,
-        body: jsonEncode(request.toJson()),
-      ).timeout(Duration(seconds: AppConstants.networkTimeout)));
+      final response = await _makeAuthenticatedRequest(
+        (headers) => http
+            .post(
+              Uri.parse(
+                '${AppConstants.baseUrl}api/Payment/create_transaction',
+              ),
+              headers: headers,
+              body: jsonEncode(request.toJson()),
+            )
+            .timeout(Duration(seconds: AppConstants.networkTimeout)),
+      );
 
       if (response.statusCode == 200) {
         return CreateTransactionResponse.fromJson(jsonDecode(response.body));
       } else {
-        throw Exception('Transaction initiation failed: ${response.statusCode}');
+        throw Exception(
+          'Transaction initiation failed: ${response.statusCode}',
+        );
       }
     } catch (e) {
       throw Exception('Connection error: $e');
@@ -489,16 +576,22 @@ class ApiService {
   }
 
   // Generate hash for PayU (form-urlencoded)
-  static Future<HashResponse> generateHash(String hashName, String hashString) async {
+  static Future<HashResponse> generateHash(
+    String hashName,
+    String hashString,
+  ) async {
     try {
       final response = await _makeAuthenticatedRequest((headers) {
         headers['Content-Type'] = 'application/x-www-form-urlencoded';
-        final body = 'hashName=${Uri.encodeComponent(hashName)}&hashString=${Uri.encodeComponent(hashString)}';
-        return http.post(
-          Uri.parse('${AppConstants.baseUrl}api/Payment/generate_hash'),
-          headers: headers,
-          body: body,
-        ).timeout(Duration(seconds: AppConstants.networkTimeout));
+        final body =
+            'hashName=${Uri.encodeComponent(hashName)}&hashString=${Uri.encodeComponent(hashString)}';
+        return http
+            .post(
+              Uri.parse('${AppConstants.baseUrl}api/Payment/generate_hash'),
+              headers: headers,
+              body: body,
+            )
+            .timeout(Duration(seconds: AppConstants.networkTimeout));
       });
 
       if (response.statusCode == 200) {
@@ -515,13 +608,21 @@ class ApiService {
   }
 
   // Fetch Transactions By Email API
-  static Future<TransactionsByEmailResponse> getTransactionsByEmail(String emailId) async {
+  static Future<TransactionsByEmailResponse> getTransactionsByEmail(
+    String emailId,
+  ) async {
     try {
-      final response = await _makeAuthenticatedRequest((headers) => http.post(
-        Uri.parse('${AppConstants.baseUrl}api/payment/get_transactions_by_email'),
-        headers: headers,
-        body: jsonEncode({'email_id': emailId}),
-      ).timeout(Duration(seconds: AppConstants.networkTimeout)));
+      final response = await _makeAuthenticatedRequest(
+        (headers) => http
+            .post(
+              Uri.parse(
+                '${AppConstants.baseUrl}api/payment/get_transactions_by_email',
+              ),
+              headers: headers,
+              body: jsonEncode({'email_id': emailId}),
+            )
+            .timeout(Duration(seconds: AppConstants.networkTimeout)),
+      );
 
       if (response.statusCode == 200) {
         return TransactionsByEmailResponse.fromJson(jsonDecode(response.body));
@@ -534,18 +635,28 @@ class ApiService {
   }
 
   // Get Grievance Details API
-  static Future<GrievanceDetailsResponse> getGrievanceDetails(String emailId) async {
+  static Future<GrievanceDetailsResponse> getGrievanceDetails(
+    String emailId,
+  ) async {
     try {
-      final response = await _makeAuthenticatedRequest((headers) => http.post(
-        Uri.parse('${AppConstants.baseUrl}api/house_tax/getGrievanceDetails'),
-        headers: headers,
-        body: jsonEncode({'email_id': emailId}),
-      ).timeout(Duration(seconds: AppConstants.networkTimeout)));
+      final response = await _makeAuthenticatedRequest(
+        (headers) => http
+            .post(
+              Uri.parse(
+                '${AppConstants.baseUrl}api/house_tax/getGrievanceDetails',
+              ),
+              headers: headers,
+              body: jsonEncode({'email_id': emailId}),
+            )
+            .timeout(Duration(seconds: AppConstants.networkTimeout)),
+      );
 
       if (response.statusCode == 200) {
         return GrievanceDetailsResponse.fromJson(jsonDecode(response.body));
       } else {
-        throw Exception('Failed to load grievance details: ${response.statusCode}');
+        throw Exception(
+          'Failed to load grievance details: ${response.statusCode}',
+        );
       }
     } catch (e) {
       throw Exception('Connection error: $e');
@@ -553,18 +664,28 @@ class ApiService {
   }
 
   // Get Grievance Status API
-  static Future<GrievanceStatusResponse> getGrievanceStatus(String grievanceNo) async {
+  static Future<GrievanceStatusResponse> getGrievanceStatus(
+    String grievanceNo,
+  ) async {
     try {
-      final response = await _makeAuthenticatedRequest((headers) => http.post(
-        Uri.parse('${AppConstants.baseUrl}api/house_tax/getGrievanceStatus'),
-        headers: headers,
-        body: jsonEncode({'grievanceNo': grievanceNo}),
-      ).timeout(Duration(seconds: AppConstants.networkTimeout)));
+      final response = await _makeAuthenticatedRequest(
+        (headers) => http
+            .post(
+              Uri.parse(
+                '${AppConstants.baseUrl}api/house_tax/getGrievanceStatus',
+              ),
+              headers: headers,
+              body: jsonEncode({'grievanceNo': grievanceNo}),
+            )
+            .timeout(Duration(seconds: AppConstants.networkTimeout)),
+      );
 
       if (response.statusCode == 200) {
         return GrievanceStatusResponse.fromJson(jsonDecode(response.body));
       } else {
-        throw Exception('Failed to load grievance status: ${response.statusCode}');
+        throw Exception(
+          'Failed to load grievance status: ${response.statusCode}',
+        );
       }
     } catch (e) {
       throw Exception('Connection error: $e');
@@ -572,7 +693,11 @@ class ApiService {
   }
 
   // Secure Login Flow
-  static Future<LoginResponse> secureLogin(String username, String password, String deviceId) async {
+  static Future<LoginResponse> secureLogin(
+    String username,
+    String password,
+    String deviceId,
+  ) async {
     try {
       final headers = {
         'Accept': 'application/json',
@@ -580,22 +705,25 @@ class ApiService {
         'X-App-Version': AppConstants.apiVersion,
       };
 
-      final challengeResponse = await http.post(
-        Uri.parse('${AppConstants.baseUrl}api/house_tax/get_challenge'),
-        headers: headers,
-        body: jsonEncode({
-          'username': username,
-          'device_id': deviceId,
-        }),
-      ).timeout(Duration(seconds: AppConstants.networkTimeout));
+      final challengeResponse = await http
+          .post(
+            Uri.parse('${AppConstants.baseUrl}api/house_tax/get_challenge'),
+            headers: headers,
+            body: jsonEncode({'username': username, 'device_id': deviceId}),
+          )
+          .timeout(Duration(seconds: AppConstants.networkTimeout));
 
       if (challengeResponse.statusCode != 200) {
-        throw Exception('Failed to get challenge: ${challengeResponse.statusCode}');
+        throw Exception(
+          'Failed to get challenge: ${challengeResponse.statusCode}',
+        );
       }
 
       final challengeData = jsonDecode(challengeResponse.body);
       if (challengeData['status'] != true) {
-        throw Exception(challengeData['message'] ?? 'Challenge generation failed');
+        throw Exception(
+          challengeData['message'] ?? 'Challenge generation failed',
+        );
       }
 
       final String challengeId = challengeData['data']['challenge_id'];
@@ -605,23 +733,29 @@ class ApiService {
       final hashedPassword = sha512.convert(utf8.encode(password)).toString();
       final String nonce = _generateNonce(16);
       final String inputString = hashedPassword + challenge + timestamp + nonce;
-      final String finalHash = sha512.convert(utf8.encode(inputString)).toString();
+      final String finalHash = sha512
+          .convert(utf8.encode(inputString))
+          .toString();
 
-      final loginResponse = await http.post(
-        Uri.parse('${AppConstants.baseUrl}api/house_tax/login'),
-        headers: headers,
-        body: jsonEncode({
-          'username': username,
-          'device_id': deviceId,
-          'challenge_id': challengeId,
-          'timestamp': timestamp,
-          'nonce': nonce,
-          'hash': finalHash,
-        }),
-      ).timeout(Duration(seconds: AppConstants.networkTimeout));
+      final loginResponse = await http
+          .post(
+            Uri.parse('${AppConstants.baseUrl}api/house_tax/login'),
+            headers: headers,
+            body: jsonEncode({
+              'username': username,
+              'device_id': deviceId,
+              'challenge_id': challengeId,
+              'timestamp': timestamp,
+              'nonce': nonce,
+              'hash': finalHash,
+            }),
+          )
+          .timeout(Duration(seconds: AppConstants.networkTimeout));
 
       if (loginResponse.statusCode == 200) {
-        final loginData = LoginResponse.fromJson(jsonDecode(loginResponse.body));
+        final loginData = LoginResponse.fromJson(
+          jsonDecode(loginResponse.body),
+        );
         if (loginData.success && loginData.data != null) {
           await StorageService.saveLoginData(loginData.data!);
         }
@@ -637,10 +771,14 @@ class ApiService {
   // Logout API
   static Future<LogoutResponse> logout() async {
     try {
-      final response = await _makeAuthenticatedRequest((headers) => http.post(
-            Uri.parse('${AppConstants.baseUrl}api/house_tax/logout'),
-            headers: headers,
-          ).timeout(Duration(seconds: AppConstants.networkTimeout)));
+      final response = await _makeAuthenticatedRequest(
+        (headers) => http
+            .post(
+              Uri.parse('${AppConstants.baseUrl}api/house_tax/logout'),
+              headers: headers,
+            )
+            .timeout(Duration(seconds: AppConstants.networkTimeout)),
+      );
 
       if (response.statusCode == 200) {
         return LogoutResponse.fromJson(jsonDecode(response.body));
@@ -655,17 +793,17 @@ class ApiService {
   // Refresh Token API
   static Future<RefreshTokenResponse> refreshToken(String refreshToken) async {
     try {
-      final response = await http.post(
-        Uri.parse('${AppConstants.baseUrl}api/house_tax/refreshToken'),
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'X-App-Version': AppConstants.apiVersion,
-        },
-        body: jsonEncode({
-          'refresh_token': refreshToken,
-        }),
-      ).timeout(Duration(seconds: AppConstants.networkTimeout));
+      final response = await http
+          .post(
+            Uri.parse('${AppConstants.baseUrl}api/house_tax/refreshToken'),
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              'X-App-Version': AppConstants.apiVersion,
+            },
+            body: jsonEncode({'refresh_token': refreshToken}),
+          )
+          .timeout(Duration(seconds: AppConstants.networkTimeout));
 
       if (response.statusCode == 200) {
         return RefreshTokenResponse.fromJson(jsonDecode(response.body));
@@ -680,8 +818,12 @@ class ApiService {
   static String _generateNonce(int length) {
     final Random secureRandom = Random.secure();
     const chars = '0123456789abcdef';
-    return String.fromCharCodes(Iterable.generate(
-        length, (_) => chars.codeUnitAt(secureRandom.nextInt(chars.length))));
+    return String.fromCharCodes(
+      Iterable.generate(
+        length,
+        (_) => chars.codeUnitAt(secureRandom.nextInt(chars.length)),
+      ),
+    );
   }
 }
 
@@ -693,7 +835,12 @@ class SaveGrievanceResponse {
   final String message;
   final GrievanceData? data;
 
-  SaveGrievanceResponse({required this.success, required this.responseCode, required this.message, this.data});
+  SaveGrievanceResponse({
+    required this.success,
+    required this.responseCode,
+    required this.message,
+    this.data,
+  });
 
   factory SaveGrievanceResponse.fromJson(Map<String, dynamic> json) {
     return SaveGrievanceResponse(
@@ -708,9 +855,8 @@ class SaveGrievanceResponse {
 class GrievanceData {
   final String? grievanceId;
   GrievanceData({this.grievanceId});
-  factory GrievanceData.fromJson(Map<String, dynamic> json) => GrievanceData(
-    grievanceId: json['grievance_id']?.toString(),
-  );
+  factory GrievanceData.fromJson(Map<String, dynamic> json) =>
+      GrievanceData(grievanceId: json['grievance_id']?.toString());
 }
 
 class GrievanceCategory {
@@ -726,8 +872,8 @@ class GrievanceCategory {
       serviceName: json['serviceName'],
       subCategories: json['subCategories'] != null
           ? (json['subCategories'] as List)
-              .map((i) => GrievanceSubCategory.fromJson(i))
-              .toList()
+                .map((i) => GrievanceSubCategory.fromJson(i))
+                .toList()
           : null,
     );
   }
@@ -754,7 +900,13 @@ class UlbData {
   final String? districtId;
   final String? districtName;
 
-  UlbData({this.ulbName, this.ulbId, this.ulbType, this.districtId, this.districtName});
+  UlbData({
+    this.ulbName,
+    this.ulbId,
+    this.ulbType,
+    this.districtId,
+    this.districtName,
+  });
 
   factory UlbData.fromJson(Map<String, dynamic> json) {
     return UlbData(
@@ -834,7 +986,9 @@ class PropertyData {
       oldPropertyId: json['oldPropertyId']?.toString(),
       address: json['address'],
       ownerName: json['ownerName'],
-      totalArv: (json['totalArv'] is num) ? (json['totalArv'] as num).toDouble() : null,
+      totalArv: (json['totalArv'] is num)
+          ? (json['totalArv'] as num).toDouble()
+          : null,
       propertyType: json['propertyType'],
       fatherHusbandName: json['fatherHusbandName'],
       finYear: json['finYear'],
@@ -853,14 +1007,21 @@ class PropertyDetailsResponse {
   final int? responseCode;
   final PropertyDetailsData? data;
 
-  PropertyDetailsResponse({this.success, this.message, this.responseCode, this.data});
+  PropertyDetailsResponse({
+    this.success,
+    this.message,
+    this.responseCode,
+    this.data,
+  });
 
   factory PropertyDetailsResponse.fromJson(Map<String, dynamic> json) {
     return PropertyDetailsResponse(
       success: json['success'],
       message: json['message'],
       responseCode: json['responseCode'],
-      data: json['data'] != null ? PropertyDetailsData.fromJson(json['data']) : null,
+      data: json['data'] != null
+          ? PropertyDetailsData.fromJson(json['data'])
+          : null,
     );
   }
 }
@@ -882,14 +1043,24 @@ class PropertyDetailsData {
 
   factory PropertyDetailsData.fromJson(Map<String, dynamic> json) {
     return PropertyDetailsData(
-      billDetails: json['billDetails'] != null ? BillDetails.fromJson(json['billDetails']) : null,
-      ownerDetails: json['ownerDetails'] != null ? OwnerDetails.fromJson(json['ownerDetails']) : null,
-      propertyDetailsInfo: json['propertyDetails'] != null ? PropertyInfo.fromJson(json['propertyDetails']) : null,
+      billDetails: json['billDetails'] != null
+          ? BillDetails.fromJson(json['billDetails'])
+          : null,
+      ownerDetails: json['ownerDetails'] != null
+          ? OwnerDetails.fromJson(json['ownerDetails'])
+          : null,
+      propertyDetailsInfo: json['propertyDetails'] != null
+          ? PropertyInfo.fromJson(json['propertyDetails'])
+          : null,
       currReceiptDetails: json['currReceiptDetails'] != null
-          ? (json['currReceiptDetails'] as List).map((i) => ReceiptDetailsItem.fromJson(i)).toList()
+          ? (json['currReceiptDetails'] as List)
+                .map((i) => ReceiptDetailsItem.fromJson(i))
+                .toList()
           : null,
       prevReceiptDetails: json['prevReceiptDetails'] != null
-          ? (json['prevReceiptDetails'] as List).map((i) => ReceiptDetailsItem.fromJson(i)).toList()
+          ? (json['prevReceiptDetails'] as List)
+                .map((i) => ReceiptDetailsItem.fromJson(i))
+                .toList()
           : null,
     );
   }
@@ -991,7 +1162,8 @@ class BillDetails {
       othertaxNetAmount: json['othertaxNetAmount']?.toString(),
       sewerTaxDiscount: json['sewerTaxDiscount']?.toString(),
       sewerTaxAdvance: json['sewerTaxAdvance']?.toString(),
-      waterChargeMonthlyInterest: json['waterChargeMonthlyInterest']?.toString(),
+      waterChargeMonthlyInterest: json['waterChargeMonthlyInterest']
+          ?.toString(),
       houseTaxArrear: json['houseTaxArrear']?.toString(),
       sewerTaxInterest: json['sewerTaxInterest']?.toString(),
       waterTaxMonthlyInterest: json['waterTaxMonthlyInterest']?.toString(),
@@ -1049,7 +1221,13 @@ class PropertyInfo {
   final String? zoneName;
   final String? mohallaName;
 
-  PropertyInfo({this.address, this.houseNo, this.wardName, this.zoneName, this.mohallaName});
+  PropertyInfo({
+    this.address,
+    this.houseNo,
+    this.wardName,
+    this.zoneName,
+    this.mohallaName,
+  });
 
   factory PropertyInfo.fromJson(Map<String, dynamic> json) {
     return PropertyInfo(
@@ -1117,7 +1295,11 @@ class ForgotPasswordResponse {
   final String message;
   final int? responseCode;
 
-  ForgotPasswordResponse({required this.status, required this.message, this.responseCode});
+  ForgotPasswordResponse({
+    required this.status,
+    required this.message,
+    this.responseCode,
+  });
 
   factory ForgotPasswordResponse.fromJson(Map<String, dynamic> json) {
     return ForgotPasswordResponse(
@@ -1174,7 +1356,12 @@ class OtpVerificationResponse {
   final int? responseCode;
   final int? userId;
 
-  OtpVerificationResponse({this.success, this.message, this.responseCode, this.userId});
+  OtpVerificationResponse({
+    this.success,
+    this.message,
+    this.responseCode,
+    this.userId,
+  });
 
   factory OtpVerificationResponse.fromJson(Map<String, dynamic> json) {
     return OtpVerificationResponse(
@@ -1336,7 +1523,9 @@ class TransactionsByEmailResponse {
       status: json['status'],
       message: json['message'],
       data: json['data'] != null
-          ? (json['data'] as List).map((i) => TransactionData.fromJson(i)).toList()
+          ? (json['data'] as List)
+                .map((i) => TransactionData.fromJson(i))
+                .toList()
           : null,
     );
   }
@@ -1385,7 +1574,12 @@ class LoginResponse {
   final String message;
   final int? responseCode;
   final SignIn? data;
-  LoginResponse({required this.success, required this.message, this.responseCode, this.data});
+  LoginResponse({
+    required this.success,
+    required this.message,
+    this.responseCode,
+    this.data,
+  });
   factory LoginResponse.fromJson(Map<String, dynamic> json) => LoginResponse(
     success: json['status'] ?? false,
     message: json['message'] ?? '',
@@ -1433,21 +1627,28 @@ class RefreshTokenResponse {
   final int? responseCode;
   final String? message;
   final RefreshTokenData? data;
-  RefreshTokenResponse({this.status, this.responseCode, this.message, this.data});
-  factory RefreshTokenResponse.fromJson(Map<String, dynamic> json) => RefreshTokenResponse(
-    status: json['status'],
-    responseCode: json['responseCode'],
-    message: json['message'],
-    data: json['data'] != null ? RefreshTokenData.fromJson(json['data']) : null,
-  );
+  RefreshTokenResponse({
+    this.status,
+    this.responseCode,
+    this.message,
+    this.data,
+  });
+  factory RefreshTokenResponse.fromJson(Map<String, dynamic> json) =>
+      RefreshTokenResponse(
+        status: json['status'],
+        responseCode: json['responseCode'],
+        message: json['message'],
+        data: json['data'] != null
+            ? RefreshTokenData.fromJson(json['data'])
+            : null,
+      );
 }
 
 class RefreshTokenData {
   final String? accessToken;
   RefreshTokenData({this.accessToken});
-  factory RefreshTokenData.fromJson(Map<String, dynamic> json) => RefreshTokenData(
-    accessToken: json['access_token'],
-  );
+  factory RefreshTokenData.fromJson(Map<String, dynamic> json) =>
+      RefreshTokenData(accessToken: json['access_token']);
 }
 
 class GrievanceDetailsResponse {
@@ -1462,7 +1663,9 @@ class GrievanceDetailsResponse {
       success: json['success'],
       message: json['message'],
       data: json['data'] != null
-          ? (json['data'] as List).map((i) => GrievanceDetails.fromJson(i)).toList()
+          ? (json['data'] as List)
+                .map((i) => GrievanceDetails.fromJson(i))
+                .toList()
           : null,
     );
   }
@@ -1525,7 +1728,9 @@ class GrievanceStatusResponse {
       responseCode: json['responseCode'] ?? 0,
       message: json['message'] ?? "",
       data: json['data'] != null
-          ? (json['data'] as List).map((i) => GrievanceStatusData.fromJson(i)).toList()
+          ? (json['data'] as List)
+                .map((i) => GrievanceStatusData.fromJson(i))
+                .toList()
           : [],
     );
   }
