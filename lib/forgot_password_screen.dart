@@ -11,6 +11,9 @@ class ForgotPasswordScreen extends StatefulWidget {
 
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _usernameController = TextEditingController();
+  final RegExp _passwordPattern = RegExp(
+    r'^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=!])(?=\S+$).{8,}$',
+  );
   bool _isLoading = false;
 
   @override
@@ -255,10 +258,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                                     );
                                     return;
                                   }
-                                  if (newPass.length < 6) {
+                                  if (!_passwordPattern.hasMatch(newPass)) {
                                     setSheetState(
                                       () => sheetError =
-                                          'Password must be at least 6 characters',
+                                          'Password must be 8+ chars with uppercase, lowercase, number and special character',
                                     );
                                     return;
                                   }
