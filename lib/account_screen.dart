@@ -37,20 +37,37 @@ class _AccountScreenState extends State<AccountScreen> {
   }
 
   void _handleLogout() async {
+    final colorScheme = Theme.of(context).colorScheme;
+
     // Show confirmation dialog
     bool? confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Logout', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
-        content: Text('Are you sure you want to logout?', style: GoogleFonts.poppins()),
+        title: Text(
+          'Logout',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          'Are you sure you want to logout?',
+          style: GoogleFonts.poppins(),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel', style: GoogleFonts.poppins(color: Colors.grey)),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.poppins(color: colorScheme.onSurfaceVariant),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('Logout', style: GoogleFonts.poppins(color: Colors.red, fontWeight: FontWeight.bold)),
+            child: Text(
+              'Logout',
+              style: GoogleFonts.poppins(
+                color: colorScheme.error,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -63,7 +80,8 @@ class _AccountScreenState extends State<AccountScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator(color: Color(0xFF0E3B90))),
+      builder: (context) =>
+          Center(child: CircularProgressIndicator(color: colorScheme.primary)),
     );
 
     try {
@@ -84,7 +102,7 @@ class _AccountScreenState extends State<AccountScreen> {
       if (mounted) {
         // Remove loading overlay
         Navigator.pop(context);
-        
+
         // Navigate to Login Screen
         Navigator.pushAndRemoveUntil(
           context,
@@ -95,28 +113,31 @@ class _AccountScreenState extends State<AccountScreen> {
     } catch (e) {
       if (mounted) {
         Navigator.pop(context); // Remove loading overlay
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Logout failed: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Logout failed: $e')));
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FB),
+      backgroundColor: colorScheme.surfaceContainerLowest,
       appBar: AppBar(
         title: Text(
           'My Account',
           style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 18),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: colorScheme.surface,
+        foregroundColor: colorScheme.onSurface,
         elevation: 0,
         centerTitle: true,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF0E3B90)))
+          ? Center(child: CircularProgressIndicator(color: colorScheme.primary))
           : SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -127,10 +148,14 @@ class _AccountScreenState extends State<AccountScreen> {
                     width: 100,
                     height: 100,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0E3B90).withOpacity(0.1),
+                      color: colorScheme.primaryContainer,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.person_rounded, size: 50, color: Color(0xFF0E3B90)),
+                    child: Icon(
+                      Icons.person_rounded,
+                      size: 50,
+                      color: colorScheme.primary,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -138,18 +163,22 @@ class _AccountScreenState extends State<AccountScreen> {
                     style: GoogleFonts.poppins(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: const Color(0xFF333333),
+                      color: colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 32),
-                  
+
                   // Info Cards
                   _buildInfoCard(Icons.email_outlined, 'User Id', _email),
                   const SizedBox(height: 16),
-                  _buildInfoCard(Icons.admin_panel_settings_outlined, 'User Type', _userType),
-                  
+                  _buildInfoCard(
+                    Icons.admin_panel_settings_outlined,
+                    'User Type',
+                    _userType,
+                  ),
+
                   const SizedBox(height: 48),
-                  
+
                   // Logout Button
                   SizedBox(
                     width: double.infinity,
@@ -157,10 +186,12 @@ class _AccountScreenState extends State<AccountScreen> {
                     child: ElevatedButton(
                       onPressed: _handleLogout,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFFEBEE),
-                        foregroundColor: Colors.red,
+                        backgroundColor: colorScheme.errorContainer,
+                        foregroundColor: colorScheme.error,
                         elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -169,7 +200,10 @@ class _AccountScreenState extends State<AccountScreen> {
                           const SizedBox(width: 10),
                           Text(
                             'Logout',
-                            style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold),
+                            style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ],
                       ),
@@ -182,10 +216,12 @@ class _AccountScreenState extends State<AccountScreen> {
   }
 
   Widget _buildInfoCard(IconData icon, String label, String value) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -200,10 +236,10 @@ class _AccountScreenState extends State<AccountScreen> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0xFFF0F4FF),
+              color: colorScheme.primaryContainer,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, color: const Color(0xFF0E3B90), size: 22),
+            child: Icon(icon, color: colorScheme.primary, size: 22),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -212,14 +248,17 @@ class _AccountScreenState extends State<AccountScreen> {
               children: [
                 Text(
                   label,
-                  style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey.shade600),
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 Text(
                   value,
                   style: GoogleFonts.poppins(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    color: const Color(0xFF333333),
+                    color: colorScheme.onSurface,
                   ),
                 ),
               ],

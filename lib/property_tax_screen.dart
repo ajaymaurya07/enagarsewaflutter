@@ -30,58 +30,57 @@ class _PropertyTaxScreenState extends State<PropertyTaxScreen> {
       });
     } catch (e) {
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading properties: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error loading properties: $e')));
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FB),
+      backgroundColor: colorScheme.surfaceContainerLowest,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: colorScheme.surface,
+        foregroundColor: colorScheme.onSurface,
         elevation: 0,
         toolbarHeight: 70,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF333333), size: 20),
+          icon: Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: colorScheme.onSurface,
+            size: 20,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           'My Properties',
           style: GoogleFonts.poppins(
-            color: const Color(0xFF333333),
+            color: colorScheme.onSurface,
             fontSize: 18,
             fontWeight: FontWeight.w700,
           ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: Color(0xFF333333)),
-            onPressed: _loadProperties,
-          ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Divider(height: 1, color: Colors.grey.shade200),
-        ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFFE67514)))
+          ? Center(child: CircularProgressIndicator(color: colorScheme.primary))
           : _savedProperties.isEmpty
-              ? _buildEmptyState()
-              : ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-                  itemCount: _savedProperties.length,
-                  itemBuilder: (context, index) {
-                    return _buildPropertyCard(_savedProperties[index]);
-                  },
-                ),
+          ? _buildEmptyState()
+          : ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+              itemCount: _savedProperties.length,
+              itemBuilder: (context, index) {
+                return _buildPropertyCard(_savedProperties[index]);
+              },
+            ),
     );
   }
 
   Widget _buildEmptyState() {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32.0),
@@ -91,21 +90,28 @@ class _PropertyTaxScreenState extends State<PropertyTaxScreen> {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: colorScheme.surface,
                 shape: BoxShape.circle,
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 20),
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 20,
+                  ),
                 ],
               ),
-              child: Icon(Icons.home_work_outlined, size: 64, color: Colors.grey.shade300),
+              child: Icon(
+                Icons.home_work_outlined,
+                size: 64,
+                color: colorScheme.outline,
+              ),
             ),
             const SizedBox(height: 24),
             Text(
               'No properties added yet',
               style: GoogleFonts.poppins(
-                fontSize: 18, 
+                fontSize: 18,
                 fontWeight: FontWeight.w600,
-                color: Colors.grey.shade800
+                color: colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 8),
@@ -113,8 +119,8 @@ class _PropertyTaxScreenState extends State<PropertyTaxScreen> {
               'Your verified properties will appear here for quick access.',
               textAlign: TextAlign.center,
               style: GoogleFonts.poppins(
-                fontSize: 14, 
-                color: Colors.grey.shade500
+                fontSize: 14,
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
           ],
@@ -124,19 +130,22 @@ class _PropertyTaxScreenState extends State<PropertyTaxScreen> {
   }
 
   Widget _buildPropertyCard(PropertyEntity property) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => PaymentDetailsScreen(propertyId: property.propertyId),
+            builder: (context) =>
+                PaymentDetailsScreen(propertyId: property.propertyId),
           ),
         );
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 20),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: colorScheme.surface,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
@@ -157,10 +166,14 @@ class _PropertyTaxScreenState extends State<PropertyTaxScreen> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEDF3FF),
+                      color: colorScheme.primaryContainer,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.location_city_rounded, color: Color(0xFF2D4BA0), size: 22),
+                    child: Icon(
+                      Icons.location_city_rounded,
+                      color: colorScheme.primary,
+                      size: 22,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -169,16 +182,24 @@ class _PropertyTaxScreenState extends State<PropertyTaxScreen> {
                       style: GoogleFonts.poppins(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        color: const Color(0xFF333333),
+                        color: colorScheme.onSurface,
                       ),
                     ),
                   ),
-                  const Icon(Icons.chevron_right_rounded, color: Colors.grey, size: 20),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: colorScheme.onSurfaceVariant,
+                    size: 20,
+                  ),
                 ],
               ),
             ),
-            const Divider(height: 1, thickness: 0.8),
-            
+            Divider(
+              height: 1,
+              thickness: 0.8,
+              color: colorScheme.outlineVariant,
+            ),
+
             // Details Part
             Padding(
               padding: const EdgeInsets.all(20),
@@ -201,6 +222,8 @@ class _PropertyTaxScreenState extends State<PropertyTaxScreen> {
   }
 
   Widget _buildModernDetailRow(String label, String value) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -210,7 +233,7 @@ class _PropertyTaxScreenState extends State<PropertyTaxScreen> {
             '$label:',
             style: GoogleFonts.poppins(
               fontSize: 13,
-              color: Colors.grey.shade500,
+              color: colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -221,7 +244,7 @@ class _PropertyTaxScreenState extends State<PropertyTaxScreen> {
             value,
             style: GoogleFonts.poppins(
               fontSize: 13,
-              color: const Color(0xFF444444),
+              color: colorScheme.onSurface,
               fontWeight: FontWeight.w600,
             ),
           ),
