@@ -14,10 +14,17 @@ class PropertyTaxAssessmentScreen extends StatefulWidget {
   const PropertyTaxAssessmentScreen({super.key});
 
   @override
-  State<PropertyTaxAssessmentScreen> createState() => _PropertyTaxAssessmentScreenState();
+  State<PropertyTaxAssessmentScreen> createState() =>
+      _PropertyTaxAssessmentScreenState();
 }
 
-class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScreen> {
+class _PropertyTaxAssessmentScreenState
+    extends State<PropertyTaxAssessmentScreen> {
+  static const Color _primaryColor = Color(0xFFE67514);
+  static const Color _primaryDark = Color(0xFFCC5E0F);
+  static const Color _surfaceTint = Color(0xFFFFF4E8);
+  static const Color _surfaceBorder = Color(0xFFFFE0C5);
+
   int _currentStep = 1;
   bool _isLoading = true;
 
@@ -82,7 +89,8 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
   }
 
   int get _ageOfConstruction {
-    final year = int.tryParse(_constructionYearController.text) ?? DateTime.now().year;
+    final year =
+        int.tryParse(_constructionYearController.text) ?? DateTime.now().year;
     return DateTime.now().year - year;
   }
 
@@ -93,7 +101,9 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
   }
 
   void _updateAreaRate() {
-    if (_selectedWardNo != null && _constructionType != null && _roadWidth != null) {
+    if (_selectedWardNo != null &&
+        _constructionType != null &&
+        _roadWidth != null) {
       _areaRate = RateMasterService.getBaseRate(
         wardNo: _selectedWardNo!,
         constructionType: _constructionType!,
@@ -121,8 +131,12 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
         }
         return true;
       case 3:
-        if (_rentAreaController.text.isEmpty || _ownAreaController.text.isEmpty || _constructionYearController.text.isEmpty) {
-          _showToast('Rent Area, Own Area and Construction Year are mandatory!');
+        if (_rentAreaController.text.isEmpty ||
+            _ownAreaController.text.isEmpty ||
+            _constructionYearController.text.isEmpty) {
+          _showToast(
+            'Rent Area, Own Area and Construction Year are mandatory!',
+          );
           return false;
         }
         return true;
@@ -133,7 +147,11 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
 
   void _showToast(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
+      SnackBar(
+        content: Text(msg),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: _primaryDark,
+      ),
     );
   }
 
@@ -192,17 +210,28 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
               pw.Center(
                 child: pw.Text(
                   'PROPERTY TAX CALCULATION & COMPARISON REPORT',
-                  style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+                  style: pw.TextStyle(
+                    fontSize: 14,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
                 ),
               ),
               pw.SizedBox(height: 8),
-              pw.Text('Generated On: $now', style: const pw.TextStyle(fontSize: 9)),
+              pw.Text(
+                'Generated On: $now',
+                style: const pw.TextStyle(fontSize: 9),
+              ),
               pw.Divider(),
               pw.SizedBox(height: 8),
 
               // Property & Owner Details
-              pw.Text('Property & Owner Details',
-                  style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+              pw.Text(
+                'Property & Owner Details',
+                style: pw.TextStyle(
+                  fontSize: 12,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
               pw.SizedBox(height: 6),
               _pdfRow('Property ID', _propertyIdController.text),
               _pdfRow('Owner Name', _ownerNameController.text),
@@ -211,8 +240,13 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
               pw.SizedBox(height: 8),
 
               // Area & Structure Details
-              pw.Text('Area & Structure Details',
-                  style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+              pw.Text(
+                'Area & Structure Details',
+                style: pw.TextStyle(
+                  fontSize: 12,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
               pw.SizedBox(height: 6),
               _pdfRow('Area Rate', _areaRate.toStringAsFixed(2)),
               _pdfRow('Construction Year', _constructionYearController.text),
@@ -221,8 +255,13 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
               pw.SizedBox(height: 8),
 
               // Assessment ARV
-              pw.Text('Assessment ARV',
-                  style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+              pw.Text(
+                'Assessment ARV',
+                style: pw.TextStyle(
+                  fontSize: 12,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
               pw.SizedBox(height: 6),
               _pdfRow('MRV Owner', data.mrvOwner.toStringAsFixed(2)),
               _pdfRow('MRV Rented', data.mrvRented.toStringAsFixed(2)),
@@ -230,19 +269,35 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
               _pdfRow('ARV Rented', data.arvRented.toStringAsFixed(2)),
               _pdfRow('Depreciation', data.depreciation.toStringAsFixed(2)),
               _pdfRow('Appreciation', data.appreciation.toStringAsFixed(2)),
-              _pdfRow('Final ARV (Owner)', data.finalArvOwner.toStringAsFixed(2)),
-              _pdfRow('Final ARV (Rent)', data.finalArvRented.toStringAsFixed(2)),
-              _pdfRow('Total Assessment ARV',
-                  (data.finalArvOwner + data.finalArvRented).toStringAsFixed(2)),
+              _pdfRow(
+                'Final ARV (Owner)',
+                data.finalArvOwner.toStringAsFixed(2),
+              ),
+              _pdfRow(
+                'Final ARV (Rent)',
+                data.finalArvRented.toStringAsFixed(2),
+              ),
+              _pdfRow(
+                'Total Assessment ARV',
+                (data.finalArvOwner + data.finalArvRented).toStringAsFixed(2),
+              ),
               pw.Divider(),
               pw.SizedBox(height: 8),
 
               // Assessment Tax
-              pw.Text('Assessment Tax',
-                  style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+              pw.Text(
+                'Assessment Tax',
+                style: pw.TextStyle(
+                  fontSize: 12,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
               pw.SizedBox(height: 6),
               _pdfRow('Net Owner Tax', '₹ ${data.ownerTax.toStringAsFixed(2)}'),
-              _pdfRow('Net Rented Tax', '₹ ${data.rentedTax.toStringAsFixed(2)}'),
+              _pdfRow(
+                'Net Rented Tax',
+                '₹ ${data.rentedTax.toStringAsFixed(2)}',
+              ),
               _pdfRow('Total Tax', '₹ ${data.totalTax.toStringAsFixed(2)}'),
               pw.Divider(),
               pw.SizedBox(height: 16),
@@ -260,7 +315,9 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
     );
 
     final output = await getTemporaryDirectory();
-    final file = File('${output.path}/Property_Tax_Comparison_${DateTime.now().millisecondsSinceEpoch}.pdf');
+    final file = File(
+      '${output.path}/Property_Tax_Comparison_${DateTime.now().millisecondsSinceEpoch}.pdf',
+    );
     await file.writeAsBytes(await pdf.save());
 
     if (!mounted) return;
@@ -279,7 +336,10 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
           pw.Text(label, style: const pw.TextStyle(fontSize: 10)),
-          pw.Text(value, style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
+          pw.Text(
+            value,
+            style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+          ),
         ],
       ),
     );
@@ -295,19 +355,28 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
       child: Scaffold(
         backgroundColor: const Color(0xFFF8F9FB),
         appBar: AppBar(
-          backgroundColor: const Color(0xFF0E3B90),
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+            icon: Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: _primaryColor,
+              size: 20,
+            ),
             onPressed: _handleBack,
           ),
           title: Text(
             'Property Tax Assessment (Step $_currentStep of 4)',
-            style: GoogleFonts.poppins(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
+            style: GoogleFonts.poppins(
+              color: const Color(0xFF333333),
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
         body: _isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? Center(child: CircularProgressIndicator(color: _primaryColor))
             : Column(
                 children: [
                   // Step Indicator
@@ -345,10 +414,10 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: isCompleted
-                        ? const Color(0xFF2ECC71)
+                        ? _primaryDark
                         : isActive
-                            ? const Color(0xFF0E3B90)
-                            : Colors.grey.shade300,
+                        ? _primaryColor
+                        : Colors.grey.shade300,
                   ),
                   child: Center(
                     child: isCompleted
@@ -356,7 +425,9 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
                         : Text(
                             '$step',
                             style: GoogleFonts.poppins(
-                              color: isActive ? Colors.white : Colors.grey.shade600,
+                              color: isActive
+                                  ? Colors.white
+                                  : Colors.grey.shade600,
                               fontWeight: FontWeight.w600,
                               fontSize: 13,
                             ),
@@ -367,7 +438,7 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
                   Expanded(
                     child: Container(
                       height: 2,
-                      color: isCompleted ? const Color(0xFF2ECC71) : Colors.grey.shade300,
+                      color: isCompleted ? _primaryDark : Colors.grey.shade300,
                     ),
                   ),
               ],
@@ -402,7 +473,8 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
       _ownerNameController.text = property.ownerName;
       _propertyIdController.text = property.propertyId;
       _mobileNoController.text = property.phoneNumber;
-      if (property.fatherName != null) _fatherNameController.text = property.fatherName!;
+      if (property.fatherName != null)
+        _fatherNameController.text = property.fatherName!;
 
       // Match ward by WardName from rate_master
       final wardText = property.ward.trim().toLowerCase();
@@ -434,35 +506,59 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF0E3B90).withValues(alpha: 0.3)),
+              border: Border.all(color: _surfaceBorder),
             ),
             child: DropdownButtonFormField<String>(
               value: _selectedProperty?.propertyId,
-              items: _savedProperties.map((p) => DropdownMenuItem(
-                value: p.propertyId,
-                child: Text(p.propertyId,
-                    style: GoogleFonts.poppins(fontSize: 13)),
-              )).toList(),
+              items: _savedProperties
+                  .map(
+                    (p) => DropdownMenuItem(
+                      value: p.propertyId,
+                      child: Text(
+                        p.propertyId,
+                        style: GoogleFonts.poppins(fontSize: 13),
+                      ),
+                    ),
+                  )
+                  .toList(),
               onChanged: (val) {
-                final prop = _savedProperties.firstWhere((p) => p.propertyId == val);
+                final prop = _savedProperties.firstWhere(
+                  (p) => p.propertyId == val,
+                );
                 _onPropertySelected(prop);
               },
               decoration: InputDecoration(
                 labelText: 'Choose Property',
-                labelStyle: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade600),
+                labelStyle: GoogleFonts.poppins(
+                  fontSize: 13,
+                  color: Colors.grey.shade600,
+                ),
                 border: InputBorder.none,
-                prefixIcon: const Icon(Icons.home_work_outlined, color: Color(0xFF0E3B90), size: 20),
+                prefixIcon: Icon(
+                  Icons.home_work_outlined,
+                  color: _primaryColor,
+                  size: 20,
+                ),
               ),
               isExpanded: true,
-              style: GoogleFonts.poppins(fontSize: 14, color: const Color(0xFF333333)),
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                color: const Color(0xFF333333),
+              ),
             ),
           ),
           const SizedBox(height: 20),
           // Show Zone, Ward, Chk info cards if property selected
           if (_selectedProperty != null) ...[
-            _buildInfoCard('Ward', _wardController.text.isEmpty ? '-' : _wardController.text),
+            _buildInfoCard(
+              'Ward',
+              _wardController.text.isEmpty ? '-' : _wardController.text,
+            ),
             const SizedBox(height: 10),
-            _buildInfoCard('Mohalla / Chk', _chkController.text.isEmpty ? '-' : _chkController.text),
+            _buildInfoCard(
+              'Mohalla / Chk',
+              _chkController.text.isEmpty ? '-' : _chkController.text,
+            ),
             const SizedBox(height: 10),
           ],
           const Divider(height: 32),
@@ -495,7 +591,10 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
         ),
         if (_areaRate > 0) ...[
           const SizedBox(height: 20),
-          _buildInfoCard('Area Rate', '₹ ${_areaRate.toStringAsFixed(2)} / sq.ft'),
+          _buildInfoCard(
+            'Area Rate',
+            '₹ ${_areaRate.toStringAsFixed(2)} / sq.ft',
+          ),
         ],
       ],
     );
@@ -509,23 +608,42 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
         _sectionTitle('Property Type'),
         const SizedBox(height: 12),
         _buildRadioGroup<String>(
-          options: {'Residency': 'Residential', 'Non-Residency': 'Non-Residential'},
+          options: {
+            'Residency': 'Residential',
+            'Non-Residency': 'Non-Residential',
+          },
           groupValue: _propertyType,
           onChanged: (val) => setState(() => _propertyType = val),
         ),
         const SizedBox(height: 24),
         _sectionTitle('Owner Details'),
         const SizedBox(height: 12),
-        _buildTextField('Owner Name', _ownerNameController, Icons.person_outlined),
+        _buildTextField(
+          'Owner Name',
+          _ownerNameController,
+          Icons.person_outlined,
+        ),
         const SizedBox(height: 14),
-        _buildTextField('Father/Husband Name', _fatherNameController, Icons.person_outline),
+        _buildTextField(
+          'Father/Husband Name',
+          _fatherNameController,
+          Icons.person_outline,
+        ),
         const SizedBox(height: 14),
         _buildTextField('House No.', _houseNoController, Icons.home_outlined),
         const SizedBox(height: 14),
-        _buildTextField('Property ID', _propertyIdController, Icons.badge_outlined),
+        _buildTextField(
+          'Property ID',
+          _propertyIdController,
+          Icons.badge_outlined,
+        ),
         const SizedBox(height: 14),
-        _buildTextField('Mobile No.', _mobileNoController, Icons.phone_outlined,
-            keyboardType: TextInputType.phone),
+        _buildTextField(
+          'Mobile No.',
+          _mobileNoController,
+          Icons.phone_outlined,
+          keyboardType: TextInputType.phone,
+        ),
       ],
     );
   }
@@ -537,18 +655,30 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
       children: [
         _sectionTitle('Area Details (in Sq.ft)'),
         const SizedBox(height: 12),
-        _buildTextField('Rent Area', _rentAreaController, Icons.square_foot_outlined,
-            keyboardType: TextInputType.number),
+        _buildTextField(
+          'Rent Area',
+          _rentAreaController,
+          Icons.square_foot_outlined,
+          keyboardType: TextInputType.number,
+        ),
         const SizedBox(height: 14),
-        _buildTextField('Own Area', _ownAreaController, Icons.square_foot_outlined,
-            keyboardType: TextInputType.number),
+        _buildTextField(
+          'Own Area',
+          _ownAreaController,
+          Icons.square_foot_outlined,
+          keyboardType: TextInputType.number,
+        ),
         const SizedBox(height: 14),
         _buildInfoCard('Total Area', '${_totalArea.toStringAsFixed(2)} Sq.ft'),
         const SizedBox(height: 24),
         _sectionTitle('Construction Details'),
         const SizedBox(height: 12),
-        _buildTextField('Construction Year', _constructionYearController, Icons.calendar_today_outlined,
-            keyboardType: TextInputType.number),
+        _buildTextField(
+          'Construction Year',
+          _constructionYearController,
+          Icons.calendar_today_outlined,
+          keyboardType: TextInputType.number,
+        ),
         const SizedBox(height: 14),
         _buildInfoCard('Age of Structure', '$_ageOfConstruction years'),
         const SizedBox(height: 14),
@@ -570,54 +700,109 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
         // Row 1: MRV Owner | MRV Rented
         Row(
           children: [
-            Expanded(child: _readOnlyField('MRV Owner', data.mrvOwner.toStringAsFixed(2))),
+            Expanded(
+              child: _readOnlyField(
+                'MRV Owner',
+                data.mrvOwner.toStringAsFixed(2),
+              ),
+            ),
             const SizedBox(width: 12),
-            Expanded(child: _readOnlyField('MRV Rented', data.mrvRented.toStringAsFixed(2))),
+            Expanded(
+              child: _readOnlyField(
+                'MRV Rented',
+                data.mrvRented.toStringAsFixed(2),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 14),
         // Row 2: ARV Owner | ARV Rented
         Row(
           children: [
-            Expanded(child: _readOnlyField('ARV Owner', data.arvOwner.toStringAsFixed(2))),
+            Expanded(
+              child: _readOnlyField(
+                'ARV Owner',
+                data.arvOwner.toStringAsFixed(2),
+              ),
+            ),
             const SizedBox(width: 12),
-            Expanded(child: _readOnlyField('ARV Rented', data.arvRented.toStringAsFixed(2))),
+            Expanded(
+              child: _readOnlyField(
+                'ARV Rented',
+                data.arvRented.toStringAsFixed(2),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 14),
         // Row 3: Depreciation | Appreciation
         Row(
           children: [
-            Expanded(child: _readOnlyField('Depreciation', data.depreciation.toStringAsFixed(2))),
+            Expanded(
+              child: _readOnlyField(
+                'Depreciation',
+                data.depreciation.toStringAsFixed(2),
+              ),
+            ),
             const SizedBox(width: 12),
-            Expanded(child: _readOnlyField('Appreciation', data.appreciation.toStringAsFixed(2))),
+            Expanded(
+              child: _readOnlyField(
+                'Appreciation',
+                data.appreciation.toStringAsFixed(2),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 14),
         // Row 4: Final ARV(Own) | Final ARV(Rent)
         Row(
           children: [
-            Expanded(child: _readOnlyField('Final ARV(Own)', data.finalArvOwner.toStringAsFixed(2))),
+            Expanded(
+              child: _readOnlyField(
+                'Final ARV(Own)',
+                data.finalArvOwner.toStringAsFixed(2),
+              ),
+            ),
             const SizedBox(width: 12),
-            Expanded(child: _readOnlyField('Final ARV(Rent)', data.finalArvRented.toStringAsFixed(2))),
+            Expanded(
+              child: _readOnlyField(
+                'Final ARV(Rent)',
+                data.finalArvRented.toStringAsFixed(2),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 14),
         // Row 5: Net Owner Tax | Net Rented Tax
         Row(
           children: [
-            Expanded(child: _readOnlyField('Net Owner Tax', data.ownerTax.toStringAsFixed(2))),
+            Expanded(
+              child: _readOnlyField(
+                'Net Owner Tax',
+                data.ownerTax.toStringAsFixed(2),
+              ),
+            ),
             const SizedBox(width: 12),
-            Expanded(child: _readOnlyField('Net Rented Tax', data.rentedTax.toStringAsFixed(2))),
+            Expanded(
+              child: _readOnlyField(
+                'Net Rented Tax',
+                data.rentedTax.toStringAsFixed(2),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 14),
         // Full width: Total Assessment ARV(Own+Rent)
-        _readOnlyField('Total Assessment ARV(Own+Rent)',
-            (data.finalArvOwner + data.finalArvRented).toStringAsFixed(2)),
+        _readOnlyField(
+          'Total Assessment ARV(Own+Rent)',
+          (data.finalArvOwner + data.finalArvRented).toStringAsFixed(2),
+        ),
         const SizedBox(height: 14),
         // Full width: Total Assessment Tax(Own+Rent)
-        _readOnlyField('Total Assessment Tax(Own+Rent)', data.totalTax.toStringAsFixed(2)),
+        _readOnlyField(
+          'Total Assessment Tax(Own+Rent)',
+          data.totalTax.toStringAsFixed(2),
+        ),
         const SizedBox(height: 14),
         // Full width: Current ARV (empty for now)
         _readOnlyField('Current ARV', ''),
@@ -640,12 +825,22 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label,
-              style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey.shade600)),
+          Text(
+            label,
+            style: GoogleFonts.poppins(
+              fontSize: 11,
+              color: Colors.grey.shade600,
+            ),
+          ),
           const SizedBox(height: 4),
-          Text(value.isEmpty ? '-' : value,
-              style: GoogleFonts.poppins(
-                  fontSize: 15, fontWeight: FontWeight.w600, color: const Color(0xFF333333))),
+          Text(
+            value.isEmpty ? '-' : value,
+            style: GoogleFonts.poppins(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF333333),
+            ),
+          ),
         ],
       ),
     );
@@ -656,7 +851,11 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
   Widget _sectionTitle(String text) {
     return Text(
       text,
-      style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w700, color: const Color(0xFF333333)),
+      style: GoogleFonts.poppins(
+        fontSize: 16,
+        fontWeight: FontWeight.w700,
+        color: const Color(0xFF333333),
+      ),
     );
   }
 
@@ -679,11 +878,17 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
         onChanged: onChanged,
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade600),
+          labelStyle: GoogleFonts.poppins(
+            fontSize: 13,
+            color: Colors.grey.shade600,
+          ),
           border: InputBorder.none,
         ),
         isExpanded: true,
-        style: GoogleFonts.poppins(fontSize: 14, color: const Color(0xFF333333)),
+        style: GoogleFonts.poppins(
+          fontSize: 14,
+          color: const Color(0xFF333333),
+        ),
       ),
     );
   }
@@ -703,10 +908,10 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             decoration: BoxDecoration(
-              color: isSelected ? const Color(0xFF0E3B90) : Colors.white,
+              color: isSelected ? _primaryColor : Colors.white,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: isSelected ? const Color(0xFF0E3B90) : Colors.grey.shade300,
+                color: isSelected ? _primaryColor : Colors.grey.shade300,
               ),
             ),
             child: Text(
@@ -723,8 +928,12 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, IconData icon,
-      {TextInputType keyboardType = TextInputType.text}) {
+  Widget _buildTextField(
+    String label,
+    TextEditingController controller,
+    IconData icon, {
+    TextInputType keyboardType = TextInputType.text,
+  }) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -738,10 +947,16 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
         style: GoogleFonts.poppins(fontSize: 14),
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade600),
-          prefixIcon: Icon(icon, color: const Color(0xFF0E3B90), size: 20),
+          labelStyle: GoogleFonts.poppins(
+            fontSize: 13,
+            color: Colors.grey.shade600,
+          ),
+          prefixIcon: Icon(icon, color: _primaryColor, size: 20),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
         ),
       ),
     );
@@ -752,15 +967,28 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF0F4FF),
+        color: _surfaceTint,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFDDE8FF)),
+        border: Border.all(color: _surfaceBorder),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: GoogleFonts.poppins(fontSize: 13, color: const Color(0xFF555555))),
-          Text(value, style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w700, color: const Color(0xFF0E3B90))),
+          Text(
+            label,
+            style: GoogleFonts.poppins(
+              fontSize: 13,
+              color: const Color(0xFF555555),
+            ),
+          ),
+          Text(
+            value,
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: _primaryDark,
+            ),
+          ),
         ],
       ),
     );
@@ -796,7 +1024,7 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
               label,
               style: GoogleFonts.poppins(
                 fontSize: 13,
-                color: highlight ? const Color(0xFF0E3B90) : Colors.grey.shade700,
+                color: highlight ? _primaryColor : Colors.grey.shade700,
                 fontWeight: highlight ? FontWeight.w700 : FontWeight.w500,
               ),
             ),
@@ -806,7 +1034,7 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
             style: GoogleFonts.poppins(
               fontSize: 13,
               fontWeight: FontWeight.w700,
-              color: highlight ? const Color(0xFF0E3B90) : const Color(0xFF333333),
+              color: highlight ? _primaryColor : const Color(0xFF333333),
             ),
           ),
         ],
@@ -836,15 +1064,17 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
                 child: OutlinedButton(
                   onPressed: _handleBack,
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Color(0xFF0E3B90)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    side: BorderSide(color: _primaryColor),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   child: Text(
                     'Back',
                     style: GoogleFonts.poppins(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: const Color(0xFF0E3B90),
+                      color: _primaryColor,
                     ),
                   ),
                 ),
@@ -858,8 +1088,10 @@ class _PropertyTaxAssessmentScreenState extends State<PropertyTaxAssessmentScree
               child: ElevatedButton(
                 onPressed: _handleNext,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0E3B90),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  backgroundColor: _primaryColor,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   elevation: 0,
                 ),
                 child: Text(
