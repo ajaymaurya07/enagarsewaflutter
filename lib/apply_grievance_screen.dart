@@ -13,6 +13,14 @@ class ApplyGrievanceScreen extends StatefulWidget {
 }
 
 class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
+  static const Color _primaryColor = Color(0xFFE67514);
+  static const Color _backgroundColor = Color(0xFFF8F9FB);
+  static const Color _surfaceColor = Colors.white;
+  static const Color _softPrimaryColor = Color(0xFFFFF3E8);
+  static const Color _borderColor = Color(0xFFE4E8F0);
+  static const Color _textPrimaryColor = Color(0xFF111827);
+  static const Color _hintColor = Color(0xFF6B7280);
+
   final _formKey = GlobalKey<FormState>();
   final ImagePicker _picker = ImagePicker();
   File? _selectedImage;
@@ -208,10 +216,10 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFFF0F4FF),
+              color: _softPrimaryColor,
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: const Color(0xFF0E3B90), size: 30),
+            child: Icon(icon, color: _primaryColor, size: 30),
           ),
           const SizedBox(height: 8),
           Text(label, style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500)),
@@ -240,17 +248,17 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FB),
+      backgroundColor: _backgroundColor,
       appBar: AppBar(
         title: Text(
           'Apply Grievance',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 18),
+          style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 18, color: _primaryColor),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: _surfaceColor,
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black, size: 20),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _primaryColor, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -413,7 +421,7 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
                     child: ElevatedButton(
                       onPressed: _isSubmitting ? null : _submitGrievance,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0E3B90),
+                        backgroundColor: _primaryColor,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         elevation: 0,
@@ -435,7 +443,7 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
             Container(
               color: Colors.black.withOpacity(0.3),
               child: const Center(
-                child: CircularProgressIndicator(color: Color(0xFF0E3B90)),
+                child: CircularProgressIndicator(color: _primaryColor),
               ),
             ),
         ],
@@ -449,7 +457,7 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
       style: GoogleFonts.poppins(
         fontSize: 16,
         fontWeight: FontWeight.bold,
-        color: const Color(0xFF0E3B90),
+        color: _primaryColor,
       ),
     );
   }
@@ -460,9 +468,9 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: _surfaceColor,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade200),
+          border: const Border.fromBorderSide(BorderSide(color: _borderColor)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -471,13 +479,13 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
               child: Text(
                 hint,
                 style: GoogleFonts.poppins(
-                  color: hint.contains('Select') || hint.contains('Loading') ? Colors.grey.shade600 : Colors.black,
+                  color: hint.contains('Select') || hint.contains('Loading') ? _hintColor : _textPrimaryColor,
                   fontSize: 14,
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey.shade600),
+            const Icon(Icons.keyboard_arrow_down_rounded, color: _hintColor),
           ],
         ),
       ),
@@ -492,7 +500,7 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
         keyboardType: keyboardType,
         maxLines: maxLines,
         enabled: enabled,
-        style: GoogleFonts.poppins(fontSize: 14, color: enabled ? Colors.black : Colors.grey),
+        style: GoogleFonts.poppins(fontSize: 14, color: enabled ? _textPrimaryColor : _hintColor),
         validator: isRequired ? (value) {
           if (value == null || value.trim().isEmpty) {
             return 'Please enter $label';
@@ -501,21 +509,21 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
         } : null,
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: GoogleFonts.poppins(color: Colors.grey.shade600, fontSize: 14),
-          prefixIcon: icon != null ? Icon(icon, color: const Color(0xFF0E3B90), size: 20) : null,
+          labelStyle: GoogleFonts.poppins(color: _hintColor, fontSize: 14),
+          prefixIcon: icon != null ? Icon(icon, color: _primaryColor, size: 20) : null,
           filled: true,
-          fillColor: enabled ? Colors.white : Colors.grey.shade100,
+          fillColor: enabled ? _surfaceColor : const Color(0xFFF3F4F6),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide.none,
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.grey.shade200),
+            borderSide: const BorderSide(color: _borderColor),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFF0E3B90)),
+            borderSide: const BorderSide(color: _primaryColor),
           ),
           errorBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
@@ -523,7 +531,7 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
           ),
           disabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.grey.shade200),
+            borderSide: const BorderSide(color: _borderColor),
           ),
         ),
       ),
@@ -537,9 +545,9 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
         width: double.infinity,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: _surfaceColor,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade200),
+          border: const Border.fromBorderSide(BorderSide(color: _borderColor)),
         ),
         child: _selectedImage != null
             ? Stack(
@@ -569,16 +577,16 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
               )
             : Column(
                 children: [
-                  Icon(Icons.camera_alt_outlined, color: Colors.grey.shade400, size: 40),
+                  const Icon(Icons.camera_alt_outlined, color: _hintColor, size: 40),
                   const SizedBox(height: 8),
                   Text(
                     'Upload Related Photo',
-                    style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey.shade600),
+                    style: GoogleFonts.poppins(fontSize: 14, color: _hintColor),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     '(Optional)',
-                    style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey.shade400),
+                    style: GoogleFonts.poppins(fontSize: 12, color: _hintColor.withOpacity(0.8)),
                   ),
                 ],
               ),
@@ -727,7 +735,7 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
                   }
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0E3B90),
+                  backgroundColor: _primaryColor,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
@@ -763,7 +771,7 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
             if (grievanceId != null) ...[
               const SizedBox(height: 12),
               Text('Grievance ID:', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14)),
-              Text(grievanceId, style: GoogleFonts.poppins(color: const Color(0xFF0E3B90), fontWeight: FontWeight.bold, fontSize: 18)),
+              Text(grievanceId, style: GoogleFonts.poppins(color: _primaryColor, fontWeight: FontWeight.bold, fontSize: 18)),
             ],
           ],
         ),
