@@ -12,7 +12,7 @@ class ForgotPasswordScreen extends StatefulWidget {
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _usernameController = TextEditingController();
   final RegExp _passwordPattern = RegExp(
-    r'^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=!])(?=\S+$).{8,}$',
+    r'^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=!])(?=\S+$).{6,}$',
   );
   bool _isLoading = false;
 
@@ -195,7 +195,15 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                               ),
                             ),
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Min 6 chars \u2022 Uppercase \u2022 Lowercase \u2022 Number \u2022 Special (@#\$%^&+=!)',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          color: Colors.grey.shade500,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
 
                       // Confirm Password
                       _sheetLabel('Confirm Password'),
@@ -261,7 +269,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                                   if (!_passwordPattern.hasMatch(newPass)) {
                                     setSheetState(
                                       () => sheetError =
-                                          'Password must be 8+ chars with uppercase, lowercase, number and special character',
+                                          'Password must be at least 6 characters with uppercase, lowercase, number & special character (@#\$%^&+=!)',
                                     );
                                     return;
                                   }
@@ -382,18 +390,29 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   void _showSuccessAndGoBack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: GoogleFonts.poppins()),
-        backgroundColor: Colors.green.shade600,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        duration: const Duration(seconds: 2),
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.check_circle_outline_rounded, color: Colors.green, size: 28),
+            const SizedBox(width: 10),
+            Text('Success', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Text(message, style: GoogleFonts.poppins(fontSize: 14)),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // close dialog
+              Navigator.pop(context); // go back
+            },
+            child: Text('OK', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: const Color(0xFFE67514))),
+          ),
+        ],
       ),
     );
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) Navigator.pop(context);
-    });
   }
 
   void _showError(String message) {
