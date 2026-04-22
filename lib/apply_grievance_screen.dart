@@ -319,7 +319,6 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
                   const SizedBox(height: 12),
                   _buildTextField('Full Name', _fullNameController, icon: Icons.person_outline, enabled: false),
                   _buildTextField('Mobile Number', _mobileController, icon: Icons.phone_android_outlined, keyboardType: TextInputType.phone, enabled: false),
-                  _buildTextField('Email ID', _emailController, icon: Icons.email_outlined, enabled: false),
                   _buildTextField('Father/Husband Name', _fatherNameController, icon: Icons.family_restroom_outlined, enabled: false),
                   _buildTextField('Address', _addressController, icon: Icons.location_on_outlined, maxLines: 2, enabled: false),
                   
@@ -402,7 +401,7 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  _buildTextField('Landmark', _landmarkController, icon: Icons.pin_drop_outlined, isRequired: true),
+                  _buildTextField('Enter Landmark', _landmarkController, isRequired: true),
 
                   const SizedBox(height: 24),
                   _buildSectionTitle('Grievance Details'),
