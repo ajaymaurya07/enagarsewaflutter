@@ -661,15 +661,16 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
   void _showOtpVerificationSheet(String mobileNo, String grievanceId) {
     final TextEditingController otpController = TextEditingController();
     bool isVerifying = false;
+    String? errorText;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => Container(
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setModalState) => Container(
           padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
+            bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
             top: 24, left: 24, right: 24
           ),
           decoration: const BoxDecoration(
@@ -696,40 +697,65 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
                 maxLength: 6,
                 textAlign: TextAlign.center,
                 style: GoogleFonts.poppins(fontSize: 24, letterSpacing: 8, fontWeight: FontWeight.bold),
+                onChanged: (_) {
+                  if (errorText != null) setModalState(() => errorText = null);
+                },
                 decoration: InputDecoration(
                   hintText: '000000',
                   counterText: "",
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
-              const SizedBox(height: 24),
+              if (errorText != null) ...[
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.error_outline, color: Colors.red.shade700, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          errorText!,
+                          style: GoogleFonts.poppins(color: Colors.red.shade700, fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: isVerifying ? null : () async {
                   if (otpController.text.length < 4) return;
                   
-                  setModalState(() => isVerifying = true);
+                  setModalState(() {
+                    isVerifying = true;
+                    errorText = null;
+                  });
                   try {
                     final res = await ApiService.registerGrievanceVerifyOtp(
                       mobileNo: mobileNo,
                       otp: otpController.text,
                       grievanceId: grievanceId,
                     );
-                    print(res.message);
+                    debugPrint('OTP Verify Response => success: ${res.success}, message: ${res.message}, responseCode: ${res.responseCode}, userId: ${res.userId}');
                     if (res.success == true) {
                       if (!mounted) return;
-                      Navigator.pop(context); // Close OTP sheet
+                      Navigator.pop(sheetContext); // Close OTP sheet
                       _showSuccessDialog(res.message ?? 'Grievance Registered Successfully!', grievanceId);
                     } else {
                       if (!mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(res.message ?? 'Invalid OTP')),
-                      );
+                      setModalState(() => errorText = res.message ?? 'Invalid OTP');
                     }
                   } catch (e) {
                     if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(e.toString())),
-                    );
+                    setModalState(() => errorText = e.toString());
                   } finally {
                     if (mounted) setModalState(() => isVerifying = false);
                   }
