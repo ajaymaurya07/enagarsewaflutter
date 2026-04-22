@@ -555,7 +555,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
               style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey.shade700),
             ),
             const SizedBox(height: 24),
-            _buildPaymentOptionCard('Pay with Pay', 'Safe & Secure', Icons.payment_rounded, () {
+            _buildPaymentOptionCard('Pay with PayU', 'Safe & Secure', Icons.payment_rounded, () {
               Navigator.pop(context);
               _startPayuFlow(transactionData);
             }),
@@ -574,34 +574,14 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
     if (txnData == null) return;
     setState(() => _isLoading = true);
     try {
-      final key = txnData.key ?? '';
-      final txnid = txnData.txnid ?? 'TXN${DateTime.now().millisecondsSinceEpoch}';
-      final amount = txnData.amount ?? '0';
-      final productinfo = txnData.productinfo ?? 'Property Tax';
-      final firstname = txnData.firstname ?? '';
-      final email = txnData.email ?? '';
-
-      if (kDebugMode) print('Starting PayU flow for txnid=$txnid amount=$amount');
-
-      String makeSafeUrl(String? url) {
-        const defaultUrl = 'https://www.payu.in/txnstatus';
-        if (url == null) return defaultUrl;
-        final trimmed = url.trim();
-        try {
-          final uri = Uri.parse(trimmed);
-          if ((uri.scheme == 'https' || uri.scheme == 'http') && trimmed.isNotEmpty) {
-            final host = uri.host.toLowerCase();
-            // Only allow PayU domains; otherwise return default to satisfy SDK validation
-            if (host.contains('payu')) return trimmed;
-          }
-        } catch (_) {}
-        return defaultUrl;
-      }
-
-      final surl = makeSafeUrl(txnData.surl);
-      final furl = makeSafeUrl(txnData.furl);
-
-      if (kDebugMode) print('Starting PayU with txnid=$txnid, amount=$amount, key=$key');
+      final key = txnData.key;
+      final txnid = txnData.txnid;
+      final amount = txnData.amount;
+      final productinfo = txnData.productinfo;
+      final firstname = txnData.firstname;
+      final email = txnData.email;
+      final surl = txnData.surl;
+      final furl = txnData.furl;
 
       try {
         // Use the PayU plugin's actual API: PayUCheckoutProFlutter with a delegate.
