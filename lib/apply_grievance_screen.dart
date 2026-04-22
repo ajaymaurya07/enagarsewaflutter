@@ -744,11 +744,11 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
                       otp: otpController.text,
                       grievanceId: grievanceId,
                     );
-                    debugPrint('OTP Verify Response => success: ${res.success}, message: ${res.message}, responseCode: ${res.responseCode}, userId: ${res.userId}');
+                    debugPrint('OTP Verify Response => success: ${res.success}, message: ${res.message}, responseCode: ${res.responseCode}, data: ${res.data}');
                     if (res.success == true) {
                       if (!mounted) return;
                       Navigator.pop(sheetContext); // Close OTP sheet
-                      _showSuccessDialog(res.message ?? 'Grievance Registered Successfully!', grievanceId);
+                      _showSuccessDialog(res.message ?? 'Grievance Registered Successfully!', res.data ?? grievanceId);
                     } else {
                       if (!mounted) return;
                       setModalState(() => errorText = res.message ?? 'Invalid OTP');

@@ -203,7 +203,7 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
                         if (res.success == true) {
                           final ulbId = await StorageService.getUlbId();
                           final totalArv = _selectedProperty?.totalArv?.toString() ?? "0.0";
-                          final userId = res.userId?.toString() ?? "0";
+                          final userId = res.data?.toString() ?? "0";
 
                           await StorageService.saveTotalArv(totalArv);
 

@@ -1354,13 +1354,13 @@ class OtpVerificationResponse {
   final bool? success;
   final String? message;
   final int? responseCode;
-  final int? userId;
+  final String? data;
 
   OtpVerificationResponse({
     this.success,
     this.message,
     this.responseCode,
-    this.userId,
+    this.data,
   });
 
   factory OtpVerificationResponse.fromJson(Map<String, dynamic> json) {
@@ -1368,7 +1368,7 @@ class OtpVerificationResponse {
       success: json['success'],
       message: json['message'],
       responseCode: json['responseCode'],
-      userId: json['userId'],
+      data: json['data']?.toString(),
     );
   }
 }
