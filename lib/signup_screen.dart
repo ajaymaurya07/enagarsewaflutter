@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'services/sim_service.dart';
 import 'services/email_service.dart';
 
@@ -10,7 +11,8 @@ class SignUpScreen extends StatefulWidget {
   State<SignUpScreen> createState() => _SignUpScreenState();
 }
 
-class _SignUpScreenState extends State<SignUpScreen> {
+class _SignUpScreenState extends State<SignUpScreen>
+    with WidgetsBindingObserver {
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
@@ -27,64 +29,385 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _loadingPhoneNumbers = false;
   bool _loadingEmails = false;
 
+  // Tracks if we opened settings and are waiting for user to return
+  bool _waitingForPhonePermission = false;
+  bool _waitingForEmailPermission = false;
+
   @override
   void initState() {
     super.initState();
-    _loadPhoneNumbers();
-    _loadEmails();
+    WidgetsBinding.instance.addObserver(this);
+    _initAllPermissions();
   }
 
-  Future<void> _loadPhoneNumbers() async {
-    setState(() {
-      _loadingPhoneNumbers = true;
-    });
-    
-    try {
-      final phones = await SimService.getAvailablePhoneNumbers();
-      
-      setState(() {
-        _phoneNumbers = phones;
-        _loadingPhoneNumbers = false;
-      });
-    } catch (e) {
-      setState(() {
-        _phoneNumbers = [];
-        _loadingPhoneNumbers = false;
-      });
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _nameController.dispose();
+    _phoneController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  // Called when app returns to foreground (e.g. from Settings)
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (_waitingForPhonePermission || _waitingForEmailPermission) {
+        final needPhone = _waitingForPhonePermission;
+        final needEmail = _waitingForEmailPermission;
+        _waitingForPhonePermission = false;
+        _waitingForEmailPermission = false;
+        _recheckAfterSettings(needPhone: needPhone, needEmail: needEmail);
+      }
     }
   }
 
-  Future<void> _loadEmails() async {
+  // ─── COMBINED PERMISSION INIT ─────────────────────────────────────────────
+
+  Future<void> _initAllPermissions() async {
+    if (!mounted) return;
     setState(() {
+      _loadingPhoneNumbers = true;
       _loadingEmails = true;
     });
-    
+
+    // Try Gmail first — no permission needed
+    List<String> gmailEmails = [];
     try {
-      // First, try to get all Gmail account emails
-      final gmailEmails = await EmailService.getAllGmailEmails();
-      
-      if (gmailEmails.isNotEmpty) {
+      gmailEmails = await EmailService.getAllGmailEmails();
+    } catch (_) {}
+    final emailViaGmail = gmailEmails.isNotEmpty;
+
+    // ── IMPORTANT: Request permissions SEQUENTIALLY ───────────────────────
+    // Android can only show ONE OS permission dialog at a time.
+    // Running both in Future.wait causes the second one to hang indefinitely.
+    final phoneStatus = await _forceRequestPermission(
+      permission: Permission.phone,
+      rationaleTitle: 'Phone Permission Required',
+      rationaleReason:
+          'This app needs Phone permission to automatically read your SIM number. Please grant it to continue.',
+      settingsTitle: 'Phone Permission Blocked',
+      settingsMessage:
+          'Phone permission is permanently blocked.\n\nPlease open App Settings → Permissions → Phone → Allow, then come back.',
+      onWaiting: () => _waitingForPhonePermission = true,
+    );
+
+    // Only request contacts if Gmail didn't already give us emails
+    final contactsStatus = emailViaGmail
+        ? PermissionStatus.granted
+        : await _forceRequestPermission(
+            permission: Permission.contacts,
+            rationaleTitle: 'Contacts Permission Required',
+            rationaleReason:
+                'This app needs Contacts permission to automatically read your email address. Please grant it to continue.',
+            settingsTitle: 'Contacts Permission Blocked',
+            settingsMessage:
+                'Contacts permission is permanently blocked.\n\nPlease open App Settings → Permissions → Contacts → Allow, then come back.',
+            onWaiting: () => _waitingForEmailPermission = true,
+          );
+
+    // ── Fetch data in parallel (no dialogs here, safe to parallelize) ─────
+    await Future.wait([
+      _applyPhoneResult(phoneStatus),
+      _applyEmailResult(
+        gmailEmails: gmailEmails,
+        emailViaGmail: emailViaGmail,
+        contactsStatus: contactsStatus,
+      ),
+    ]);
+  }
+
+  // ─── FORCE-REQUEST HELPER ─────────────────────────────────────────────────
+  // Loops until permission is granted OR permanently denied (then opens settings).
+  // For permanently denied: sets waiting flag, opens settings, returns immediately.
+  // The lifecycle observer picks it up on app resume.
+
+  Future<PermissionStatus> _forceRequestPermission({
+    required Permission permission,
+    required String rationaleTitle,
+    required String rationaleReason,
+    required String settingsTitle,
+    required String settingsMessage,
+    required VoidCallback onWaiting,
+  }) async {
+    while (mounted) {
+      var status = await permission.status;
+
+      // Already granted — done
+      if (status.isGranted || status.isLimited) return status;
+
+      // Permanently denied — send to settings (lifecycle handles resume)
+      if (status.isPermanentlyDenied) {
+        onWaiting();
+        await _showSettingsDialog(title: settingsTitle, message: settingsMessage);
+        return status; // resume handled by didChangeAppLifecycleState
+      }
+
+      // isDenied — show OS dialog
+      status = await permission.request();
+
+      if (status.isGranted || status.isLimited) return status;
+
+      if (status.isPermanentlyDenied) {
+        onWaiting();
+        await _showSettingsDialog(title: settingsTitle, message: settingsMessage);
+        return status;
+      }
+
+      // User tapped "Deny" in OS dialog (can still ask again) —
+      // show rationale explaining WHY, then loop back and ask again
+      if (!mounted) return status;
+      await _showRationaleDialog(
+        title: rationaleTitle,
+        reason: rationaleReason,
+      );
+      // Loop: will call permission.request() again
+    }
+    return PermissionStatus.denied;
+  }
+
+  // ─── RE-CHECK AFTER RETURNING FROM SETTINGS ───────────────────────────────
+
+  Future<void> _recheckAfterSettings({
+    required bool needPhone,
+    required bool needEmail,
+  }) async {
+    if (!mounted) return;
+    if (needPhone) setState(() => _loadingPhoneNumbers = true);
+    if (needEmail) setState(() => _loadingEmails = true);
+
+    List<String> gmailEmails = [];
+    if (needEmail) {
+      try {
+        gmailEmails = await EmailService.getAllGmailEmails();
+      } catch (_) {}
+    }
+    final emailViaGmail = gmailEmails.isNotEmpty;
+
+    // Sequential permission re-check (same reason: Android one dialog at a time)
+    final phoneStatus = needPhone
+        ? await _forceRequestPermission(
+            permission: Permission.phone,
+            rationaleTitle: 'Phone Permission Required',
+            rationaleReason:
+                'Phone permission is still needed to auto-detect your SIM number.',
+            settingsTitle: 'Phone Permission Still Blocked',
+            settingsMessage:
+                'Phone permission is still blocked.\n\nPlease go to App Settings → Permissions → Phone → Allow, then come back.',
+            onWaiting: () => _waitingForPhonePermission = true,
+          )
+        : PermissionStatus.denied;
+
+    final contactsStatus = (needEmail && !emailViaGmail)
+        ? await _forceRequestPermission(
+            permission: Permission.contacts,
+            rationaleTitle: 'Contacts Permission Required',
+            rationaleReason:
+                'Contacts permission is still needed to auto-detect your email address.',
+            settingsTitle: 'Contacts Permission Still Blocked',
+            settingsMessage:
+                'Contacts permission is still blocked.\n\nPlease go to App Settings → Permissions → Contacts → Allow, then come back.',
+            onWaiting: () => _waitingForEmailPermission = true,
+          )
+        : PermissionStatus.denied;
+
+    // Fetch in parallel (no dialogs here)
+    await Future.wait([
+      if (needPhone) _applyPhoneResult(phoneStatus),
+      if (needEmail)
+        _applyEmailResult(
+          gmailEmails: gmailEmails,
+          emailViaGmail: emailViaGmail,
+          contactsStatus: contactsStatus,
+        ),
+    ]);
+  }
+
+  // ─── PHONE: fetch with granted status ────────────────────────────────────
+
+  Future<void> _applyPhoneResult(PermissionStatus status) async {
+    if (!mounted) return;
+
+    if (status.isGranted || status.isLimited) {
+      try {
+        final phones = await SimService.getAvailablePhoneNumbers();
+        if (!mounted) return;
         setState(() {
-          _availableEmails = gmailEmails;
+          _phoneNumbers = phones;
+          // Auto-fill only if exactly 1 number detected
+          if (phones.length == 1) {
+            _selectedPhone = phones.first;
+            _phoneController.text = phones.first;
+          }
+          _loadingPhoneNumbers = false;
+        });
+        // If permission granted but device returned no numbers → manual entry
+        // _phoneNumbers will be empty so the selection dialog shows text field
+        return;
+      } catch (_) {}
+    }
+
+    // Permission not granted (permanently denied / waiting for settings)
+    // Spinner stops — selector tile remains tappable for manual entry
+    if (mounted) setState(() => _loadingPhoneNumbers = false);
+  }
+
+  // ─── EMAIL: fetch with granted status ────────────────────────────────────
+
+  Future<void> _applyEmailResult({
+    required List<String> gmailEmails,
+    required bool emailViaGmail,
+    required PermissionStatus contactsStatus,
+  }) async {
+    if (!mounted) return;
+
+    // Priority 1: Gmail (no permission required)
+    if (emailViaGmail) {
+      setState(() {
+        _availableEmails = gmailEmails;
+        if (gmailEmails.length == 1) {
+          _selectedEmail = gmailEmails.first;
+          _emailController.text = gmailEmails.first;
+        }
+        _loadingEmails = false;
+      });
+      return;
+    }
+
+    // Priority 2: Contacts granted — fetch
+    if (contactsStatus.isGranted || contactsStatus.isLimited) {
+      try {
+        final emails = await EmailService.getAvailableEmails();
+        if (!mounted) return;
+        setState(() {
+          _availableEmails = emails;
+          if (emails.length == 1) {
+            _selectedEmail = emails.first;
+            _emailController.text = emails.first;
+          }
           _loadingEmails = false;
         });
         return;
-      }
-      
-      // If no Gmail emails, try to get emails from device contacts
-      final emails = await EmailService.getAvailableEmails();
-      
-      setState(() {
-        _availableEmails = emails;
-        _loadingEmails = false;
-      });
-    } catch (e) {
-      // If anything fails, show empty list so input field appears
-      setState(() {
-        _availableEmails = [];
-        _loadingEmails = false;
-      });
+      } catch (_) {}
     }
+
+    // Not granted — spinner stops, selector tile tappable for manual entry
+    if (mounted) setState(() => _loadingEmails = false);
+  }
+
+  // ─── DIALOGS ─────────────────────────────────────────────────────────────
+
+  /// Rationale dialog: explains WHY permission is needed.
+  /// Has only "Grant Permission" button — no skip, no dismiss.
+  Future<void> _showRationaleDialog({
+    required String title,
+    required String reason,
+  }) async {
+    if (!mounted) return;
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => PopScope(
+        canPop: false, // back button disabled
+        child: AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              const Icon(Icons.info_rounded, color: Color(0xFFE67514), size: 26),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(title,
+                    style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.bold, fontSize: 15)),
+              ),
+            ],
+          ),
+          content: Text(reason,
+              style: GoogleFonts.poppins(
+                  fontSize: 13, color: Colors.grey.shade700, height: 1.5)),
+          actions: [
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.check_circle_outline, size: 18),
+                label: Text('Grant Permission',
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+                onPressed: () => Navigator.pop(ctx),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFE67514),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Settings dialog: for permanently denied permissions.
+  /// Has only "Open Settings" button — no skip, no dismiss.
+  Future<void> _showSettingsDialog({
+    required String title,
+    required String message,
+  }) async {
+    if (!mounted) return;
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => PopScope(
+        canPop: false, // back button disabled
+        child: AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              const Icon(Icons.security_rounded,
+                  color: Color(0xFFE67514), size: 26),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(title,
+                    style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.bold, fontSize: 15)),
+              ),
+            ],
+          ),
+          content: Text(message,
+              style: GoogleFonts.poppins(
+                  fontSize: 13, color: Colors.grey.shade700, height: 1.5)),
+          actions: [
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.settings_outlined, size: 18),
+                label: Text('Open Settings',
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  openAppSettings();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFE67514),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _showPhoneSelectionDialog() {
@@ -426,16 +749,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
         );
       },
     );
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _phoneController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
-    _confirmPasswordController.dispose();
-    super.dispose();
   }
 
   void _handleSignUp() {
