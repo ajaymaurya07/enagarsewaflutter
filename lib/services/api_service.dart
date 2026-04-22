@@ -521,7 +521,7 @@ class ApiService {
   }
 
   // Verify OTP API
-  static Future<OtpVerificationResponse> verifyOtp(
+  static Future<VerifyOtpResponse> verifyOtp(
     String mobileNo,
     String otp,
   ) async {
@@ -537,7 +537,7 @@ class ApiService {
       );
 
       if (response.statusCode == 200) {
-        return OtpVerificationResponse.fromJson(jsonDecode(response.body));
+        return VerifyOtpResponse.fromJson(jsonDecode(response.body));
       } else {
         throw Exception('OTP verification failed: ${response.statusCode}');
       }
@@ -1345,6 +1345,29 @@ class SendOtpResponse {
     return SendOtpResponse(
       success: json['success'],
       message: json['message'],
+      responseCode: json['responseCode'],
+    );
+  }
+}
+
+class VerifyOtpResponse {
+  final bool? success;
+  final String? message;
+  final int? userId;
+  final int? responseCode;
+
+  VerifyOtpResponse({
+    this.success,
+    this.message,
+    this.userId,
+    this.responseCode,
+  });
+
+  factory VerifyOtpResponse.fromJson(Map<String, dynamic> json) {
+    return VerifyOtpResponse(
+      success: json['success'],
+      message: json['message'],
+      userId: json['userId'],
       responseCode: json['responseCode'],
     );
   }
