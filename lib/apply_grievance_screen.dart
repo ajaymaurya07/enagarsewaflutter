@@ -155,8 +155,38 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
         imageQuality: 80,
       );
       if (pickedFile != null) {
+        final file = File(pickedFile.path);
+        final fileSizeInBytes = await file.length();
+        if (fileSizeInBytes > 200 * 1024) {
+          final sizeInKB = (fileSizeInBytes / 1024).toStringAsFixed(1);
+          if (mounted) {
+            showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: Row(
+                  children: [
+                    const Icon(Icons.error_outline, color: Colors.red, size: 28),
+                    const SizedBox(width: 10),
+                    Text('Image Too Large', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+                  ],
+                ),
+                content: Text(
+                  'Selected image size is ${sizeInKB}KB which exceeds the 200KB limit.\n\nPlease select a smaller image.',
+                  style: GoogleFonts.poppins(fontSize: 14),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text('OK', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: _primaryColor)),
+                  ),
+                ],
+              ),
+            );
+          }
+          return;
+        }
         setState(() {
-          _selectedImage = File(pickedFile.path);
+          _selectedImage = file;
         });
       }
     } catch (e) {
