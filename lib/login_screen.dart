@@ -153,7 +153,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         // Email Field
                         Text(
-                          'Email or Phone Number',
+                          'Email',
                           style: GoogleFonts.poppins(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
@@ -166,7 +166,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           keyboardType: TextInputType.emailAddress,
                           style: GoogleFonts.poppins(fontSize: 14),
                           decoration: InputDecoration(
-                            hintText: 'Enter email or phone number',
+                            hintText: 'Enter email',
                             hintStyle: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade400),
                             prefixIcon: const Icon(Icons.email_outlined, color: Color(0xFFE67514), size: 20),
                             filled: true,

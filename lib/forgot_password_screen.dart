@@ -26,7 +26,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     final username = _usernameController.text.trim();
 
     if (username.isEmpty) {
-      _showError('Please enter your email or username');
+      _showError('Please enter your email');
       return;
     }
 
@@ -547,7 +547,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Enter your registered email or username to receive an OTP',
+                                'Enter your registered email to receive an OTP',
                                 style: GoogleFonts.poppins(
                                   fontSize: 13,
                                   color: Colors.grey.shade500,
@@ -557,7 +557,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
                               // Email Field
                               Text(
-                                'Email or Username',
+                                'Email',
                                 style: GoogleFonts.poppins(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
@@ -570,7 +570,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                                 keyboardType: TextInputType.emailAddress,
                                 style: GoogleFonts.poppins(fontSize: 14),
                                 decoration: InputDecoration(
-                                  hintText: 'Enter your email or username',
+                                  hintText: 'Enter your email',
                                   hintStyle: GoogleFonts.poppins(
                                     fontSize: 13,
                                     color: Colors.grey.shade400,
