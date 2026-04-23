@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'services/sim_service.dart';
 import 'services/email_service.dart';
+import 'services/api_service.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -771,6 +772,7 @@ class _SignUpScreenState extends State<SignUpScreen>
       _showError('Please select a phone number');
       return;
     }
+    
     if (email.isEmpty) {
       _showError('Please enter email address');
       return;
@@ -783,8 +785,8 @@ class _SignUpScreenState extends State<SignUpScreen>
       _showError('Please enter password');
       return;
     }
-    if (password.length < 6) {
-      _showError('Password must be at least 6 characters');
+    if (!RegExp(r'^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=!])(?=\S+$).{6,}$').hasMatch(password)) {
+      _showError('Password must be at least 6 characters with uppercase, lowercase, number & special character (@#\$%^&+=!)');
       return;
     }
     if (password != confirmPassword) {
@@ -792,19 +794,291 @@ class _SignUpScreenState extends State<SignUpScreen>
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    _doSignUp(name: name, phone: _sanitizePhone(phone), email: email, password: password);
+  }
 
-    // Simulate sign up delay
-    Future.delayed(const Duration(seconds: 2), () {
-      setState(() {
-        _isLoading = false;
-      });
-      _showSuccess('Account created successfully for $email!');
-      // Navigate back to login
+  String _sanitizePhone(String phone) {
+    // Remove spaces, dashes, brackets
+    String cleaned = phone.replaceAll(RegExp(r'[\s\-()]'), '');
+    // Remove +91 or 91 prefix
+    if (cleaned.startsWith('+91')) cleaned = cleaned.substring(3);
+    else if (cleaned.startsWith('91') && cleaned.length > 10) cleaned = cleaned.substring(2);
+    // Return last 10 digits as fallback
+    if (cleaned.length > 10) cleaned = cleaned.substring(cleaned.length - 10);
+    return cleaned;
+  }
+
+  Future<void> _doSignUp({
+    required String name,
+    required String phone,
+    required String email,
+    required String password,
+  }) async {
+    setState(() => _isLoading = true);
+
+    try {
+      final signUpResult = await ApiService.signUp(
+        name: name,
+        mobileNo: phone,
+        email: email,
+        password: password,
+      );
+
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+
+      if (signUpResult.status != true) {
+        _showError(signUpResult.message ?? 'Sign up failed. Please try again.');
+        return;
+      }
+
+      // Step 2: Verify OTP inside the bottom sheet
+      final verifyResult = await _showOtpDialog(email);
+      if (verifyResult == null) return;
+
+      if (verifyResult.status != true) {
+        _showError(verifyResult.message ?? 'OTP verification failed. Please try again.');
+        return;
+      }
+
+      // Step 3: Show success dialog and go back
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              const Icon(Icons.check_circle_rounded, color: Color(0xFF4CAF50), size: 28),
+              const SizedBox(width: 10),
+              Text(
+                'Success',
+                style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+            ],
+          ),
+          content: Text(
+            verifyResult.message ?? 'Account created successfully!',
+            style: GoogleFonts.poppins(fontSize: 14, height: 1.5),
+          ),
+          actions: [
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(ctx),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFE67514),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: Text('OK', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+              ),
+            ),
+          ],
+        ),
+      );
+
+      if (!mounted) return;
       Navigator.pop(context);
-    });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      _showError(e.toString().replaceFirst('Exception: ', ''));
+    }
+  }
+
+  Future<VerifyOtpMailResponse?> _showOtpDialog(String email) async {
+    final otpController = TextEditingController();
+    String? sheetError;
+    bool isVerifying = false;
+
+    return showModalBottomSheet<VerifyOtpMailResponse>(
+      context: context,
+      isDismissible: false,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Verify Email',
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 18),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'An OTP has been sent to',
+                    style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade600),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    email,
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFFE67514),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  TextField(
+                    controller: otpController,
+                    keyboardType: TextInputType.number,
+                    maxLength: 6,
+                    autofocus: true,
+                    enabled: !isVerifying,
+                    style: GoogleFonts.poppins(fontSize: 20, letterSpacing: 6, fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
+                    decoration: InputDecoration(
+                      hintText: '------',
+                      hintStyle: GoogleFonts.poppins(
+                        fontSize: 20,
+                        letterSpacing: 6,
+                        color: Colors.grey.shade300,
+                      ),
+                      counterText: '',
+                      filled: true,
+                      fillColor: const Color(0xFFF8F9FB),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade200),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFE67514), width: 1.5),
+                      ),
+                    ),
+                  ),
+                  if (sheetError != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      sheetError!,
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: Colors.red.shade600,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 28),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: isVerifying
+                          ? null
+                          : () async {
+                              final otp = otpController.text.trim();
+                              if (otp.isEmpty) {
+                                setSheetState(() => sheetError = 'Please enter OTP');
+                                return;
+                              }
+
+                              setSheetState(() {
+                                sheetError = null;
+                                isVerifying = true;
+                              });
+
+                              try {
+                                final verifyResult = await ApiService.verifyOtpEmail(
+                                  email: email,
+                                  otp: otp,
+                                );
+
+                                if (!ctx.mounted) return;
+
+                                if (verifyResult.status == true) {
+                                  Navigator.pop(ctx, verifyResult);
+                                  return;
+                                }
+
+                                setSheetState(() {
+                                  isVerifying = false;
+                                  sheetError = verifyResult.message ??
+                                      'OTP verification failed. Please try again.';
+                                });
+                              } catch (e) {
+                                if (!ctx.mounted) return;
+                                setSheetState(() {
+                                  isVerifying = false;
+                                  sheetError = e.toString().replaceFirst('Exception: ', '');
+                                });
+                              }
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFE67514),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: isVerifying
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : Text(
+                              'Verify OTP',
+                              style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 16),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: OutlinedButton(
+                      onPressed: isVerifying ? null : () => Navigator.pop(ctx),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: Colors.grey.shade300),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        'Cancel',
+                        style: GoogleFonts.poppins(color: Colors.grey.shade600, fontWeight: FontWeight.w600, fontSize: 16),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   void _showError(String message) {

@@ -768,6 +768,82 @@ class ApiService {
     }
   }
 
+  // Sign Up API
+  static Future<SignUpResponse> signUp({
+    required String name,
+    required String mobileNo,
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final hashedPassword = sha512.convert(utf8.encode(password)).toString();
+      final headers = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'X-App-Version': AppConstants.apiVersion,
+      };
+
+      final response = await http
+          .post(
+            Uri.parse('${AppConstants.baseUrl}api/house_tax/signup'),
+            headers: headers,
+            body: jsonEncode({
+              'name': name,
+              'mobile_no': mobileNo,
+              'email': email,
+              'password': hashedPassword,
+            }),
+          )
+          .timeout(Duration(seconds: AppConstants.networkTimeout));
+
+      debugPrint('[SignUp] Status: ${response.statusCode}');
+      debugPrint('[SignUp] Response: ${response.body}');
+
+      if (response.statusCode == 200) {
+        return SignUpResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Sign up failed: \${response.statusCode}');
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Connection error: $e');
+    }
+  }
+
+  // Verify OTP Email API
+  static Future<VerifyOtpMailResponse> verifyOtpEmail({
+    required String email,
+    required String otp,
+  }) async {
+    try {
+      final headers = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'X-App-Version': AppConstants.apiVersion,
+      };
+
+      final response = await http
+          .post(
+            Uri.parse('${AppConstants.baseUrl}api/house_tax/verifyOtpEmail'),
+            headers: headers,
+            body: jsonEncode({'email': email, 'otp': otp}),
+          )
+          .timeout(Duration(seconds: AppConstants.networkTimeout));
+
+      debugPrint('[VerifyOtpEmail] Status: ${response.statusCode}');
+      debugPrint('[VerifyOtpEmail] Response: ${response.body}');
+
+      if (response.statusCode == 200) {
+        return VerifyOtpMailResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('OTP verification failed: \${response.statusCode}');
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Connection error: $e');
+    }
+  }
+
   // Logout API
   static Future<LogoutResponse> logout() async {
     try {
@@ -1853,6 +1929,38 @@ class GrievanceStatusData {
       closeTime: json['closeTime'],
       reComplain: json['reComplain'],
       dueDate: json['dueDate'],
+    );
+  }
+}
+
+class SignUpResponse {
+  final String? message;
+  final bool? status;
+  final int? responseCode;
+
+  SignUpResponse({this.message, this.status, this.responseCode});
+
+  factory SignUpResponse.fromJson(Map<String, dynamic> json) {
+    return SignUpResponse(
+      message: json['message'],
+      status: json['status'],
+      responseCode: json['responseCode'],
+    );
+  }
+}
+
+class VerifyOtpMailResponse {
+  final String? message;
+  final bool? status;
+  final int? responseCode;
+
+  VerifyOtpMailResponse({this.message, this.status, this.responseCode});
+
+  factory VerifyOtpMailResponse.fromJson(Map<String, dynamic> json) {
+    return VerifyOtpMailResponse(
+      message: json['message'],
+      status: json['status'],
+      responseCode: json['responseCode'],
     );
   }
 }
