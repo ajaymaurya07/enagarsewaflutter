@@ -2,6 +2,9 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import 'services/api_service.dart';
 import 'services/storage_service.dart';
 import 'services/database_service.dart';
@@ -668,6 +671,119 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
     );
   }
 
+  Future<void> _printProperty() async {
+    final bill = _details?.billDetails;
+    final prop = _details?.propertyDetailsInfo;
+    final owner = _details?.ownerDetails;
+
+    final doc = pw.Document();
+
+    doc.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
+        build: (pw.Context ctx) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Center(
+                child: pw.Text(
+                  'Property Tax Details',
+                  style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold),
+                ),
+              ),
+              pw.SizedBox(height: 4),
+              pw.Center(
+                child: pw.Text(
+                  'Property ID: ${widget.propertyId}',
+                  style: pw.TextStyle(fontSize: 12, color: PdfColors.grey700),
+                ),
+              ),
+              pw.SizedBox(height: 16),
+              pw.Divider(thickness: 1.5),
+              pw.SizedBox(height: 10),
+              pw.Text('Property Information',
+                  style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold)),
+              pw.SizedBox(height: 6),
+              _buildPdfRow('Zone Name', prop?.zoneName ?? 'N/A'),
+              _buildPdfRow('Ward Name', prop?.wardName ?? 'N/A'),
+              _buildPdfRow('Mohalla Name', prop?.mohallaName ?? 'N/A'),
+              _buildPdfRow('House No.', prop?.houseNo ?? 'N/A'),
+              _buildPdfRow('Address', prop?.address ?? 'N/A'),
+              pw.SizedBox(height: 12),
+              pw.Divider(),
+              pw.SizedBox(height: 8),
+              pw.Text('Owner Information',
+                  style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold)),
+              pw.SizedBox(height: 6),
+              _buildPdfRow('Owner Name', owner?.ownerName ?? 'N/A'),
+              _buildPdfRow('Father Name', owner?.fatherName ?? 'N/A'),
+              _buildPdfRow('Mobile No.', owner?.mobileNo ?? 'N/A'),
+              pw.SizedBox(height: 12),
+              pw.Divider(),
+              pw.SizedBox(height: 8),
+              pw.Text('Tax Summary',
+                  style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold)),
+              pw.SizedBox(height: 6),
+              _buildPdfRow('Bill Date', bill?.billDate ?? 'N/A'),
+              _buildPdfRow('Bill Number', bill?.billNo ?? 'N/A'),
+              _buildPdfRow('Financial Year', bill?.finYear ?? 'N/A'),
+              _buildPdfRow('House Tax Net Amount', 'Rs. ${bill?.houseTaxNetAmount ?? "0"}'),
+              _buildPdfRow('Water Tax Net Amount', 'Rs. ${bill?.waterTaxNetAmount ?? "0"}'),
+              _buildPdfRow('Sewer Tax Net Amount', 'Rs. ${bill?.sewerTaxNetAmount ?? "0"}'),
+              _buildPdfRow('Other Tax Net Amount', 'Rs. ${bill?.othertaxNetAmount ?? "0"}'),
+              _buildPdfRow('Water Charge Net Amount', 'Rs. ${bill?.waterChargeNetAmount ?? "0"}'),
+              _buildPdfRow('Net Demand', 'Rs. ${bill?.netDemand ?? "0"}'),
+              pw.SizedBox(height: 14),
+              pw.Container(
+                padding: const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(width: 1.5),
+                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                ),
+                child: pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('Net Payable',
+                        style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold)),
+                    pw.Text('Rs. ${bill?.netPayble ?? "0"}',
+                        style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold)),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => doc.save(),
+    );
+  }
+
+  pw.Widget _buildPdfRow(String label, String value) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 3),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Expanded(
+            flex: 3,
+            child: pw.Text(label,
+                style: const pw.TextStyle(color: PdfColors.grey700)),
+          ),
+          pw.SizedBox(width: 8),
+          pw.Expanded(
+            flex: 4,
+            child: pw.Text(value,
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -871,7 +987,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _buildSecondaryButton('Print Property', Icons.print_outlined, () {})),
+              Expanded(child: _buildSecondaryButton('Print Property', Icons.print_outlined, _printProperty)),
               const SizedBox(width: 12),
               Expanded(child: _buildSecondaryButton('Add Grievance', Icons.add_comment_outlined, () {
                 Navigator.push(
