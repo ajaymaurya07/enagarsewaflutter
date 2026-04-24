@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'services/api_service.dart';
 import 'services/database_service.dart';
 
@@ -23,6 +25,16 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
 
   final _formKey = GlobalKey<FormState>();
   final ImagePicker _picker = ImagePicker();
+
+  // Tour guide keys
+  final _keyPropertySection = GlobalKey();
+  final _keyPersonalSection = GlobalKey();
+  final _keyLocationSection = GlobalKey();
+  final _keyGrievanceSection = GlobalKey();
+  final _keyPhotoSection = GlobalKey();
+  final _keySubmitButton = GlobalKey();
+
+  TutorialCoachMark? _tutorialCoachMark;
   File? _selectedImage;
   bool _isSubmitting = false;
 
@@ -65,6 +77,205 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
     _fetchUlbs();
     _fetchGrievanceCategories();
     _loadSavedProperties();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _autoStartTourIfFirstVisit());
+  }
+
+  Future<void> _autoStartTourIfFirstVisit() async {
+    final prefs = await SharedPreferences.getInstance();
+    final seen = prefs.getBool('tour_apply_grievance') ?? false;
+    if (!seen && mounted) {
+      await prefs.setBool('tour_apply_grievance', true);
+      _startTour();
+    }
+  }
+
+  void _startTour() {
+    final targets = [
+      TargetFocus(
+        identify: 'property',
+        keyTarget: _keyPropertySection,
+        shape: ShapeLightFocus.RRect,
+        radius: 12,
+        contents: [
+          TargetContent(
+            align: ContentAlign.bottom,
+            builder: (context, controller) => _tourCard(
+              icon: Icons.home_work_outlined,
+              title: 'Select Property',
+              body: 'Tap here to choose your saved property. Your name, mobile, and address will be auto-filled.',
+            ),
+          ),
+        ],
+      ),
+      TargetFocus(
+        identify: 'personal',
+        keyTarget: _keyPersonalSection,
+        shape: ShapeLightFocus.RRect,
+        radius: 12,
+        contents: [
+          TargetContent(
+            align: ContentAlign.bottom,
+            builder: (context, controller) => _tourCard(
+              icon: Icons.person_outline,
+              title: 'Personal Information',
+              body: 'These fields are auto-filled from the selected property and cannot be edited.',
+            ),
+          ),
+        ],
+      ),
+      TargetFocus(
+        identify: 'location',
+        keyTarget: _keyLocationSection,
+        shape: ShapeLightFocus.RRect,
+        radius: 12,
+        contents: [
+          TargetContent(
+            align: ContentAlign.bottom,
+            builder: (context, controller) => _tourCard(
+              icon: Icons.location_on_outlined,
+              title: 'Location Details',
+              body: 'Select your ULB, Zone, Ward, and Mohalla in order. Then enter a landmark near the issue.',
+            ),
+          ),
+        ],
+      ),
+      TargetFocus(
+        identify: 'grievance',
+        keyTarget: _keyGrievanceSection,
+        shape: ShapeLightFocus.RRect,
+        radius: 12,
+        contents: [
+          TargetContent(
+            align: ContentAlign.bottom,
+            builder: (context, controller) => _tourCard(
+              icon: Icons.report_problem_outlined,
+              title: 'Grievance Details',
+              body: 'Choose a category, then a sub-category, and describe your grievance clearly.',
+            ),
+          ),
+        ],
+      ),
+      TargetFocus(
+        identify: 'photo',
+        keyTarget: _keyPhotoSection,
+        shape: ShapeLightFocus.RRect,
+        radius: 12,
+        contents: [
+          TargetContent(
+            align: ContentAlign.top,
+            builder: (context, controller) => _tourCard(
+              icon: Icons.camera_alt_outlined,
+              title: 'Upload Photo (Optional)',
+              body: 'Attach a photo of the issue from your camera or gallery. Max size: 200 KB.',
+            ),
+          ),
+        ],
+      ),
+      TargetFocus(
+        identify: 'submit',
+        keyTarget: _keySubmitButton,
+        shape: ShapeLightFocus.RRect,
+        radius: 14,
+        contents: [
+          TargetContent(
+            align: ContentAlign.top,
+            builder: (context, controller) => _tourCard(
+              icon: Icons.send_outlined,
+              title: 'Submit Grievance',
+              body: 'Once all fields are filled, tap here to submit. You will receive an OTP on your mobile to confirm.',
+            ),
+          ),
+        ],
+      ),
+    ];
+
+    _tutorialCoachMark = TutorialCoachMark(
+      targets: targets,
+      colorShadow: const Color(0xFF111827),
+      opacityShadow: 0.85,
+      paddingFocus: 10,
+      hideSkip: false,
+      textSkip: 'SKIP TOUR',
+      textStyleSkip: GoogleFonts.poppins(
+        color: Colors.white,
+        fontWeight: FontWeight.w600,
+        fontSize: 13,
+      ),
+      onClickTarget: (target) => _tutorialCoachMark?.next(),
+      onClickOverlay: (target) => _tutorialCoachMark?.next(),
+    )..show(context: context);
+  }
+
+  Widget _tourCard({
+    required IconData icon,
+    required String title,
+    required String body,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.12),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF3E8),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: const Color(0xFFE67514), size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF111827),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            body,
+            style: GoogleFonts.poppins(
+              fontSize: 13,
+              color: const Color(0xFF6B7280),
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              'Tap to continue →',
+              style: GoogleFonts.poppins(
+                fontSize: 11,
+                color: const Color(0xFFE67514),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _loadSavedProperties() async {
@@ -291,6 +502,13 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _primaryColor, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline_rounded, color: _primaryColor),
+            tooltip: 'Tour Guide',
+            onPressed: _startTour,
+          ),
+        ],
       ),
       body: Stack(
         children: [
@@ -304,6 +522,7 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
                   _buildSectionTitle('Property Information'),
                   const SizedBox(height: 12),
                   _buildSelectableField(
+                    key: _keyPropertySection,
                     hint: _selectedProperty?.propertyId ?? 'Select Property ID',
                     onTap: _savedProperties.isEmpty 
                       ? null 
@@ -315,7 +534,7 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  _buildSectionTitle('Personal Information'),
+                  _buildSectionTitle('Personal Information', key: _keyPersonalSection),
                   const SizedBox(height: 12),
                   _buildTextField('Full Name', _fullNameController, icon: Icons.person_outline, enabled: false),
                   _buildTextField('Mobile Number', _mobileController, icon: Icons.phone_android_outlined, keyboardType: TextInputType.phone, enabled: false),
@@ -323,7 +542,7 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
                   _buildTextField('Address', _addressController, icon: Icons.location_on_outlined, maxLines: 2, enabled: false),
                   
                   const SizedBox(height: 24),
-                  _buildSectionTitle('Location Details'),
+                  _buildSectionTitle('Location Details', key: _keyLocationSection),
                   const SizedBox(height: 12),
                   
                   // Select ULB
@@ -404,7 +623,7 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
                   _buildTextField('Enter Landmark', _landmarkController, isRequired: true),
 
                   const SizedBox(height: 24),
-                  _buildSectionTitle('Grievance Details'),
+                  _buildSectionTitle('Grievance Details', key: _keyGrievanceSection),
                   const SizedBox(height: 12),
                   
                   // Select Category
@@ -441,10 +660,11 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
                   _buildTextField('Grievance Description', _descriptionController, maxLines: 4, isRequired: true),
                   
                   const SizedBox(height: 16),
-                  _buildPhotoUploadSection(),
+                  _buildPhotoUploadSection(key: _keyPhotoSection),
 
                   const SizedBox(height: 32),
                   SizedBox(
+                    key: _keySubmitButton,
                     width: double.infinity,
                     height: 56,
                     child: ElevatedButton(
@@ -480,9 +700,10 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
     );
   }
 
-  Widget _buildSectionTitle(String title) {
+  Widget _buildSectionTitle(String title, {Key? key}) {
     return Text(
       title,
+      key: key,
       style: GoogleFonts.poppins(
         fontSize: 16,
         fontWeight: FontWeight.bold,
@@ -491,8 +712,9 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
     );
   }
 
-  Widget _buildSelectableField({required String hint, VoidCallback? onTap}) {
+  Widget _buildSelectableField({Key? key, required String hint, VoidCallback? onTap}) {
     return GestureDetector(
+      key: key,
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -567,8 +789,9 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
     );
   }
 
-  Widget _buildPhotoUploadSection() {
+  Widget _buildPhotoUploadSection({Key? key}) {
     return GestureDetector(
+      key: key,
       onTap: _showImageSourceSheet,
       child: Container(
         width: double.infinity,
