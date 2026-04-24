@@ -265,13 +265,25 @@ class _SignUpScreenState extends State<SignUpScreen>
   }) async {
     if (!mounted) return;
 
-    // Priority 1: Gmail (no permission required)
-    if (emailViaGmail) {
+    // Priority 1: Always try a FRESH Gmail fetch here.
+    // All permission dialogs have completed by this point, so Android's
+    // AccountManager is fully initialised and returns correct accounts.
+    // On first launch the early fetch (before dialogs) returns empty or wrong
+    // results because AccountManager hasn't warmed up yet — which causes
+    // emailViaGmail=false and falls through to Contacts (wrong email).
+    // Re-fetching now fixes that.
+    List<String> freshGmailEmails = [];
+    try {
+      freshGmailEmails = await EmailService.getAllGmailEmails();
+    } catch (_) {}
+
+    if (freshGmailEmails.isNotEmpty) {
+      if (!mounted) return;
       setState(() {
-        _availableEmails = gmailEmails;
-        if (gmailEmails.length == 1) {
-          _selectedEmail = gmailEmails.first;
-          _emailController.text = gmailEmails.first;
+        _availableEmails = freshGmailEmails;
+        if (freshGmailEmails.length == 1) {
+          _selectedEmail = freshGmailEmails.first;
+          _emailController.text = freshGmailEmails.first;
         }
         _loadingEmails = false;
       });
