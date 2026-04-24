@@ -845,7 +845,7 @@ class _SignUpScreenState extends State<SignUpScreen>
       }
 
       // Step 2: Verify OTP inside the bottom sheet
-      final verifyResult = await _showOtpDialog(email);
+      final verifyResult = await _showOtpDialog(email, serverMessage: signUpResult.message);
       if (verifyResult == null) return;
 
       if (verifyResult.status != true) {
@@ -902,7 +902,7 @@ class _SignUpScreenState extends State<SignUpScreen>
     }
   }
 
-  Future<VerifyOtpMailResponse?> _showOtpDialog(String email) async {
+  Future<VerifyOtpMailResponse?> _showOtpDialog(String email, {String? serverMessage}) async {
     final otpController = TextEditingController();
     String? sheetError;
     bool isVerifying = false;
@@ -940,19 +940,26 @@ class _SignUpScreenState extends State<SignUpScreen>
                     style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 18),
                   ),
                   const SizedBox(height: 16),
-                  Text(
-                    'An OTP has been sent to',
-                    style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade600),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    email,
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFFE67514),
+                  if (serverMessage != null) ...[  
+                    Text(
+                      serverMessage,
+                      style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade600),
                     ),
-                  ),
+                  ] else ...[  
+                    Text(
+                      'An OTP has been sent to',
+                      style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade600),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      email,
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFFE67514),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 24),
                   TextField(
                     controller: otpController,
