@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 import 'property_tax_screen.dart';
 import 'search_property_screen.dart';
 import 'transaction_history_screen.dart';
@@ -9,6 +11,7 @@ import 'account_screen.dart';
 import 'track_grievance_screen.dart';
 import 'property_tax_assessment_screen.dart';
 import 'services/storage_service.dart';
+import 'tour_guides/dashboard_tour.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -18,6 +21,15 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  final _keySearchProperty = GlobalKey();
+  final _keyPropertyTax = GlobalKey();
+  final _keyTrackGrievance = GlobalKey();
+  final _keyArvChangeHistory = GlobalKey();
+  final _keyPropertyTaxAssessment = GlobalKey();
+  final _keyMutation = GlobalKey();
+  final _keyWaterSewerage = GlobalKey();
+  final _keyBottomNav = GlobalKey();
+
   int _selectedIndex = 0;
   String _userType = "";
   String _displayName = "";
@@ -26,6 +38,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   );
   Timer? _paymentAutoScrollTimer;
   int _currentPaymentPage = 0;
+  TutorialCoachMark? _tutorialCoachMark;
 
   final List<Map<String, dynamic>> _paymentCards = const [
     {
@@ -74,11 +87,99 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _loadUserInfo() async {
     final type = await StorageService.getUserType();
+    if (!mounted) return;
+
     setState(() {
       _userType = type ?? "";
       _displayName = (_userType.toLowerCase() == "admin") ? "Admin" : _userType;
       if (_displayName.isEmpty) _displayName = "User";
     });
+
+    await WidgetsBinding.instance.endOfFrame;
+    await _autoStartTourIfFirstVisit();
+  }
+
+  Future<void> _autoStartTourIfFirstVisit() async {
+    final prefs = await SharedPreferences.getInstance();
+    final seen = prefs.getBool('tour_dashboard') ?? false;
+    if (!seen && mounted) {
+      await prefs.setBool('tour_dashboard', true);
+      await _startTour();
+    }
+  }
+
+  void _showTourSegment({
+    required TargetFocus target,
+    VoidCallback? onFinish,
+  }) {
+    _tutorialCoachMark = DashboardTourGuide.createCoachMark(
+      targets: [target],
+      onAdvance: () => _tutorialCoachMark?.next(),
+      onFinish: onFinish,
+    )..show(context: context);
+  }
+
+  Future<void> _scrollToTourTarget(GlobalKey keyTarget) async {
+    if (keyTarget == _keyBottomNav) {
+      return;
+    }
+
+    final targetContext = keyTarget.currentContext;
+    if (targetContext == null) {
+      return;
+    }
+
+    await Scrollable.ensureVisible(
+      targetContext,
+      duration: const Duration(milliseconds: 450),
+      curve: Curves.easeInOut,
+      alignment: 0.18,
+    );
+    await WidgetsBinding.instance.endOfFrame;
+  }
+
+  Future<void> _showTourStep(
+    List<DashboardTourStep> steps,
+    int index,
+  ) async {
+    if (!mounted || index >= steps.length) {
+      return;
+    }
+
+    final step = steps[index];
+    await _scrollToTourTarget(step.keyTarget);
+    if (!mounted) {
+      return;
+    }
+
+    _showTourSegment(
+      target: step.target,
+      onFinish: () {
+        _showTourStep(steps, index + 1);
+      },
+    );
+  }
+
+  Future<void> _startTour() async {
+    if (!mounted) return;
+
+    final steps = DashboardTourGuide.buildSteps(
+      propertyTaxKey: _keyPropertyTax,
+      grievanceKey: _keyTrackGrievance,
+      arvChangeHistoryKey: _keyArvChangeHistory,
+      propertyTaxAssessmentKey: _keyPropertyTaxAssessment,
+      mutationKey: _keyMutation,
+      waterSewerageKey: _keyWaterSewerage,
+      bottomNavKey: _keyBottomNav,
+      searchPropertyKey:
+          _userType.toLowerCase() == 'admin' ? _keySearchProperty : null,
+    );
+
+    await _showTourStep(steps, 0);
+  }
+
+  void _handleTourTap() {
+    _startTour();
   }
 
   void _onItemTapped(int index) {
@@ -143,6 +244,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ),
                         ],
                       ),
+                    ),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.help_outline_rounded,
+                        color: Color(0xFFE67514),
+                      ),
+                      tooltip: 'Tour Guide',
+                      onPressed: _handleTourTap,
                     ),
                   ],
                 ),
@@ -227,6 +336,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       if (_userType.toLowerCase() == "admin") ...[
                         const SizedBox(height: 24),
                         GestureDetector(
+                          key: _keySearchProperty,
                           onTap: () {
                             Navigator.push(
                               context,
@@ -321,6 +431,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             'Manage all property tax',
                             Icons.home_work_outlined,
                             cardWidth,
+                            key: _keyPropertyTax,
                             onTap: () {
                               Navigator.push(
                                 context,
@@ -336,6 +447,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             'Manage all property grievances',
                             Icons.assignment_outlined,
                             cardWidth,
+                            key: _keyTrackGrievance,
                             onTap: () {
                               Navigator.push(
                                 context,
@@ -351,12 +463,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             'Manage all ARV change history',
                             Icons.history_outlined,
                             cardWidth,
+                            key: _keyArvChangeHistory,
                           ),
                           _buildServiceCard(
                             'Property Tax Assessment',
                             'Manage all property assessments',
                             Icons.assessment_outlined,
                             cardWidth,
+                            key: _keyPropertyTaxAssessment,
                             onTap: () {
                               Navigator.push(
                                 context,
@@ -372,12 +486,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             'Manage name transfer and mutation',
                             Icons.swap_horiz_outlined,
                             cardWidth,
+                            key: _keyMutation,
                           ),
                           _buildServiceCard(
                             'Water & Sewerage',
                             'Manage water and sewerage services',
                             Icons.water_drop_outlined,
                             cardWidth,
+                            key: _keyWaterSewerage,
                           ),
                         ],
                       ),
@@ -391,6 +507,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       ),
       bottomNavigationBar: Container(
+        key: _keyBottomNav,
         decoration: const BoxDecoration(
           boxShadow: [
             BoxShadow(
@@ -440,11 +557,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     String desc,
     IconData icon,
     double width, {
+    Key? key,
     VoidCallback? onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
+        key: key,
         width: width,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
@@ -452,7 +571,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 15,
               offset: const Offset(0, 8),
             ),
