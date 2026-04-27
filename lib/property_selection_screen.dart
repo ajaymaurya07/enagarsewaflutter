@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 import 'services/api_service.dart';
 import 'services/storage_service.dart';
 import 'services/database_service.dart';
 import 'dashboard_screen.dart';
+import 'tour_guides/property_selection_tour.dart';
 
 class PropertySelectionScreen extends StatefulWidget {
   final List<PropertyData> properties;
@@ -15,9 +18,60 @@ class PropertySelectionScreen extends StatefulWidget {
 }
 
 class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
+  final _keyHeader = GlobalKey();
+  final _keyFirstPropertyCard = GlobalKey();
+  final _keyFirstSelectButton = GlobalKey();
+
   bool _isLoading = false;
   PropertyDetailsData? _currentPropertyDetails;
   PropertyData? _selectedProperty;
+  TutorialCoachMark? _tutorialCoachMark;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _autoStartTourIfFirstVisit(),
+    );
+  }
+
+  Future<void> _autoStartTourIfFirstVisit() async {
+    if (widget.properties.isEmpty) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final seen = prefs.getBool('tour_property_selection') ?? false;
+    if (!seen && mounted) {
+      await prefs.setBool('tour_property_selection', true);
+      _startTour();
+    }
+  }
+
+  void _startTour() {
+    if (widget.properties.isEmpty || !mounted) return;
+
+    final targets = PropertySelectionTourGuide.buildTargets(
+      headerKey: _keyHeader,
+      propertyCardKey: _keyFirstPropertyCard,
+      selectButtonKey: _keyFirstSelectButton,
+    );
+
+    _tutorialCoachMark = PropertySelectionTourGuide.createCoachMark(
+      targets: targets,
+      onAdvance: () => _tutorialCoachMark?.next(),
+    )..show(context: context);
+  }
+
+  void _handleTourTap() {
+    if (widget.properties.isEmpty) {
+      _showSnackBar(
+        'Tour will be available once the property cards are loaded.',
+        isError: false,
+      );
+      return;
+    }
+
+    _startTour();
+  }
 
   void _handlePropertySelection(PropertyData property) async {
     final propertyId = property.propertyId;
@@ -185,6 +239,9 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
                   height: 52,
                   child: ElevatedButton(
                     onPressed: isVerifying ? null : () async {
+                      final sheetNavigator = Navigator.of(context);
+                      final appNavigator = Navigator.of(this.context);
+
                       if (otpController.text.trim().isEmpty) {
                         setModalState(() => sheetError = 'Please enter OTP');
                         return;
@@ -230,9 +287,9 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
                           await StorageService.setPropertyVerified(true);
 
                           if (!mounted) return;
-                          Navigator.pop(context); // Close sheet
+                          sheetNavigator.pop();
 
-                          Navigator.of(context).pushAndRemoveUntil(
+                          appNavigator.pushAndRemoveUntil(
                             MaterialPageRoute(builder: (context) => const DashboardScreen()),
                             (route) => false,
                           );
@@ -249,7 +306,7 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFE67514),
-                      disabledBackgroundColor: const Color(0xFFE67514).withOpacity(0.6),
+                      disabledBackgroundColor: const Color(0xFFE67514).withValues(alpha: 0.6),
                       foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -315,6 +372,7 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
                 children: [
                   // AppBar
                   Padding(
+                    key: _keyHeader,
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                     child: Row(
                       children: [
@@ -329,6 +387,16 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
                             color: const Color(0xFF333333),
+                          ),
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          tooltip: 'Show tour',
+                          onPressed: _handleTourTap,
+                          icon: const Icon(
+                            Icons.help_outline_rounded,
+                            color: Color(0xFFE67514),
+                            size: 24,
                           ),
                         ),
                       ],
@@ -348,7 +416,11 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
                             itemCount: widget.properties.length,
                             itemBuilder: (context, index) {
                               final property = widget.properties[index];
-                              return _buildPropertyCard(context, property);
+                              return _buildPropertyCard(
+                                context,
+                                property,
+                                isPrimaryTourCard: index == 0,
+                              );
                             },
                           ),
                   ),
@@ -367,15 +439,20 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
     );
   }
 
-  Widget _buildPropertyCard(BuildContext context, PropertyData property) {
+  Widget _buildPropertyCard(
+    BuildContext context,
+    PropertyData property, {
+    bool isPrimaryTourCard = false,
+  }) {
     return Container(
+      key: isPrimaryTourCard ? _keyFirstPropertyCard : null,
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),
@@ -400,6 +477,7 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
                   ),
                 ),
                 SizedBox(
+                  key: isPrimaryTourCard ? _keyFirstSelectButton : null,
                   height: 36,
                   child: ElevatedButton(
                     onPressed: () => _handlePropertySelection(property),
