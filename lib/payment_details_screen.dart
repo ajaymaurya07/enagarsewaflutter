@@ -5,14 +5,17 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'services/api_service.dart';
 import 'services/storage_service.dart';
 import 'services/database_service.dart';
 import 'package:payu_checkoutpro_flutter/payu_checkoutpro_flutter.dart';
 import 'package:payu_checkoutpro_flutter/PayUConstantKeys.dart';
+import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 import 'payment_result_screen.dart';
 import 'payment_grievance_screen.dart';
 import 'payment_history_screen.dart';
+import 'tour_guides/payment_details_tour.dart';
 
 class PaymentDetailsScreen extends StatefulWidget {
   final String propertyId;
@@ -183,10 +186,17 @@ class _PayuDelegate implements PayUCheckoutProProtocol {
 }
 
 class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
+  final _keyPayTaxButton = GlobalKey();
+  final _keyPrintPropertyButton = GlobalKey();
+  final _keyAddGrievanceButton = GlobalKey();
+  final _keyArvHistoryButton = GlobalKey();
+  final _keyPaymentHistoryButton = GlobalKey();
+
   bool _isLoading = true;
   PropertyDetailsData? _details;
   String? _errorMessage;
   bool _showPropertyDetails = false;
+  TutorialCoachMark? _tutorialCoachMark;
 
   @override
   void initState() {
@@ -208,22 +218,124 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
     try {
       final response = await ApiService.getPropertyDetails(widget.propertyId);
       if (response.success == true && response.data != null) {
+        if (!mounted) return;
+
         setState(() {
           _details = response.data;
           _isLoading = false;
         });
+
+        await WidgetsBinding.instance.endOfFrame;
+        await _autoStartTourIfFirstVisit();
       } else {
+        if (!mounted) return;
+
         setState(() {
           _errorMessage = response.message ?? "Failed to load details";
           _isLoading = false;
         });
       }
     } catch (e) {
+      if (!mounted) return;
+
       setState(() {
         _errorMessage = e.toString().replaceFirst('Exception: ', '');
         _isLoading = false;
       });
     }
+  }
+
+  Future<void> _autoStartTourIfFirstVisit() async {
+    if (_details == null) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final seen = prefs.getBool('tour_payment_details') ?? false;
+    if (!seen && mounted) {
+      await prefs.setBool('tour_payment_details', true);
+      await _startTour();
+    }
+  }
+
+  void _showTourSegment({
+    required TargetFocus target,
+    VoidCallback? onFinish,
+  }) {
+    _tutorialCoachMark = PaymentDetailsTourGuide.createCoachMark(
+      targets: [target],
+      onAdvance: () => _tutorialCoachMark?.next(),
+      onFinish: onFinish,
+    )..show(context: context);
+  }
+
+  Future<void> _scrollToTourTarget(GlobalKey keyTarget) async {
+    final targetContext = keyTarget.currentContext;
+    if (targetContext == null) {
+      return;
+    }
+
+    await Scrollable.ensureVisible(
+      targetContext,
+      duration: const Duration(milliseconds: 450),
+      curve: Curves.easeInOut,
+      alignment: 0.18,
+    );
+    await WidgetsBinding.instance.endOfFrame;
+  }
+
+  Future<void> _showTourStep(
+    List<PaymentDetailsTourStep> steps,
+    int index,
+  ) async {
+    if (!mounted || index >= steps.length) {
+      return;
+    }
+
+    final step = steps[index];
+    await _scrollToTourTarget(step.keyTarget);
+    if (!mounted) {
+      return;
+    }
+
+    _showTourSegment(
+      target: step.target,
+      onFinish: () {
+        _showTourStep(steps, index + 1);
+      },
+    );
+  }
+
+  Future<void> _startTour() async {
+    if (_isLoading || _details == null || !mounted) return;
+
+    final steps = PaymentDetailsTourGuide.buildSteps(
+      payTaxButtonKey: _keyPayTaxButton,
+      printPropertyButtonKey: _keyPrintPropertyButton,
+      addGrievanceButtonKey: _keyAddGrievanceButton,
+      arvHistoryButtonKey: _keyArvHistoryButton,
+      paymentHistoryButtonKey: _keyPaymentHistoryButton,
+    );
+
+    await _showTourStep(steps, 0);
+  }
+
+  void _handleTourTap() {
+    if (_isLoading) {
+      _showSnackBar('Tour will be available after payment details are loaded.');
+      return;
+    }
+
+    if (_details == null) {
+      _showSnackBar('Payment details are not available right now.');
+      return;
+    }
+
+    _startTour();
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message, style: GoogleFonts.poppins())),
+    );
   }
 
   void _handlePayTax() async {
@@ -238,6 +350,8 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
     setState(() => _isLoading = true);
     try {
       final otpRes = await ApiService.sendOtp(mobileNo, widget.propertyId);
+      if (!mounted) return;
+
       setState(() => _isLoading = false);
 
       if (otpRes.success == true) {
@@ -248,6 +362,8 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
         );
       }
     } catch (e) {
+      if (!mounted) return;
+
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.toString())),
@@ -385,6 +501,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
                         setModalState(() => sheetError = 'Please enter valid OTP');
                         return;
                       }
+                      final sheetNavigator = Navigator.of(context);
                       setModalState(() {
                         isVerifying = true;
                         sheetError = null;
@@ -392,7 +509,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
                       try {
                         final res = await ApiService.verifyOtp(mobileNo, otpController.text);
                         if (res.success == true) {
-                          Navigator.pop(context);
+                          sheetNavigator.pop();
                           _handleCreateTransaction();
                         } else {
                           setModalState(() => sheetError = res.message ?? 'Invalid OTP');
@@ -405,7 +522,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFE67514),
-                      disabledBackgroundColor: const Color(0xFFE67514).withOpacity(0.6),
+                      disabledBackgroundColor: const Color(0xFFE67514).withValues(alpha: 0.6),
                       foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -495,6 +612,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
       }
 
       final response = await ApiService.initiateTransaction(request);
+      if (!mounted) return;
       
       if (kDebugMode) {
         print('--- API RESPONSE: create_transaction ---');
@@ -619,14 +737,20 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
 
         if (kDebugMode) print('PayU openCheckoutScreen returned: $result');
       } catch (e) {
+        if (!mounted) return;
+
         if (kDebugMode) print('PayU plugin error: $e');
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to start PayU payment: $e')));
       }
     } catch (e) {
+      if (!mounted) return;
+
       if (kDebugMode) print('Payment error: $e');
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -804,26 +928,36 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
                           color: Color(0xFFE67514), size: 20),
                       onPressed: () => Navigator.pop(context),
                     ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Payment Details',
-                          style: GoogleFonts.poppins(
-                            color: const Color(0xFF333333),
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Payment Details',
+                            style: GoogleFonts.poppins(
+                              color: const Color(0xFF333333),
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
-                        ),
-                        Text(
-                          'PID: ${widget.propertyId}',
-                          style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            color: Colors.grey.shade600,
-                            fontWeight: FontWeight.w500,
+                          Text(
+                            'PID: ${widget.propertyId}',
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.help_outline_rounded,
+                        color: Color(0xFFE67514),
+                      ),
+                      tooltip: 'Tour Guide',
+                      onPressed: _handleTourTap,
                     ),
                   ],
                 ),
@@ -983,31 +1117,67 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
           const SizedBox(height: 20),
 
           // 2. Main Action Buttons (Moved inside scroll view)
-          _buildPrimaryButton('Pay Your Tax Online', _handlePayTax),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(child: _buildSecondaryButton('Print Property', Icons.print_outlined, _printProperty)),
-              const SizedBox(width: 12),
-              Expanded(child: _buildSecondaryButton('Add Grievance', Icons.add_comment_outlined, () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => PaymentGrievanceScreen(
-                      propertyId: widget.propertyId,
-                      propertyDetails: _details,
-                    ),
-                  ),
-                );
-              })),
-            ],
+          _buildPrimaryButton(
+            'Pay Your Tax Online',
+            _handlePayTax,
+            key: _keyPayTaxButton,
           ),
           const SizedBox(height: 12),
-          Row(
+          Column(
             children: [
-              Expanded(child: _buildSecondaryButton('ARV History', Icons.history_rounded, () {})),
-              const SizedBox(width: 12),
-              Expanded(child: _buildSecondaryButton('Payment History', Icons.payment_rounded, _showPaymentHistory)),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildSecondaryButton(
+                      'Print Property',
+                      Icons.print_outlined,
+                      _printProperty,
+                      key: _keyPrintPropertyButton,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildSecondaryButton(
+                      'Add Grievance',
+                      Icons.add_comment_outlined,
+                      () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => PaymentGrievanceScreen(
+                              propertyId: widget.propertyId,
+                              propertyDetails: _details,
+                            ),
+                          ),
+                        );
+                      },
+                      key: _keyAddGrievanceButton,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildSecondaryButton(
+                      'ARV History',
+                      Icons.history_rounded,
+                      () {},
+                      key: _keyArvHistoryButton,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildSecondaryButton(
+                      'Payment History',
+                      Icons.payment_rounded,
+                      _showPaymentHistory,
+                      key: _keyPaymentHistoryButton,
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
 
@@ -1106,8 +1276,9 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
     );
   }
 
-  Widget _buildPrimaryButton(String text, VoidCallback onTap) {
+  Widget _buildPrimaryButton(String text, VoidCallback onTap, {Key? key}) {
     return Container(
+      key: key,
       width: double.infinity,
       height: 56,
       decoration: BoxDecoration(
@@ -1144,8 +1315,14 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
     );
   }
 
-  Widget _buildSecondaryButton(String text, IconData icon, VoidCallback onTap) {
+  Widget _buildSecondaryButton(
+    String text,
+    IconData icon,
+    VoidCallback onTap, {
+    Key? key,
+  }) {
     return SizedBox(
+      key: key,
       height: 50,
       child: ElevatedButton(
         onPressed: onTap,
