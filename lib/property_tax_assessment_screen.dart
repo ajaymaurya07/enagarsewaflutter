@@ -3,11 +3,14 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 import 'services/property_tax_calculator.dart';
 import 'services/database_service.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
+import 'tour_guides/property_tax_assessment_tour.dart';
 
 class PropertyTaxAssessmentScreen extends StatefulWidget {
   const PropertyTaxAssessmentScreen({super.key});
@@ -26,6 +29,16 @@ class _PropertyTaxAssessmentScreenState
 
   int _currentStep = 1;
   bool _isLoading = true;
+  final GlobalKey _keyChooseProperty = GlobalKey();
+  final GlobalKey _keyRoadWidthSection = GlobalKey();
+  final GlobalKey _keyConstructionTypeSection = GlobalKey();
+  final GlobalKey _keyPropertyTypeSection = GlobalKey();
+  final GlobalKey _keyAreaDetailsSection = GlobalKey();
+  final GlobalKey _keyConstructionDetailsSection = GlobalKey();
+  final GlobalKey _keyPrimaryActionButton = GlobalKey();
+  TutorialCoachMark? _tutorialCoachMark;
+  bool _isTourActive = false;
+  int? _tourInitialStep;
 
   // Step 1 fields
   int? _roadWidth;
@@ -69,6 +82,18 @@ class _PropertyTaxAssessmentScreenState
       _savedProperties = properties;
       _isLoading = false;
     });
+
+    await WidgetsBinding.instance.endOfFrame;
+    await _autoStartTourIfFirstVisit();
+  }
+
+  Future<void> _autoStartTourIfFirstVisit() async {
+    final prefs = await SharedPreferences.getInstance();
+    final seen = prefs.getBool('tour_property_tax_assessment') ?? false;
+    if (!seen && mounted) {
+      await prefs.setBool('tour_property_tax_assessment', true);
+      await _startTour();
+    }
   }
 
   @override
@@ -154,7 +179,116 @@ class _PropertyTaxAssessmentScreenState
     );
   }
 
+  void _showTourSegment({required TargetFocus target, VoidCallback? onFinish}) {
+    _tutorialCoachMark = PropertyTaxAssessmentTourGuide.createCoachMark(
+      targets: [target],
+      onAdvance: () => _tutorialCoachMark?.next(),
+      onFinish: onFinish,
+      onSkip: _handleTourSkip,
+    )..show(context: context);
+  }
+
+  Future<void> _scrollToTourTarget(GlobalKey keyTarget) async {
+    final targetContext = keyTarget.currentContext;
+    if (targetContext == null) {
+      return;
+    }
+
+    await Scrollable.ensureVisible(
+      targetContext,
+      duration: const Duration(milliseconds: 450),
+      curve: Curves.easeInOut,
+      alignment: 0.18,
+    );
+    await WidgetsBinding.instance.endOfFrame;
+  }
+
+  Future<void> _showTourStep(
+    List<PropertyTaxAssessmentTourStep> steps,
+    int index,
+  ) async {
+    if (!mounted || index >= steps.length) {
+      _resetTourState();
+      return;
+    }
+
+    final step = steps[index];
+    if (_currentStep != step.formStep) {
+      setState(() {
+        _currentStep = step.formStep;
+      });
+      if (step.formStep == 4) {
+        _calculateResult();
+      }
+      await WidgetsBinding.instance.endOfFrame;
+    }
+
+    await _scrollToTourTarget(step.keyTarget);
+    if (!mounted) {
+      return;
+    }
+
+    _showTourSegment(
+      target: step.target,
+      onFinish: () {
+        _showTourStep(steps, index + 1);
+      },
+    );
+  }
+
+  Future<void> _startTour() async {
+    if (_isLoading || !mounted || _isTourActive) {
+      return;
+    }
+
+    final steps = PropertyTaxAssessmentTourGuide.buildSteps(
+      choosePropertyKey: _savedProperties.isNotEmpty ? _keyChooseProperty : null,
+      roadWidthSectionKey: _keyRoadWidthSection,
+      constructionTypeSectionKey: _keyConstructionTypeSection,
+      propertyTypeSectionKey: _keyPropertyTypeSection,
+      areaDetailsSectionKey: _keyAreaDetailsSection,
+      constructionDetailsSectionKey: _keyConstructionDetailsSection,
+      actionButtonKey: _keyPrimaryActionButton,
+    );
+
+    setState(() {
+      _tourInitialStep = _currentStep;
+      _isTourActive = true;
+    });
+
+    await _showTourStep(steps, 0);
+  }
+
+  bool _handleTourSkip() {
+    _resetTourState();
+    return true;
+  }
+
+  void _resetTourState() {
+    final initialStep = _tourInitialStep;
+    _tutorialCoachMark = null;
+
+    if (!mounted) {
+      _isTourActive = false;
+      _tourInitialStep = null;
+      return;
+    }
+
+    setState(() {
+      _isTourActive = false;
+      _tourInitialStep = null;
+      if (initialStep != null) {
+        _currentStep = initialStep;
+      }
+    });
+
+    if (initialStep == 4) {
+      _calculateResult();
+    }
+  }
+
   void _handleNext() {
+    if (_isTourActive) return;
     if (!_isStepValid(_currentStep)) return;
 
     if (_currentStep < 4) {
@@ -171,6 +305,7 @@ class _PropertyTaxAssessmentScreenState
   }
 
   void _handleBack() {
+    if (_isTourActive) return;
     if (_currentStep > 1) {
       setState(() => _currentStep--);
     } else {
@@ -373,6 +508,13 @@ class _PropertyTaxAssessmentScreenState
               fontWeight: FontWeight.w600,
             ),
           ),
+          actions: [
+            IconButton(
+              icon: Icon(Icons.help_outline_rounded, color: _primaryColor),
+              tooltip: 'Tour Guide',
+              onPressed: _startTour,
+            ),
+          ],
         ),
         body: _isLoading
             ? Center(child: CircularProgressIndicator(color: _primaryColor))
@@ -493,6 +635,10 @@ class _PropertyTaxAssessmentScreenState
   }
 
   void _showPropertySelectionSheet() {
+    if (_isTourActive) {
+      return;
+    }
+
     if (_savedProperties.isEmpty) {
       return;
     }
@@ -519,6 +665,7 @@ class _PropertyTaxAssessmentScreenState
           _sectionTitle('Select Property'),
           const SizedBox(height: 12),
           Material(
+            key: _keyChooseProperty,
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
             child: InkWell(
@@ -595,39 +742,55 @@ class _PropertyTaxAssessmentScreenState
           ],
           const Divider(height: 32),
         ],
-        const SizedBox(height: 4),
-        _sectionTitle('Road Width'),
-        const SizedBox(height: 12),
-        _buildRadioGroup<int>(
-          options: {1: '< 12m', 2: '12-24m', 3: '> 24m'},
-          groupValue: _roadWidth,
-          onChanged: (val) {
-            setState(() {
-              _roadWidth = val;
-              _updateAreaRate();
-            });
-          },
+        Container(
+          key: _keyRoadWidthSection,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 4),
+              _sectionTitle('Road Width'),
+              const SizedBox(height: 12),
+              _buildRadioGroup<int>(
+                options: {1: '< 12m', 2: '12-24m', 3: '> 24m'},
+                groupValue: _roadWidth,
+                onChanged: (val) {
+                  setState(() {
+                    _roadWidth = val;
+                    _updateAreaRate();
+                  });
+                },
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 24),
-        _sectionTitle('Construction Type'),
-        const SizedBox(height: 12),
-        _buildRadioGroup<String>(
-          options: {'RCC': 'RCC / RBC', 'KACHA': 'Kacha'},
-          groupValue: _constructionType,
-          onChanged: (val) {
-            setState(() {
-              _constructionType = val;
-              _updateAreaRate();
-            });
-          },
-        ),
-        if (_areaRate > 0) ...[
-          const SizedBox(height: 20),
-          _buildInfoCard(
-            'Area Rate',
-            '₹ ${_areaRate.toStringAsFixed(2)} / sq.ft',
+        Container(
+          key: _keyConstructionTypeSection,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _sectionTitle('Construction Type'),
+              const SizedBox(height: 12),
+              _buildRadioGroup<String>(
+                options: {'RCC': 'RCC / RBC', 'KACHA': 'Kacha'},
+                groupValue: _constructionType,
+                onChanged: (val) {
+                  setState(() {
+                    _constructionType = val;
+                    _updateAreaRate();
+                  });
+                },
+              ),
+              if (_areaRate > 0) ...[
+                const SizedBox(height: 20),
+                _buildInfoCard(
+                  'Area Rate',
+                  '₹ ${_areaRate.toStringAsFixed(2)} / sq.ft',
+                ),
+              ],
+            ],
           ),
-        ],
+        ),
       ],
     );
   }
@@ -637,15 +800,23 @@ class _PropertyTaxAssessmentScreenState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionTitle('Property Type'),
-        const SizedBox(height: 12),
-        _buildRadioGroup<String>(
-          options: {
-            'Residency': 'Residential',
-            'Non-Residency': 'Non-Residential',
-          },
-          groupValue: _propertyType,
-          onChanged: (val) => setState(() => _propertyType = val),
+        Container(
+          key: _keyPropertyTypeSection,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _sectionTitle('Property Type'),
+              const SizedBox(height: 12),
+              _buildRadioGroup<String>(
+                options: {
+                  'Residency': 'Residential',
+                  'Non-Residency': 'Non-Residential',
+                },
+                groupValue: _propertyType,
+                onChanged: (val) => setState(() => _propertyType = val),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 24),
         _sectionTitle('Owner Details'),
@@ -662,7 +833,11 @@ class _PropertyTaxAssessmentScreenState
           Icons.person_outline,
         ),
         const SizedBox(height: 14),
-        _buildTextField('House No.', _houseNoController, Icons.home_outlined),
+        _buildTextField(
+          'House No.',
+          _houseNoController,
+          Icons.home_outlined,
+        ),
         const SizedBox(height: 14),
         _buildTextField(
           'Property ID',
@@ -685,36 +860,55 @@ class _PropertyTaxAssessmentScreenState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionTitle('Area Details (in Sq.ft)'),
-        const SizedBox(height: 12),
-        _buildTextField(
-          'Rent Area',
-          _rentAreaController,
-          Icons.square_foot_outlined,
-          keyboardType: TextInputType.number,
+        Container(
+          key: _keyAreaDetailsSection,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _sectionTitle('Area Details (in Sq.ft)'),
+              const SizedBox(height: 12),
+              _buildTextField(
+                'Rent Area',
+                _rentAreaController,
+                Icons.square_foot_outlined,
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 14),
+              _buildTextField(
+                'Own Area',
+                _ownAreaController,
+                Icons.square_foot_outlined,
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 14),
+              _buildInfoCard(
+                'Total Area',
+                '${_totalArea.toStringAsFixed(2)} Sq.ft',
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 14),
-        _buildTextField(
-          'Own Area',
-          _ownAreaController,
-          Icons.square_foot_outlined,
-          keyboardType: TextInputType.number,
-        ),
-        const SizedBox(height: 14),
-        _buildInfoCard('Total Area', '${_totalArea.toStringAsFixed(2)} Sq.ft'),
         const SizedBox(height: 24),
-        _sectionTitle('Construction Details'),
-        const SizedBox(height: 12),
-        _buildTextField(
-          'Construction Year',
-          _constructionYearController,
-          Icons.calendar_today_outlined,
-          keyboardType: TextInputType.number,
+        Container(
+          key: _keyConstructionDetailsSection,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _sectionTitle('Construction Details'),
+              const SizedBox(height: 12),
+              _buildTextField(
+                'Construction Year',
+                _constructionYearController,
+                Icons.calendar_today_outlined,
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 14),
+              _buildInfoCard('Age of Structure', '$_ageOfConstruction years'),
+              const SizedBox(height: 14),
+              _buildInfoCard('Area Rate', '₹ ${_areaRate.toStringAsFixed(2)}'),
+            ],
+          ),
         ),
-        const SizedBox(height: 14),
-        _buildInfoCard('Age of Structure', '$_ageOfConstruction years'),
-        const SizedBox(height: 14),
-        _buildInfoCard('Area Rate', '₹ ${_areaRate.toStringAsFixed(2)}'),
       ],
     );
   }
@@ -727,9 +921,9 @@ class _PropertyTaxAssessmentScreenState
     final data = _calculationResult!;
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Row 1: MRV Owner | MRV Rented
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+      // Row 1: MRV Owner | MRV Rented
         Row(
           children: [
             Expanded(
@@ -902,7 +1096,12 @@ class _PropertyTaxAssessmentScreenState
       children: options.entries.map((e) {
         final isSelected = groupValue == e.key;
         return GestureDetector(
-          onTap: () => onChanged(e.key),
+          onTap: () {
+            if (_isTourActive) {
+              return;
+            }
+            onChanged(e.key);
+          },
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             decoration: BoxDecoration(
@@ -940,6 +1139,7 @@ class _PropertyTaxAssessmentScreenState
       ),
       child: TextField(
         controller: controller,
+        readOnly: _isTourActive,
         keyboardType: keyboardType,
         onChanged: (_) => setState(() {}),
         style: GoogleFonts.poppins(fontSize: 14),
@@ -1034,6 +1234,7 @@ class _PropertyTaxAssessmentScreenState
           Expanded(
             flex: _currentStep > 1 ? 2 : 1,
             child: SizedBox(
+              key: _keyPrimaryActionButton,
               height: 50,
               child: ElevatedButton(
                 onPressed: _handleNext,
