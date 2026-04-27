@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:enagarsewa/services/api_service.dart';
 import 'package:enagarsewa/services/storage_service.dart';
 import 'property_selection_screen.dart';
+import 'tour_guides/search_property_tour.dart';
 
 class SearchPropertyScreen extends StatefulWidget {
   const SearchPropertyScreen({super.key});
@@ -84,119 +85,35 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
     await WidgetsBinding.instance.endOfFrame;
   }
 
-  TargetFocus _buildTourTarget({
-    required String identify,
-    required GlobalKey keyTarget,
-    required ContentAlign align,
-    required IconData icon,
-    required String title,
-    required String body,
-    double radius = 12,
-  }) {
-    return TargetFocus(
-      identify: identify,
-      keyTarget: keyTarget,
-      shape: ShapeLightFocus.RRect,
-      radius: radius,
-      contents: [
-        TargetContent(
-          align: align,
-          builder: (context, controller) => _tourCard(
-            icon: icon,
-            title: title,
-            body: body,
-          ),
-        ),
-      ],
-    );
-  }
-
   void _showTourSegment({
     required List<TargetFocus> targets,
     VoidCallback? onFinish,
   }) {
-    _tutorialCoachMark = TutorialCoachMark(
+    _tutorialCoachMark = SearchPropertyTourGuide.createCoachMark(
       targets: targets,
-      colorShadow: const Color(0xFF111827),
-      opacityShadow: 0.85,
-      paddingFocus: 10,
-      hideSkip: false,
-      textSkip: 'SKIP TOUR',
-      textStyleSkip: GoogleFonts.poppins(
-        color: Colors.white,
-        fontWeight: FontWeight.w600,
-        fontSize: 13,
-      ),
-      onClickTarget: (target) => _tutorialCoachMark?.next(),
-      onClickOverlay: (target) => _tutorialCoachMark?.next(),
+      onAdvance: () => _tutorialCoachMark?.next(),
       onFinish: onFinish,
     )..show(context: context);
   }
 
   Future<void> _showModeTour({
     required String mode,
-    required GlobalKey tabKey,
-    required String tabIdentify,
-    required IconData tabIcon,
-    required String tabTitle,
-    required String tabBody,
-    required GlobalKey fieldKey,
-    required String fieldIdentify,
-    required IconData fieldIcon,
-    required String fieldTitle,
-    required String fieldBody,
+    required List<TargetFocus> Function() buildTargets,
     VoidCallback? onFinish,
-    bool includeSearchButton = false,
   }) async {
     await _setSearchModeForTour(mode);
     if (!mounted) return;
 
-    final targets = [
-      _buildTourTarget(
-        identify: tabIdentify,
-        keyTarget: tabKey,
-        align: ContentAlign.bottom,
-        icon: tabIcon,
-        title: tabTitle,
-        body: tabBody,
-        radius: 10,
-      ),
-      _buildTourTarget(
-        identify: fieldIdentify,
-        keyTarget: fieldKey,
-        align: ContentAlign.bottom,
-        icon: fieldIcon,
-        title: fieldTitle,
-        body: fieldBody,
-      ),
-      if (includeSearchButton)
-        _buildTourTarget(
-          identify: 'search_button',
-          keyTarget: _keySearchButton,
-          align: ContentAlign.top,
-          icon: Icons.search_rounded,
-          title: 'Search Property',
-          body: 'Once ULB and required fields are filled, tap Search. Matching properties will open on the next screen where you can select and save one.',
-          radius: 14,
-        ),
-    ];
-
-    _showTourSegment(targets: targets, onFinish: onFinish);
+    _showTourSegment(targets: buildTargets(), onFinish: onFinish);
   }
 
   Future<void> _showOwnerTour() async {
     await _showModeTour(
       mode: 'By Owner',
-      tabKey: _keyTabOwner,
-      tabIdentify: 'tab_owner',
-      tabIcon: Icons.person_search_outlined,
-      tabTitle: 'By Owner Name',
-      tabBody: 'Search by entering the property owner\'s name and their father\'s name. Useful when you know the owner but not the property ID.',
-      fieldKey: _keyOwnerFields,
-      fieldIdentify: 'owner_fields',
-      fieldIcon: Icons.badge_outlined,
-      fieldTitle: 'Owner Search Fields',
-      fieldBody: 'Enter Owner Name and Father Name here to search matching properties under that owner profile.',
+      buildTargets: () => SearchPropertyTourGuide.buildOwnerTargets(
+        tabKey: _keyTabOwner,
+        fieldKey: _keyOwnerFields,
+      ),
       onFinish: () {
         _showPropertyIdTour();
       },
@@ -206,16 +123,10 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
   Future<void> _showPropertyIdTour() async {
     await _showModeTour(
       mode: 'By Property ID',
-      tabKey: _keyTabPropertyId,
-      tabIdentify: 'tab_property_id',
-      tabIcon: Icons.tag_rounded,
-      tabTitle: 'By Property ID',
-      tabBody: 'Enter the unique Property ID directly. This is the fastest way if you already have the property ID on hand.',
-      fieldKey: _keyPropertyIdFields,
-      fieldIdentify: 'property_id_fields',
-      fieldIcon: Icons.confirmation_number_outlined,
-      fieldTitle: 'Property ID Field',
-      fieldBody: 'Type the exact Property ID here to open the property quickly without searching through multiple results.',
+      buildTargets: () => SearchPropertyTourGuide.buildPropertyIdTargets(
+        tabKey: _keyTabPropertyId,
+        fieldKey: _keyPropertyIdFields,
+      ),
       onFinish: () {
         _showHouseNoTour();
       },
@@ -225,16 +136,10 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
   Future<void> _showHouseNoTour() async {
     await _showModeTour(
       mode: 'By House No',
-      tabKey: _keyTabHouseNo,
-      tabIdentify: 'tab_house_no',
-      tabIcon: Icons.home_outlined,
-      tabTitle: 'By House Number',
-      tabBody: 'Search using house number. Select Zone and Ward first, then enter the house number to narrow down results.',
-      fieldKey: _keyHouseNoFields,
-      fieldIdentify: 'house_no_fields',
-      fieldIcon: Icons.maps_home_work_outlined,
-      fieldTitle: 'House Number Search Fields',
-      fieldBody: 'Choose Zone, then Ward, and then enter the house number. This narrows the search inside the selected area.',
+      buildTargets: () => SearchPropertyTourGuide.buildHouseNoTargets(
+        tabKey: _keyTabHouseNo,
+        fieldKey: _keyHouseNoFields,
+      ),
       onFinish: () {
         _showLocationTour();
       },
@@ -244,16 +149,10 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
   Future<void> _showLocationTour() async {
     await _showModeTour(
       mode: 'By Location',
-      tabKey: _keyTabLocation,
-      tabIdentify: 'tab_location',
-      tabIcon: Icons.location_on_outlined,
-      tabTitle: 'By Location',
-      tabBody: 'Search by full address. Select Zone -> Ward -> Mohalla in order, then optionally add a house number to get precise results.',
-      fieldKey: _keyLocationFields,
-      fieldIdentify: 'location_fields',
-      fieldIcon: Icons.location_city_outlined,
-      fieldTitle: 'Location Search Fields',
-      fieldBody: 'Select Zone, Ward, and Mohalla here. You can also add House Number to make the location search more accurate.',
+      buildTargets: () => SearchPropertyTourGuide.buildLocationTargets(
+        tabKey: _keyTabLocation,
+        fieldKey: _keyLocationFields,
+      ),
       onFinish: () {
         _showMobileTour();
       },
@@ -263,17 +162,11 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
   Future<void> _showMobileTour() async {
     await _showModeTour(
       mode: 'By Mobile No',
-      tabKey: _keyTabMobile,
-      tabIdentify: 'tab_mobile',
-      tabIcon: Icons.phone_outlined,
-      tabTitle: 'By Mobile Number',
-      tabBody: 'Enter the 10-digit mobile number registered with the property. All properties linked to that number will appear.',
-      fieldKey: _keyMobileFields,
-      fieldIdentify: 'mobile_fields',
-      fieldIcon: Icons.phone_android_outlined,
-      fieldTitle: 'Mobile Search Field',
-      fieldBody: 'Enter the registered mobile number here. This is useful when the owner has more than one linked property.',
-      includeSearchButton: true,
+      buildTargets: () => SearchPropertyTourGuide.buildMobileTargets(
+        tabKey: _keyTabMobile,
+        fieldKey: _keyMobileFields,
+        searchButtonKey: _keySearchButton,
+      ),
     );
   }
 
@@ -282,99 +175,13 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
     if (!mounted) return;
 
     _showTourSegment(
-      targets: [
-        _buildTourTarget(
-          identify: 'search_tabs',
-          keyTarget: _keySearchTabs,
-          align: ContentAlign.bottom,
-          icon: Icons.tune_rounded,
-          title: '5 Ways to Search',
-          body: 'You can search property in 5 different ways. Each tab shows different input fields. Tap any tab to switch the search mode.',
-        ),
-        _buildTourTarget(
-          identify: 'ulb_picker',
-          keyTarget: _keyUlbPicker,
-          align: ContentAlign.bottom,
-          icon: Icons.account_balance_outlined,
-          title: 'Select ULB',
-          body: 'Select your Urban Local Body first. This is mandatory for all 5 search options and loads the location data.',
-        ),
-      ],
+      targets: SearchPropertyTourGuide.buildIntroTargets(
+        searchTabsKey: _keySearchTabs,
+        ulbPickerKey: _keyUlbPicker,
+      ),
       onFinish: () {
         _showOwnerTour();
       },
-    );
-  }
-
-  Widget _tourCard({
-    required IconData icon,
-    required String title,
-    required String body,
-  }) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF3E8),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, color: const Color(0xFFE67514), size: 22),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  title,
-                  style: GoogleFonts.poppins(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF111827),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            body,
-            style: GoogleFonts.poppins(
-              fontSize: 13,
-              color: const Color(0xFF6B7280),
-              height: 1.5,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Text(
-              'Tap to continue →',
-              style: GoogleFonts.poppins(
-                fontSize: 11,
-                color: const Color(0xFFE67514),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
