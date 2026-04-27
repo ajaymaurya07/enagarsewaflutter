@@ -4,8 +4,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import 'services/api_service.dart';
 import 'services/database_service.dart';
+import 'tour_guides/apply_grievance_tour.dart';
 
 class ApplyGrievanceScreen extends StatefulWidget {
   const ApplyGrievanceScreen({super.key});
@@ -64,7 +66,7 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
   List<GrievanceCategory> _grievanceCategories = [];
   List<PropertyEntity> _savedProperties = [];
   PropertyEntity? _selectedProperty;
-  
+
   bool _isLoadingUlbs = true;
   bool _isLoadingZones = false;
   bool _isLoadingWards = false;
@@ -77,7 +79,9 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
     _fetchUlbs();
     _fetchGrievanceCategories();
     _loadSavedProperties();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _autoStartTourIfFirstVisit());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _autoStartTourIfFirstVisit(),
+    );
   }
 
   Future<void> _autoStartTourIfFirstVisit() async {
@@ -85,197 +89,69 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
     final seen = prefs.getBool('tour_apply_grievance') ?? false;
     if (!seen && mounted) {
       await prefs.setBool('tour_apply_grievance', true);
-      _startTour();
+      await _startTour();
     }
   }
 
-  void _startTour() {
-    final targets = [
-      TargetFocus(
-        identify: 'property',
-        keyTarget: _keyPropertySection,
-        shape: ShapeLightFocus.RRect,
-        radius: 12,
-        contents: [
-          TargetContent(
-            align: ContentAlign.bottom,
-            builder: (context, controller) => _tourCard(
-              icon: Icons.home_work_outlined,
-              title: 'Select Property',
-              body: 'Tap here to choose your saved property. Your name, mobile, and address will be auto-filled.',
-            ),
-          ),
-        ],
-      ),
-      TargetFocus(
-        identify: 'personal',
-        keyTarget: _keyPersonalSection,
-        shape: ShapeLightFocus.RRect,
-        radius: 12,
-        contents: [
-          TargetContent(
-            align: ContentAlign.bottom,
-            builder: (context, controller) => _tourCard(
-              icon: Icons.person_outline,
-              title: 'Personal Information',
-              body: 'These fields are auto-filled from the selected property and cannot be edited.',
-            ),
-          ),
-        ],
-      ),
-      TargetFocus(
-        identify: 'location',
-        keyTarget: _keyLocationSection,
-        shape: ShapeLightFocus.RRect,
-        radius: 12,
-        contents: [
-          TargetContent(
-            align: ContentAlign.bottom,
-            builder: (context, controller) => _tourCard(
-              icon: Icons.location_on_outlined,
-              title: 'Location Details',
-              body: 'Select your ULB, Zone, Ward, and Mohalla in order. Then enter a landmark near the issue.',
-            ),
-          ),
-        ],
-      ),
-      TargetFocus(
-        identify: 'grievance',
-        keyTarget: _keyGrievanceSection,
-        shape: ShapeLightFocus.RRect,
-        radius: 12,
-        contents: [
-          TargetContent(
-            align: ContentAlign.bottom,
-            builder: (context, controller) => _tourCard(
-              icon: Icons.report_problem_outlined,
-              title: 'Grievance Details',
-              body: 'Choose a category, then a sub-category, and describe your grievance clearly.',
-            ),
-          ),
-        ],
-      ),
-      TargetFocus(
-        identify: 'photo',
-        keyTarget: _keyPhotoSection,
-        shape: ShapeLightFocus.RRect,
-        radius: 12,
-        contents: [
-          TargetContent(
-            align: ContentAlign.top,
-            builder: (context, controller) => _tourCard(
-              icon: Icons.camera_alt_outlined,
-              title: 'Upload Photo (Optional)',
-              body: 'Attach a photo of the issue from your camera or gallery. Max size: 200 KB.',
-            ),
-          ),
-        ],
-      ),
-      TargetFocus(
-        identify: 'submit',
-        keyTarget: _keySubmitButton,
-        shape: ShapeLightFocus.RRect,
-        radius: 14,
-        contents: [
-          TargetContent(
-            align: ContentAlign.top,
-            builder: (context, controller) => _tourCard(
-              icon: Icons.send_outlined,
-              title: 'Submit Grievance',
-              body: 'Once all fields are filled, tap here to submit. You will receive an OTP on your mobile to confirm.',
-            ),
-          ),
-        ],
-      ),
-    ];
-
-    _tutorialCoachMark = TutorialCoachMark(
-      targets: targets,
-      colorShadow: const Color(0xFF111827),
-      opacityShadow: 0.85,
-      paddingFocus: 10,
-      hideSkip: false,
-      textSkip: 'SKIP TOUR',
-      textStyleSkip: GoogleFonts.poppins(
-        color: Colors.white,
-        fontWeight: FontWeight.w600,
-        fontSize: 13,
-      ),
-      onClickTarget: (target) => _tutorialCoachMark?.next(),
-      onClickOverlay: (target) => _tutorialCoachMark?.next(),
+  void _showTourSegment({
+    required TargetFocus target,
+    VoidCallback? onFinish,
+  }) {
+    _tutorialCoachMark = ApplyGrievanceTourGuide.createCoachMark(
+      targets: [target],
+      onAdvance: () => _tutorialCoachMark?.next(),
+      onFinish: onFinish,
     )..show(context: context);
   }
 
-  Widget _tourCard({
-    required IconData icon,
-    required String title,
-    required String body,
-  }) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.12),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF3E8),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, color: const Color(0xFFE67514), size: 22),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  title,
-                  style: GoogleFonts.poppins(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF111827),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            body,
-            style: GoogleFonts.poppins(
-              fontSize: 13,
-              color: const Color(0xFF6B7280),
-              height: 1.5,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Text(
-              'Tap to continue →',
-              style: GoogleFonts.poppins(
-                fontSize: 11,
-                color: const Color(0xFFE67514),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
+  Future<void> _scrollToTourTarget(GlobalKey keyTarget) async {
+    final targetContext = keyTarget.currentContext;
+    if (targetContext == null) {
+      return;
+    }
+
+    await Scrollable.ensureVisible(
+      targetContext,
+      duration: const Duration(milliseconds: 450),
+      curve: Curves.easeInOut,
+      alignment: 0.18,
     );
+    await WidgetsBinding.instance.endOfFrame;
+  }
+
+  Future<void> _showTourStep(
+    List<ApplyGrievanceTourStep> steps,
+    int index,
+  ) async {
+    if (!mounted || index >= steps.length) {
+      return;
+    }
+
+    final step = steps[index];
+    await _scrollToTourTarget(step.keyTarget);
+    if (!mounted) {
+      return;
+    }
+
+    _showTourSegment(
+      target: step.target,
+      onFinish: () {
+        _showTourStep(steps, index + 1);
+      },
+    );
+  }
+
+  Future<void> _startTour() async {
+    final steps = ApplyGrievanceTourGuide.buildSteps(
+      propertySectionKey: _keyPropertySection,
+      personalSectionKey: _keyPersonalSection,
+      locationSectionKey: _keyLocationSection,
+      grievanceSectionKey: _keyGrievanceSection,
+      photoSectionKey: _keyPhotoSection,
+      submitButtonKey: _keySubmitButton,
+    );
+
+    await _showTourStep(steps, 0);
   }
 
   Future<void> _loadSavedProperties() async {
@@ -335,7 +211,11 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
     }
   }
 
-  Future<void> _fetchMohallas(String ulbId, String zoneId, String wardId) async {
+  Future<void> _fetchMohallas(
+    String ulbId,
+    String zoneId,
+    String wardId,
+  ) async {
     setState(() => _isLoadingMohallas = true);
     try {
       final mohallas = await ApiService.getMohallaData(ulbId, zoneId, wardId);
@@ -376,9 +256,16 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
               builder: (context) => AlertDialog(
                 title: Row(
                   children: [
-                    const Icon(Icons.error_outline, color: Colors.red, size: 28),
+                    const Icon(
+                      Icons.error_outline,
+                      color: Colors.red,
+                      size: 28,
+                    ),
                     const SizedBox(width: 10),
-                    Text('Image Too Large', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+                    Text(
+                      'Image Too Large',
+                      style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+                    ),
                   ],
                 ),
                 content: Text(
@@ -388,7 +275,13 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: Text('OK', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: _primaryColor)),
+                    child: Text(
+                      'OK',
+                      style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.bold,
+                        color: _primaryColor,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -418,7 +311,10 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
           children: [
             Text(
               'Select Image Source',
-              style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold),
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 20),
             Row(
@@ -449,7 +345,11 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
     );
   }
 
-  Widget _buildSourceOption({required IconData icon, required String label, required VoidCallback onTap}) {
+  Widget _buildSourceOption({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Column(
@@ -463,7 +363,13 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
             child: Icon(icon, color: _primaryColor, size: 30),
           ),
           const SizedBox(height: 8),
-          Text(label, style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500)),
+          Text(
+            label,
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ],
       ),
     );
@@ -478,11 +384,8 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => SelectionSheet(
-        title: title,
-        items: items,
-        onSelected: onSelected,
-      ),
+      builder: (context) =>
+          SelectionSheet(title: title, items: items, onSelected: onSelected),
     );
   }
 
@@ -493,13 +396,21 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
       appBar: AppBar(
         title: Text(
           'Apply Grievance',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 18, color: _primaryColor),
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: _primaryColor,
+          ),
         ),
         backgroundColor: _surfaceColor,
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _primaryColor, size: 20),
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: _primaryColor,
+            size: 20,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
@@ -524,141 +435,223 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
                   _buildSelectableField(
                     key: _keyPropertySection,
                     hint: _selectedProperty?.propertyId ?? 'Select Property ID',
-                    onTap: _savedProperties.isEmpty 
-                      ? null 
-                      : () => _showSelectionSheet(
-                        title: 'Select Property',
-                        items: _savedProperties.map((e) => e.propertyId).toList(),
-                        onSelected: (index) => _onPropertySelected(_savedProperties[index]),
-                      ),
+                    onTap: _savedProperties.isEmpty
+                        ? null
+                        : () => _showSelectionSheet(
+                            title: 'Select Property',
+                            items: _savedProperties
+                                .map((e) => e.propertyId)
+                                .toList(),
+                            onSelected: (index) =>
+                                _onPropertySelected(_savedProperties[index]),
+                          ),
                   ),
                   const SizedBox(height: 24),
 
-                  _buildSectionTitle('Personal Information', key: _keyPersonalSection),
+                  _buildSectionTitle(
+                    'Personal Information',
+                    key: _keyPersonalSection,
+                  ),
                   const SizedBox(height: 12),
-                  _buildTextField('Full Name', _fullNameController, icon: Icons.person_outline, enabled: false),
-                  _buildTextField('Mobile Number', _mobileController, icon: Icons.phone_android_outlined, keyboardType: TextInputType.phone, enabled: false),
-                  _buildTextField('Father/Husband Name', _fatherNameController, icon: Icons.family_restroom_outlined, enabled: false),
-                  _buildTextField('Address', _addressController, icon: Icons.location_on_outlined, maxLines: 2, enabled: false),
-                  
+                  _buildTextField(
+                    'Full Name',
+                    _fullNameController,
+                    icon: Icons.person_outline,
+                    enabled: false,
+                  ),
+                  _buildTextField(
+                    'Mobile Number',
+                    _mobileController,
+                    icon: Icons.phone_android_outlined,
+                    keyboardType: TextInputType.phone,
+                    enabled: false,
+                  ),
+                  _buildTextField(
+                    'Father/Husband Name',
+                    _fatherNameController,
+                    icon: Icons.family_restroom_outlined,
+                    enabled: false,
+                  ),
+                  _buildTextField(
+                    'Address',
+                    _addressController,
+                    icon: Icons.location_on_outlined,
+                    maxLines: 2,
+                    enabled: false,
+                  ),
+
                   const SizedBox(height: 24),
-                  _buildSectionTitle('Location Details', key: _keyLocationSection),
+                  _buildSectionTitle(
+                    'Location Details',
+                    key: _keyLocationSection,
+                  ),
                   const SizedBox(height: 12),
-                  
+
                   // Select ULB
                   _buildSelectableField(
-                    hint: _isLoadingUlbs ? 'Loading ULBs...' : (_selectedUlb?.toString() ?? 'Select ULB'),
-                    onTap: _isLoadingUlbs ? null : () => _showSelectionSheet(
-                      title: 'Select ULB',
-                      items: _ulbList.map((e) => e.toString()).toList(),
-                      onSelected: (index) {
-                        setState(() {
-                          _selectedUlb = _ulbList[index];
-                          _selectedZone = null;
-                          _selectedWard = null;
-                          _selectedMohalla = null;
-                          _zoneList = [];
-                          _wardList = [];
-                          _mohallaList = [];
-                        });
-                        _fetchZones(_selectedUlb!.ulbId!);
-                      },
-                    ),
+                    hint: _isLoadingUlbs
+                        ? 'Loading ULBs...'
+                        : (_selectedUlb?.toString() ?? 'Select ULB'),
+                    onTap: _isLoadingUlbs
+                        ? null
+                        : () => _showSelectionSheet(
+                            title: 'Select ULB',
+                            items: _ulbList.map((e) => e.toString()).toList(),
+                            onSelected: (index) {
+                              setState(() {
+                                _selectedUlb = _ulbList[index];
+                                _selectedZone = null;
+                                _selectedWard = null;
+                                _selectedMohalla = null;
+                                _zoneList = [];
+                                _wardList = [];
+                                _mohallaList = [];
+                              });
+                              _fetchZones(_selectedUlb!.ulbId!);
+                            },
+                          ),
                   ),
                   const SizedBox(height: 16),
 
                   // Select Zone
                   _buildSelectableField(
-                    hint: _isLoadingZones ? 'Loading Zones...' : (_selectedZone?.zoneName ?? 'Select Zone'),
-                    onTap: (_selectedUlb == null || _isLoadingZones) ? null : () => _showSelectionSheet(
-                      title: 'Select Zone',
-                      items: _zoneList.map((e) => e.zoneName).toList(),
-                      onSelected: (index) {
-                        setState(() {
-                          _selectedZone = _zoneList[index];
-                          _selectedWard = null;
-                          _selectedMohalla = null;
-                          _wardList = [];
-                          _mohallaList = [];
-                        });
-                        _fetchWards(_selectedUlb!.ulbId!, _selectedZone!.zoneId);
-                      },
-                    ),
+                    hint: _isLoadingZones
+                        ? 'Loading Zones...'
+                        : (_selectedZone?.zoneName ?? 'Select Zone'),
+                    onTap: (_selectedUlb == null || _isLoadingZones)
+                        ? null
+                        : () => _showSelectionSheet(
+                            title: 'Select Zone',
+                            items: _zoneList.map((e) => e.zoneName).toList(),
+                            onSelected: (index) {
+                              setState(() {
+                                _selectedZone = _zoneList[index];
+                                _selectedWard = null;
+                                _selectedMohalla = null;
+                                _wardList = [];
+                                _mohallaList = [];
+                              });
+                              _fetchWards(
+                                _selectedUlb!.ulbId!,
+                                _selectedZone!.zoneId,
+                              );
+                            },
+                          ),
                   ),
                   const SizedBox(height: 16),
 
                   // Select Ward
                   _buildSelectableField(
-                    hint: _isLoadingWards ? 'Loading Wards...' : (_selectedWard?.wardName ?? 'Select Ward'),
-                    onTap: (_selectedZone == null || _isLoadingWards) ? null : () => _showSelectionSheet(
-                      title: 'Select Ward',
-                      items: _wardList.map((e) => e.wardName).toList(),
-                      onSelected: (index) {
-                        setState(() {
-                          _selectedWard = _wardList[index];
-                          _selectedMohalla = null;
-                          _mohallaList = [];
-                        });
-                        _fetchMohallas(_selectedUlb!.ulbId!, _selectedZone!.zoneId, _selectedWard!.wardId);
-                      },
-                    ),
+                    hint: _isLoadingWards
+                        ? 'Loading Wards...'
+                        : (_selectedWard?.wardName ?? 'Select Ward'),
+                    onTap: (_selectedZone == null || _isLoadingWards)
+                        ? null
+                        : () => _showSelectionSheet(
+                            title: 'Select Ward',
+                            items: _wardList.map((e) => e.wardName).toList(),
+                            onSelected: (index) {
+                              setState(() {
+                                _selectedWard = _wardList[index];
+                                _selectedMohalla = null;
+                                _mohallaList = [];
+                              });
+                              _fetchMohallas(
+                                _selectedUlb!.ulbId!,
+                                _selectedZone!.zoneId,
+                                _selectedWard!.wardId,
+                              );
+                            },
+                          ),
                   ),
                   const SizedBox(height: 16),
 
                   // Select Mohalla
                   _buildSelectableField(
-                    hint: _isLoadingMohallas ? 'Loading Mohallas...' : (_selectedMohalla?.mohallaName ?? 'Select Mohalla'),
-                    onTap: (_selectedWard == null || _isLoadingMohallas) ? null : () => _showSelectionSheet(
-                      title: 'Select Mohalla',
-                      items: _mohallaList.map((e) => e.mohallaName).toList(),
-                      onSelected: (index) {
-                        setState(() {
-                          _selectedMohalla = _mohallaList[index];
-                        });
-                      },
-                    ),
+                    hint: _isLoadingMohallas
+                        ? 'Loading Mohallas...'
+                        : (_selectedMohalla?.mohallaName ?? 'Select Mohalla'),
+                    onTap: (_selectedWard == null || _isLoadingMohallas)
+                        ? null
+                        : () => _showSelectionSheet(
+                            title: 'Select Mohalla',
+                            items: _mohallaList
+                                .map((e) => e.mohallaName)
+                                .toList(),
+                            onSelected: (index) {
+                              setState(() {
+                                _selectedMohalla = _mohallaList[index];
+                              });
+                            },
+                          ),
                   ),
                   const SizedBox(height: 16),
 
-                  _buildTextField('Enter Landmark', _landmarkController, isRequired: true),
+                  _buildTextField(
+                    'Enter Landmark',
+                    _landmarkController,
+                    isRequired: true,
+                  ),
 
                   const SizedBox(height: 24),
-                  _buildSectionTitle('Grievance Details', key: _keyGrievanceSection),
+                  _buildSectionTitle(
+                    'Grievance Details',
+                    key: _keyGrievanceSection,
+                  ),
                   const SizedBox(height: 12),
-                  
+
                   // Select Category
                   _buildSelectableField(
-                    hint: _isLoadingCategories ? 'Loading Categories...' : (_selectedCategory?.serviceName ?? 'Select Category'),
-                    onTap: _isLoadingCategories ? null : () => _showSelectionSheet(
-                      title: 'Select Category',
-                      items: _grievanceCategories.map((e) => e.serviceName ?? '').toList(),
-                      onSelected: (index) {
-                        setState(() {
-                          _selectedCategory = _grievanceCategories[index];
-                          _selectedSubCategory = null;
-                        });
-                      },
-                    ),
+                    hint: _isLoadingCategories
+                        ? 'Loading Categories...'
+                        : (_selectedCategory?.serviceName ?? 'Select Category'),
+                    onTap: _isLoadingCategories
+                        ? null
+                        : () => _showSelectionSheet(
+                            title: 'Select Category',
+                            items: _grievanceCategories
+                                .map((e) => e.serviceName ?? '')
+                                .toList(),
+                            onSelected: (index) {
+                              setState(() {
+                                _selectedCategory = _grievanceCategories[index];
+                                _selectedSubCategory = null;
+                              });
+                            },
+                          ),
                   ),
                   const SizedBox(height: 16),
 
                   // Select Sub Category
                   _buildSelectableField(
-                    hint: _selectedCategory == null ? 'Select Category First' : (_selectedSubCategory?.subName ?? 'Select Sub Category'),
-                    onTap: _selectedCategory == null ? null : () => _showSelectionSheet(
-                      title: 'Select Sub Category',
-                      items: _selectedCategory!.subCategories!.map((e) => e.subName ?? '').toList(),
-                      onSelected: (index) {
-                        setState(() {
-                          _selectedSubCategory = _selectedCategory!.subCategories![index];
-                        });
-                      },
-                    ),
+                    hint: _selectedCategory == null
+                        ? 'Select Category First'
+                        : (_selectedSubCategory?.subName ??
+                              'Select Sub Category'),
+                    onTap: _selectedCategory == null
+                        ? null
+                        : () => _showSelectionSheet(
+                            title: 'Select Sub Category',
+                            items: _selectedCategory!.subCategories!
+                                .map((e) => e.subName ?? '')
+                                .toList(),
+                            onSelected: (index) {
+                              setState(() {
+                                _selectedSubCategory =
+                                    _selectedCategory!.subCategories![index];
+                              });
+                            },
+                          ),
                   ),
                   const SizedBox(height: 16),
 
-                  _buildTextField('Grievance Description', _descriptionController, maxLines: 4, isRequired: true),
-                  
+                  _buildTextField(
+                    'Grievance Description',
+                    _descriptionController,
+                    maxLines: 4,
+                    isRequired: true,
+                  ),
+
                   const SizedBox(height: 16),
                   _buildPhotoUploadSection(key: _keyPhotoSection),
 
@@ -672,15 +665,20 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _primaryColor,
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                         elevation: 0,
                       ),
-                      child: _isSubmitting 
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : Text(
-                            'Submit Grievance',
-                            style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold),
-                          ),
+                      child: _isSubmitting
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : Text(
+                              'Submit Grievance',
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                     ),
                   ),
                   const SizedBox(height: 40),
@@ -690,7 +688,7 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
           ),
           if (_isSubmitting)
             Container(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withValues(alpha: 0.3),
               child: const Center(
                 child: CircularProgressIndicator(color: _primaryColor),
               ),
@@ -712,7 +710,11 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
     );
   }
 
-  Widget _buildSelectableField({Key? key, required String hint, VoidCallback? onTap}) {
+  Widget _buildSelectableField({
+    Key? key,
+    required String hint,
+    VoidCallback? onTap,
+  }) {
     return GestureDetector(
       key: key,
       onTap: onTap,
@@ -730,7 +732,9 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
               child: Text(
                 hint,
                 style: GoogleFonts.poppins(
-                  color: hint.contains('Select') || hint.contains('Loading') ? _hintColor : _textPrimaryColor,
+                  color: hint.contains('Select') || hint.contains('Loading')
+                      ? _hintColor
+                      : _textPrimaryColor,
                   fontSize: 14,
                 ),
                 overflow: TextOverflow.ellipsis,
@@ -743,7 +747,15 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, {IconData? icon, TextInputType keyboardType = TextInputType.text, int maxLines = 1, bool enabled = true, bool isRequired = false}) {
+  Widget _buildTextField(
+    String label,
+    TextEditingController controller, {
+    IconData? icon,
+    TextInputType keyboardType = TextInputType.text,
+    int maxLines = 1,
+    bool enabled = true,
+    bool isRequired = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: TextFormField(
@@ -751,17 +763,24 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
         keyboardType: keyboardType,
         maxLines: maxLines,
         enabled: enabled,
-        style: GoogleFonts.poppins(fontSize: 14, color: enabled ? _textPrimaryColor : _hintColor),
-        validator: isRequired ? (value) {
-          if (value == null || value.trim().isEmpty) {
-            return 'Please enter $label';
-          }
-          return null;
-        } : null,
+        style: GoogleFonts.poppins(
+          fontSize: 14,
+          color: enabled ? _textPrimaryColor : _hintColor,
+        ),
+        validator: isRequired
+            ? (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter $label';
+                }
+                return null;
+              }
+            : null,
         decoration: InputDecoration(
           labelText: label,
           labelStyle: GoogleFonts.poppins(color: _hintColor, fontSize: 14),
-          prefixIcon: icon != null ? Icon(icon, color: _primaryColor, size: 20) : null,
+          prefixIcon: icon != null
+              ? Icon(icon, color: _primaryColor, size: 20)
+              : null,
           filled: true,
           fillColor: enabled ? _surfaceColor : const Color(0xFFF3F4F6),
           border: OutlineInputBorder(
@@ -820,8 +839,15 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
                       onTap: () => setState(() => _selectedImage = null),
                       child: Container(
                         padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                        child: const Icon(Icons.close, color: Colors.white, size: 20),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.close,
+                          color: Colors.white,
+                          size: 20,
+                        ),
                       ),
                     ),
                   ),
@@ -829,7 +855,11 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
               )
             : Column(
                 children: [
-                  const Icon(Icons.camera_alt_outlined, color: _hintColor, size: 40),
+                  const Icon(
+                    Icons.camera_alt_outlined,
+                    color: _hintColor,
+                    size: 40,
+                  ),
                   const SizedBox(height: 8),
                   Text(
                     'Upload Related Photo',
@@ -838,7 +868,10 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
                   const SizedBox(height: 4),
                   Text(
                     '(Optional)',
-                    style: GoogleFonts.poppins(fontSize: 12, color: _hintColor.withOpacity(0.8)),
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: _hintColor.withValues(alpha: 0.8),
+                    ),
                   ),
                 ],
               ),
@@ -854,12 +887,19 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
     String? errorMessage;
     if (_selectedProperty == null) {
       errorMessage = 'Please select Property ID';
-    } else if (_selectedUlb == null) errorMessage = 'Please select ULB';
-    else if (_selectedZone == null) errorMessage = 'Please select Zone';
-    else if (_selectedWard == null) errorMessage = 'Please select Ward';
-    else if (_selectedMohalla == null) errorMessage = 'Please select Mohalla';
-    else if (_selectedCategory == null) errorMessage = 'Please select Category';
-    else if (_selectedSubCategory == null) errorMessage = 'Please select Sub Category';
+    } else if (_selectedUlb == null) {
+      errorMessage = 'Please select ULB';
+    } else if (_selectedZone == null) {
+      errorMessage = 'Please select Zone';
+    } else if (_selectedWard == null) {
+      errorMessage = 'Please select Ward';
+    } else if (_selectedMohalla == null) {
+      errorMessage = 'Please select Mohalla';
+    } else if (_selectedCategory == null) {
+      errorMessage = 'Please select Category';
+    } else if (_selectedSubCategory == null) {
+      errorMessage = 'Please select Sub Category';
+    }
 
     if (errorMessage != null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -893,10 +933,16 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
         setState(() => _isSubmitting = false);
         if (response.success && response.data?.grievanceId != null) {
           // Open OTP Bottom Sheet on Success
-          _showOtpVerificationSheet(_mobileController.text.trim(), response.data!.grievanceId!);
+          _showOtpVerificationSheet(
+            _mobileController.text.trim(),
+            response.data!.grievanceId!,
+          );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(response.message), backgroundColor: Colors.red),
+            SnackBar(
+              content: Text(response.message),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       }
@@ -923,7 +969,9 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
         builder: (sheetContext, setModalState) => Container(
           padding: EdgeInsets.only(
             bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
-            top: 24, left: 24, right: 24
+            top: 24,
+            left: 24,
+            right: 24,
           ),
           decoration: const BoxDecoration(
             color: Colors.white,
@@ -935,7 +983,10 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
             children: [
               Text(
                 'Verify OTP',
-                style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold),
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
@@ -948,20 +999,29 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
                 keyboardType: TextInputType.number,
                 maxLength: 6,
                 textAlign: TextAlign.center,
-                style: GoogleFonts.poppins(fontSize: 24, letterSpacing: 8, fontWeight: FontWeight.bold),
+                style: GoogleFonts.poppins(
+                  fontSize: 24,
+                  letterSpacing: 8,
+                  fontWeight: FontWeight.bold,
+                ),
                 onChanged: (_) {
                   if (errorText != null) setModalState(() => errorText = null);
                 },
                 decoration: InputDecoration(
                   hintText: '000000',
                   counterText: "",
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
               if (errorText != null) ...[
                 const SizedBox(height: 10),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.red.shade50,
                     borderRadius: BorderRadius.circular(8),
@@ -969,12 +1029,19 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.error_outline, color: Colors.red.shade700, size: 18),
+                      Icon(
+                        Icons.error_outline,
+                        color: Colors.red.shade700,
+                        size: 18,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           errorText!,
-                          style: GoogleFonts.poppins(color: Colors.red.shade700, fontSize: 13),
+                          style: GoogleFonts.poppins(
+                            color: Colors.red.shade700,
+                            fontSize: 13,
+                          ),
                         ),
                       ),
                     ],
@@ -983,43 +1050,70 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
               ],
               const SizedBox(height: 16),
               ElevatedButton(
-                onPressed: isVerifying ? null : () async {
-                  if (otpController.text.length < 4) return;
-                  
-                  setModalState(() {
-                    isVerifying = true;
-                    errorText = null;
-                  });
-                  try {
-                    final res = await ApiService.registerGrievanceVerifyOtp(
-                      mobileNo: mobileNo,
-                      otp: otpController.text,
-                      grievanceId: grievanceId,
-                    );
-                    debugPrint('OTP Verify Response => success: ${res.success}, message: ${res.message}, responseCode: ${res.responseCode}, data: ${res.data}');
-                    if (res.success == true) {
-                      if (!mounted) return;
-                      Navigator.pop(sheetContext); // Close OTP sheet
-                      _showSuccessDialog(res.message ?? 'Grievance Registered Successfully!', res.data ?? grievanceId);
-                    } else {
-                      if (!mounted) return;
-                      setModalState(() => errorText = res.message ?? 'Invalid OTP');
-                    }
-                  } catch (e) {
-                    if (!mounted) return;
-                    setModalState(() => errorText = e.toString());
-                  } finally {
-                    if (mounted) setModalState(() => isVerifying = false);
-                  }
-                },
+                onPressed: isVerifying
+                    ? null
+                    : () async {
+                        if (otpController.text.length < 4) return;
+
+                        setModalState(() {
+                          isVerifying = true;
+                          errorText = null;
+                        });
+                        try {
+                          final res =
+                              await ApiService.registerGrievanceVerifyOtp(
+                                mobileNo: mobileNo,
+                                otp: otpController.text,
+                                grievanceId: grievanceId,
+                              );
+                          debugPrint(
+                            'OTP Verify Response => success: ${res.success}, message: ${res.message}, responseCode: ${res.responseCode}, data: ${res.data}',
+                          );
+                          if (res.success == true) {
+                            if (!mounted || !sheetContext.mounted) return;
+                            Navigator.pop(sheetContext); // Close OTP sheet
+                            _showSuccessDialog(
+                              res.message ??
+                                  'Grievance Registered Successfully!',
+                              res.data ?? grievanceId,
+                            );
+                          } else {
+                            if (!mounted) return;
+                            setModalState(
+                              () => errorText = res.message ?? 'Invalid OTP',
+                            );
+                          }
+                        } catch (e) {
+                          if (!mounted) return;
+                          setModalState(() => errorText = e.toString());
+                        } finally {
+                          if (mounted) setModalState(() => isVerifying = false);
+                        }
+                      },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _primaryColor,
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
-                child: isVerifying 
-                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : Text('Verify & Register', style: GoogleFonts.poppins(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                child: isVerifying
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : Text(
+                        'Verify & Register',
+                        style: GoogleFonts.poppins(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
               ),
               const SizedBox(height: 32),
             ],
@@ -1036,9 +1130,16 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
       builder: (context) => AlertDialog(
         title: Row(
           children: [
-            const Icon(Icons.check_circle_outline_rounded, color: Colors.green, size: 28),
+            const Icon(
+              Icons.check_circle_outline_rounded,
+              color: Colors.green,
+              size: 28,
+            ),
             const SizedBox(width: 10),
-            Text('Success', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+            Text(
+              'Success',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+            ),
           ],
         ),
         content: Column(
@@ -1048,8 +1149,21 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
             Text(message, style: GoogleFonts.poppins()),
             if (grievanceId != null) ...[
               const SizedBox(height: 12),
-              Text('Grievance ID:', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14)),
-              Text(grievanceId, style: GoogleFonts.poppins(color: _primaryColor, fontWeight: FontWeight.bold, fontSize: 18)),
+              Text(
+                'Grievance ID:',
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+              Text(
+                grievanceId,
+                style: GoogleFonts.poppins(
+                  color: _primaryColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
             ],
           ],
         ),
@@ -1059,7 +1173,10 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
               Navigator.pop(context); // Close dialog
               Navigator.pop(context); // Go back from Apply Screen
             },
-            child: Text('OK', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+            child: Text(
+              'OK',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -1073,10 +1190,10 @@ class SelectionSheet extends StatefulWidget {
   final Function(int) onSelected;
 
   const SelectionSheet({
-    super.key, 
+    super.key,
     required this.title,
-    required this.items, 
-    required this.onSelected
+    required this.items,
+    required this.onSelected,
   });
 
   @override
@@ -1118,7 +1235,10 @@ class _SelectionSheetState extends State<SelectionSheet> {
               children: [
                 Text(
                   widget.title,
-                  style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.close),
