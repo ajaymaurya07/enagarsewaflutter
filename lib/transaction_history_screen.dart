@@ -1,25 +1,142 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
+
 import 'services/api_service.dart';
 import 'services/storage_service.dart';
 import 'transaction_details_screen.dart';
+import 'tour_guides/transaction_history_tour.dart';
 
 class TransactionHistoryScreen extends StatefulWidget {
   const TransactionHistoryScreen({super.key});
 
   @override
-  State<TransactionHistoryScreen> createState() => _TransactionHistoryScreenState();
+  State<TransactionHistoryScreen> createState() =>
+      _TransactionHistoryScreenState();
 }
 
 class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
   bool _isLoading = true;
   List<TransactionData> _transactions = [];
   String? _errorMessage;
+  final GlobalKey _firstTransactionCardKey = GlobalKey();
+  final GlobalKey _firstStatusBadgeKey = GlobalKey();
+
+  TutorialCoachMark? _tutorialCoachMark;
+  bool _isTourActive = false;
+  bool _hasQueuedAutoTour = false;
 
   @override
   void initState() {
     super.initState();
     _fetchTransactions();
+  }
+
+  Future<void> _autoStartTourIfFirstVisit() async {
+    final prefs = await SharedPreferences.getInstance();
+    final seen = prefs.getBool('tour_transaction_history') ?? false;
+    if (!seen && mounted) {
+      await prefs.setBool('tour_transaction_history', true);
+      await _startTour(showUnavailableMessage: false);
+    }
+  }
+
+  void _showTourSegment({required TargetFocus target, VoidCallback? onFinish}) {
+    _tutorialCoachMark = TransactionHistoryTourGuide.createCoachMark(
+      targets: [target],
+      onAdvance: () => _tutorialCoachMark?.next(),
+      onFinish: onFinish,
+      onSkip: _handleTourSkip,
+    )..show(context: context);
+  }
+
+  Future<void> _scrollToTourTarget(GlobalKey keyTarget) async {
+    final targetContext = keyTarget.currentContext;
+    if (targetContext == null) {
+      return;
+    }
+
+    await Scrollable.ensureVisible(
+      targetContext,
+      duration: const Duration(milliseconds: 450),
+      curve: Curves.easeInOut,
+      alignment: 0.2,
+    );
+    await WidgetsBinding.instance.endOfFrame;
+  }
+
+  Future<void> _showTourStep(
+    List<TransactionHistoryTourStep> steps,
+    int index,
+  ) async {
+    if (!mounted || index >= steps.length) {
+      _resetTourState();
+      return;
+    }
+
+    final step = steps[index];
+    await _scrollToTourTarget(step.keyTarget);
+    if (!mounted) {
+      return;
+    }
+
+    _showTourSegment(
+      target: step.target,
+      onFinish: () {
+        _showTourStep(steps, index + 1);
+      },
+    );
+  }
+
+  Future<void> _startTour({bool showUnavailableMessage = true}) async {
+    if (!mounted || _isTourActive) {
+      return;
+    }
+
+    final steps = TransactionHistoryTourGuide.buildSteps(
+      transactionCardKey: _firstTransactionCardKey,
+      statusBadgeKey: _firstStatusBadgeKey,
+    );
+
+    if (steps.any((step) => step.keyTarget.currentContext == null)) {
+      if (showUnavailableMessage) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Tour will be available once transaction records load.',
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    _isTourActive = true;
+    await _showTourStep(steps, 0);
+  }
+
+  bool _handleTourSkip() {
+    _resetTourState();
+    return true;
+  }
+
+  void _resetTourState() {
+    _isTourActive = false;
+    _tutorialCoachMark = null;
+  }
+
+  void _openTransactionDetails(TransactionData txn) {
+    if (_isTourActive) {
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TransactionDetailsScreen(transaction: txn),
+      ),
+    );
   }
 
   Future<void> _fetchTransactions() async {
@@ -39,7 +156,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       }
 
       final response = await ApiService.getTransactionsByEmail(email);
-      
+
       if (response.status == true) {
         setState(() {
           _transactions = response.data ?? [];
@@ -71,6 +188,16 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(
+              Icons.help_outline_rounded,
+              color: Color(0xFFE67514),
+            ),
+            tooltip: 'Tour Guide',
+            onPressed: _startTour,
+          ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: _fetchTransactions,
@@ -81,7 +208,9 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator(color: Color(0xFF0E3B90)));
+      return const Center(
+        child: CircularProgressIndicator(color: Color(0xFF0E3B90)),
+      );
     }
 
     if (_errorMessage != null) {
@@ -91,7 +220,11 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline_rounded, color: Colors.red, size: 60),
+              const Icon(
+                Icons.error_outline_rounded,
+                color: Colors.red,
+                size: 60,
+              ),
               const SizedBox(height: 16),
               Text(
                 _errorMessage!,
@@ -101,9 +234,14 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: _fetchTransactions,
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0E3B90)),
-                child: const Text('Retry', style: TextStyle(color: Colors.white)),
-              )
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0E3B90),
+                ),
+                child: const Text(
+                  'Retry',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
             ],
           ),
         ),
@@ -119,11 +257,24 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
             const SizedBox(height: 16),
             Text(
               'No transactions found',
-              style: GoogleFonts.poppins(fontSize: 16, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),
       );
+    }
+
+    if (!_hasQueuedAutoTour) {
+      _hasQueuedAutoTour = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _autoStartTourIfFirstVisit();
+        }
+      });
     }
 
     return ListView.builder(
@@ -131,12 +282,20 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       itemCount: _transactions.length,
       itemBuilder: (context, index) {
         final txn = _transactions[index];
-        return _buildTransactionCard(txn);
+        return _buildTransactionCard(
+          txn,
+          cardKey: index == 0 ? _firstTransactionCardKey : null,
+          statusBadgeKey: index == 0 ? _firstStatusBadgeKey : null,
+        );
       },
     );
   }
 
-  Widget _buildTransactionCard(TransactionData txn) {
+  Widget _buildTransactionCard(
+    TransactionData txn, {
+    Key? cardKey,
+    Key? statusBadgeKey,
+  }) {
     final status = txn.transactionStatus?.toLowerCase() ?? '';
     final bool isSuccess = status == 'success' || status == 'captured';
     final bool isPending = status == 'pending';
@@ -156,14 +315,8 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     }
 
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => TransactionDetailsScreen(transaction: txn),
-          ),
-        );
-      },
+      key: cardKey,
+      onTap: () => _openTransactionDetails(txn),
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
@@ -188,11 +341,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                   color: bgColor,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  statusIcon,
-                  color: statusColor,
-                  size: 24,
-                ),
+                child: Icon(statusIcon, color: statusColor, size: 24),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -215,7 +364,11 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                         ),
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          key: statusBadgeKey,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: statusColor.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(6),
