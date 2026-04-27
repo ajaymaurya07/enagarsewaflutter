@@ -1,14 +1,19 @@
 import 'dart:io';
 import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:printing/printing.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
+
 import 'services/api_service.dart';
+import 'tour_guides/transaction_details_tour.dart';
 
 class TransactionDetailsScreen extends StatefulWidget {
   final TransactionData transaction;
@@ -16,30 +21,148 @@ class TransactionDetailsScreen extends StatefulWidget {
   const TransactionDetailsScreen({super.key, required this.transaction});
 
   @override
-  State<TransactionDetailsScreen> createState() => _TransactionDetailsScreenState();
+  State<TransactionDetailsScreen> createState() =>
+      _TransactionDetailsScreenState();
 }
 
 class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
   final ScreenshotController _screenshotController = ScreenshotController();
+  final GlobalKey _shareButtonKey = GlobalKey();
+  final GlobalKey _downloadButtonKey = GlobalKey();
+
+  TutorialCoachMark? _tutorialCoachMark;
+  bool _isTourActive = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _autoStartTourIfFirstVisit(),
+    );
+  }
+
+  Future<void> _autoStartTourIfFirstVisit() async {
+    final prefs = await SharedPreferences.getInstance();
+    final seen = prefs.getBool('tour_transaction_details') ?? false;
+    if (!seen && mounted) {
+      await prefs.setBool('tour_transaction_details', true);
+      await _startTour();
+    }
+  }
+
+  void _showTourSegment({required TargetFocus target, VoidCallback? onFinish}) {
+    _tutorialCoachMark = TransactionDetailsTourGuide.createCoachMark(
+      targets: [target],
+      onAdvance: () => _tutorialCoachMark?.next(),
+      onFinish: onFinish,
+      onSkip: _handleTourSkip,
+    )..show(context: context);
+  }
+
+  Future<void> _scrollToTourTarget(GlobalKey keyTarget) async {
+    final targetContext = keyTarget.currentContext;
+    if (targetContext == null) {
+      return;
+    }
+
+    await Scrollable.ensureVisible(
+      targetContext,
+      duration: const Duration(milliseconds: 450),
+      curve: Curves.easeInOut,
+      alignment: 0.18,
+    );
+    await WidgetsBinding.instance.endOfFrame;
+  }
+
+  Future<void> _showTourStep(
+    List<TransactionDetailsTourStep> steps,
+    int index,
+  ) async {
+    if (!mounted || index >= steps.length) {
+      _resetTourState();
+      return;
+    }
+
+    final step = steps[index];
+    await _scrollToTourTarget(step.keyTarget);
+    if (!mounted) {
+      return;
+    }
+
+    _showTourSegment(
+      target: step.target,
+      onFinish: () {
+        _showTourStep(steps, index + 1);
+      },
+    );
+  }
+
+  Future<void> _startTour() async {
+    if (!mounted || _isTourActive) {
+      return;
+    }
+
+    final steps = TransactionDetailsTourGuide.buildSteps(
+      shareButtonKey: _shareButtonKey,
+      downloadButtonKey: _downloadButtonKey,
+    );
+
+    if (steps.any((step) => step.keyTarget.currentContext == null)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tour will be available once the action buttons are visible.'),
+        ),
+      );
+      return;
+    }
+
+    _isTourActive = true;
+    await _showTourStep(steps, 0);
+  }
+
+  bool _handleTourSkip() {
+    _resetTourState();
+    return true;
+  }
+
+  void _resetTourState() {
+    _isTourActive = false;
+    _tutorialCoachMark = null;
+  }
 
   Future<void> _shareReceipt() async {
+    if (_isTourActive) {
+      return;
+    }
+
     try {
       final Uint8List? image = await _screenshotController.capture();
       if (image != null) {
         final directory = await getTemporaryDirectory();
-        final imagePath = await File('${directory.path}/receipt_${widget.transaction.txnId}.png').create();
+        final imagePath = await File(
+          '${directory.path}/receipt_${widget.transaction.txnId}.png',
+        ).create();
         await imagePath.writeAsBytes(image);
 
-        await Share.shareXFiles([XFile(imagePath.path)], text: 'Transaction Receipt: ${widget.transaction.txnId}');
+        await Share.shareXFiles([
+          XFile(imagePath.path),
+        ], text: 'Transaction Receipt: ${widget.transaction.txnId}');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error sharing receipt: $e')),
-      );
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error sharing receipt: $e')));
     }
   }
 
   Future<void> _downloadReceipt() async {
+    if (_isTourActive) {
+      return;
+    }
+
     try {
       final Uint8List? image = await _screenshotController.capture();
       if (image != null) {
@@ -63,27 +186,41 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error downloading receipt: $e')),
-      );
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error downloading receipt: $e')));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final bool isSuccess = widget.transaction.transactionStatus?.toLowerCase() == 'success' || 
-                         widget.transaction.transactionStatus?.toLowerCase() == 'captured';
-    final bool isPending = widget.transaction.transactionStatus?.toLowerCase() == 'pending';
+    final bool isSuccess =
+        widget.transaction.transactionStatus?.toLowerCase() == 'success' ||
+        widget.transaction.transactionStatus?.toLowerCase() == 'captured';
+    final bool isPending =
+        widget.transaction.transactionStatus?.toLowerCase() == 'pending';
 
     Color statusColor = Colors.red;
     if (isSuccess) {
       statusColor = Colors.green;
-    } else if (isPending) statusColor = const Color(0xFFE6A23C);
+    } else if (isPending) {
+      statusColor = const Color(0xFFE6A23C);
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF0F2F5),
       appBar: AppBar(
-        title: Text('Receipt', style: GoogleFonts.poppins(fontWeight: FontWeight.w700, fontSize: 18, color: Colors.black87)),
+        title: Text(
+          'Receipt',
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w700,
+            fontSize: 18,
+            color: Colors.black87,
+          ),
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
@@ -91,6 +228,16 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
           icon: const Icon(Icons.close_rounded, color: Colors.black87),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(
+              Icons.help_outline_rounded,
+              color: Color(0xFFE67514),
+            ),
+            tooltip: 'Tour Guide',
+            onPressed: _startTour,
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -123,14 +270,22 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
-                          isSuccess ? Icons.check_rounded : (isPending ? Icons.access_time_rounded : Icons.close_rounded),
+                          isSuccess
+                              ? Icons.check_rounded
+                              : (isPending
+                                    ? Icons.access_time_rounded
+                                    : Icons.close_rounded),
                           color: statusColor,
                           size: 48,
                         ),
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        isSuccess ? 'Payment Successful' : (isPending ? 'Payment Pending' : 'Payment Failed'),
+                        isSuccess
+                            ? 'Payment Successful'
+                            : (isPending
+                                  ? 'Payment Pending'
+                                  : 'Payment Failed'),
                         style: GoogleFonts.poppins(
                           fontSize: 20,
                           fontWeight: FontWeight.w700,
@@ -149,39 +304,70 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
                       const SizedBox(height: 24),
                       const Padding(
                         padding: EdgeInsets.symmetric(horizontal: 24),
-                        child: Divider(height: 1, thickness: 1, color: Color(0xFFF0F0F0)),
+                        child: Divider(
+                          height: 1,
+                          thickness: 1,
+                          color: Color(0xFFF0F0F0),
+                        ),
                       ),
                       const SizedBox(height: 24),
-                      
+
                       // Details List
-                      _buildDetailItem('Transaction ID', widget.transaction.txnId ?? 'N/A'),
-                      _buildDetailItem('Date & Time', widget.transaction.dateTime ?? 'N/A'),
-                      _buildDetailItem('Property ID', widget.transaction.propertyId ?? 'N/A'),
-                      _buildDetailItem('Bill Number', widget.transaction.billNo ?? 'N/A'),
-                      _buildDetailItem('Financial Year', widget.transaction.financialYear ?? 'N/A'),
-                      _buildDetailItem('Payment Mode', widget.transaction.paymentMode ?? 'N/A'),
+                      _buildDetailItem(
+                        'Transaction ID',
+                        widget.transaction.txnId ?? 'N/A',
+                      ),
+                      _buildDetailItem(
+                        'Date & Time',
+                        widget.transaction.dateTime ?? 'N/A',
+                      ),
+                      _buildDetailItem(
+                        'Property ID',
+                        widget.transaction.propertyId ?? 'N/A',
+                      ),
+                      _buildDetailItem(
+                        'Bill Number',
+                        widget.transaction.billNo ?? 'N/A',
+                      ),
+                      _buildDetailItem(
+                        'Financial Year',
+                        widget.transaction.financialYear ?? 'N/A',
+                      ),
+                      _buildDetailItem(
+                        'Payment Mode',
+                        widget.transaction.paymentMode ?? 'N/A',
+                      ),
                       if (widget.transaction.bankRefNo != null)
-                        _buildDetailItem('Bank Ref No', widget.transaction.bankRefNo!),
-                      
+                        _buildDetailItem(
+                          'Bank Ref No',
+                          widget.transaction.bankRefNo!,
+                        ),
+
                       const SizedBox(height: 16),
                       // Dashed Line Simulation
                       Row(
-                        children: List.generate(30, (index) => Expanded(
-                          child: Container(
-                            color: index % 2 == 0 ? Colors.transparent : Colors.grey.shade300,
-                            height: 1,
+                        children: List.generate(
+                          30,
+                          (index) => Expanded(
+                            child: Container(
+                              color: index % 2 == 0
+                                  ? Colors.transparent
+                                  : Colors.grey.shade300,
+                              height: 1,
+                            ),
                           ),
-                        )),
+                        ),
                       ),
                       const SizedBox(height: 24),
-                      
+
                       // Logo or Footer
                       Padding(
                         padding: const EdgeInsets.only(bottom: 32.0),
                         child: Image.asset(
                           'assets/images/e_nagar_seva_logo.png',
                           height: 40,
-                          errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                          errorBuilder: (context, error, stackTrace) =>
+                              const SizedBox.shrink(),
                         ),
                       ),
                     ],
@@ -189,26 +375,32 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
                 ),
               ),
               const SizedBox(height: 32),
-              
+
               // Action Buttons
               Row(
                 children: [
                   Expanded(
-                    child: _buildActionButton(
-                      'Share Receipt',
-                      Icons.share_outlined,
-                      const Color(0xFF0E3B90),
-                      _shareReceipt,
+                    child: Container(
+                      key: _shareButtonKey,
+                      child: _buildActionButton(
+                        'Share Receipt',
+                        Icons.share_outlined,
+                        const Color(0xFF0E3B90),
+                        _shareReceipt,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: _buildActionButton(
-                      'Download',
-                      Icons.file_download_outlined,
-                      Colors.white,
-                      _downloadReceipt,
-                      isOutlined: true,
+                    child: Container(
+                      key: _downloadButtonKey,
+                      child: _buildActionButton(
+                        'Download',
+                        Icons.file_download_outlined,
+                        Colors.white,
+                        _downloadReceipt,
+                        isOutlined: true,
+                      ),
                     ),
                   ),
                 ],
@@ -251,7 +443,13 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
     );
   }
 
-  Widget _buildActionButton(String text, IconData icon, Color color, VoidCallback onTap, {bool isOutlined = false}) {
+  Widget _buildActionButton(
+    String text,
+    IconData icon,
+    Color color,
+    VoidCallback onTap, {
+    bool isOutlined = false,
+  }) {
     return ElevatedButton(
       onPressed: onTap,
       style: ElevatedButton.styleFrom(
@@ -261,7 +459,9 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
         padding: const EdgeInsets.symmetric(vertical: 16),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: isOutlined ? const BorderSide(color: Color(0xFF0E3B90), width: 1.5) : BorderSide.none,
+          side: isOutlined
+              ? const BorderSide(color: Color(0xFF0E3B90), width: 1.5)
+              : BorderSide.none,
         ),
       ),
       child: Row(
