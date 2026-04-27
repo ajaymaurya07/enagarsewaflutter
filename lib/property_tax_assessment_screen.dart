@@ -7,7 +7,6 @@ import 'services/property_tax_calculator.dart';
 import 'services/database_service.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:intl/intl.dart';
 
 class PropertyTaxAssessmentScreen extends StatefulWidget {
@@ -250,7 +249,7 @@ class _PropertyTaxAssessmentScreenState
               pw.SizedBox(height: 6),
               _pdfRow('Area Rate', _areaRate.toStringAsFixed(2)),
               _pdfRow('Construction Year', _constructionYearController.text),
-              _pdfRow('Age Of Structure', '${_ageOfConstruction} years'),
+              _pdfRow('Age Of Structure', '$_ageOfConstruction years'),
               pw.Divider(),
               pw.SizedBox(height: 8),
 
@@ -473,8 +472,9 @@ class _PropertyTaxAssessmentScreenState
       _ownerNameController.text = property.ownerName;
       _propertyIdController.text = property.propertyId;
       _mobileNoController.text = property.phoneNumber;
-      if (property.fatherName != null)
+      if (property.fatherName != null) {
         _fatherNameController.text = property.fatherName!;
+      }
 
       // Match ward by WardName from rate_master
       final wardText = property.ward.trim().toLowerCase();
@@ -492,6 +492,23 @@ class _PropertyTaxAssessmentScreenState
     });
   }
 
+  void _showPropertySelectionSheet() {
+    if (_savedProperties.isEmpty) {
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _PropertySelectionSheet(
+        title: 'Select Property',
+        items: _savedProperties.map((property) => property.propertyId).toList(),
+        onSelected: (index) => _onPropertySelected(_savedProperties[index]),
+      ),
+    );
+  }
+
   // ─── Step 1: Property Selection, Ward, Road Width, Construction Type ───
   Widget _buildStep1() {
     return Column(
@@ -501,49 +518,64 @@ class _PropertyTaxAssessmentScreenState
         if (_savedProperties.isNotEmpty) ...[
           _sectionTitle('Select Property'),
           const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.white,
+          Material(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+              onTap: _showPropertySelectionSheet,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: _surfaceBorder),
-            ),
-            child: DropdownButtonFormField<String>(
-              value: _selectedProperty?.propertyId,
-              items: _savedProperties
-                  .map(
-                    (p) => DropdownMenuItem(
-                      value: p.propertyId,
-                      child: Text(
-                        p.propertyId,
-                        style: GoogleFonts.poppins(fontSize: 13),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _surfaceBorder),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.home_work_outlined,
+                      color: _primaryColor,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Choose Property',
+                            style: GoogleFonts.poppins(
+                              fontSize: 13,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _selectedProperty?.propertyId ??
+                                'Choose Property',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              color: _selectedProperty == null
+                                  ? Colors.grey.shade500
+                                  : const Color(0xFF333333),
+                              fontWeight: _selectedProperty == null
+                                  ? FontWeight.w400
+                                  : FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  )
-                  .toList(),
-              onChanged: (val) {
-                final prop = _savedProperties.firstWhere(
-                  (p) => p.propertyId == val,
-                );
-                _onPropertySelected(prop);
-              },
-              decoration: InputDecoration(
-                labelText: 'Choose Property',
-                labelStyle: GoogleFonts.poppins(
-                  fontSize: 13,
-                  color: Colors.grey.shade600,
+                    Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: Colors.grey.shade600,
+                    ),
+                  ],
                 ),
-                border: InputBorder.none,
-                prefixIcon: Icon(
-                  Icons.home_work_outlined,
-                  color: _primaryColor,
-                  size: 20,
-                ),
-              ),
-              isExpanded: true,
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                color: const Color(0xFF333333),
               ),
             ),
           ),
@@ -859,40 +891,6 @@ class _PropertyTaxAssessmentScreenState
     );
   }
 
-  Widget _buildDropdownCard<T>({
-    required String label,
-    required T? value,
-    required List<DropdownMenuItem<T>> items,
-    required ValueChanged<T?> onChanged,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: DropdownButtonFormField<T>(
-        value: value,
-        items: items,
-        onChanged: onChanged,
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: GoogleFonts.poppins(
-            fontSize: 13,
-            color: Colors.grey.shade600,
-          ),
-          border: InputBorder.none,
-        ),
-        isExpanded: true,
-        style: GoogleFonts.poppins(
-          fontSize: 14,
-          color: const Color(0xFF333333),
-        ),
-      ),
-    );
-  }
-
   Widget _buildRadioGroup<T>({
     required Map<T, String> options,
     required T? groupValue,
@@ -994,54 +992,6 @@ class _PropertyTaxAssessmentScreenState
     );
   }
 
-  Widget _buildResultCard(List<Widget> rows) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(children: rows),
-    );
-  }
-
-  Widget _resultRow(String label, double value, {bool highlight = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: GoogleFonts.poppins(
-                fontSize: 13,
-                color: highlight ? _primaryColor : Colors.grey.shade700,
-                fontWeight: highlight ? FontWeight.w700 : FontWeight.w500,
-              ),
-            ),
-          ),
-          Text(
-            '₹ ${value.toStringAsFixed(2)}',
-            style: GoogleFonts.poppins(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: highlight ? _primaryColor : const Color(0xFF333333),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildBottomButtons() {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
@@ -1103,6 +1053,116 @@ class _PropertyTaxAssessmentScreenState
                   ),
                 ),
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PropertySelectionSheet extends StatefulWidget {
+  const _PropertySelectionSheet({
+    required this.title,
+    required this.items,
+    required this.onSelected,
+  });
+
+  final String title;
+  final List<String> items;
+  final Function(int) onSelected;
+
+  @override
+  State<_PropertySelectionSheet> createState() => _PropertySelectionSheetState();
+}
+
+class _PropertySelectionSheetState extends State<_PropertySelectionSheet> {
+  late List<String> _filteredItems;
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _filteredItems = widget.items;
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _filterItems(String query) {
+    setState(() {
+      _filteredItems = widget.items
+          .where((item) => item.toLowerCase().contains(query.toLowerCase()))
+          .toList();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.5,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  widget.title,
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+          ),
+          if (widget.items.length > 5)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: TextField(
+                controller: _searchController,
+                onChanged: _filterItems,
+                style: GoogleFonts.poppins(fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: 'Search property...',
+                  prefixIcon: const Icon(Icons.search),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                ),
+              ),
+            ),
+          const SizedBox(height: 10),
+          Expanded(
+            child: ListView.separated(
+              itemCount: _filteredItems.length,
+              separatorBuilder: (context, index) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final item = _filteredItems[index];
+                return ListTile(
+                  title: Text(item, style: GoogleFonts.poppins(fontSize: 15)),
+                  onTap: () {
+                    final originalIndex = widget.items.indexOf(item);
+                    widget.onSelected(originalIndex);
+                    Navigator.pop(context);
+                  },
+                );
+              },
             ),
           ),
         ],
