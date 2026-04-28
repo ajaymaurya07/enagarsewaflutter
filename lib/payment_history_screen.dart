@@ -305,7 +305,16 @@ class _ReceiptCard extends StatelessWidget {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(
+              ApiService.getUserFriendlyErrorMessage(
+                e,
+                fallbackMessage:
+                    'Unable to download receipt right now. Please try again.',
+              ),
+            ),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -325,7 +334,16 @@ class _ReceiptCard extends StatelessWidget {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(
+              ApiService.getUserFriendlyErrorMessage(
+                e,
+                fallbackMessage:
+                    'Unable to share receipt right now. Please try again.',
+              ),
+            ),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }

@@ -199,7 +199,11 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
     } catch (e) {
       setState(() {
         _isLoadingUlbs = false;
-        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+        _errorMessage = ApiService.getUserFriendlyErrorMessage(
+          e,
+          fallbackMessage:
+              'Unable to load ULB data right now. Please try again.',
+        );
       });
     }
   }
@@ -337,7 +341,15 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
         _isSearching = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString().replaceFirst('Exception: ', '')}')),
+        SnackBar(
+          content: Text(
+            ApiService.getUserFriendlyErrorMessage(
+              e,
+              fallbackMessage:
+                  'Unable to search properties right now. Please try again.',
+            ),
+          ),
+        ),
       );
     }
   }

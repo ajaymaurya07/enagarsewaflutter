@@ -898,7 +898,13 @@ class _SignUpScreenState extends State<SignUpScreen>
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
-      _showError(e.toString().replaceFirst('Exception: ', ''));
+      _showError(
+        ApiService.getUserFriendlyErrorMessage(
+          e,
+          fallbackMessage:
+              'Unable to create account right now. Please try again.',
+        ),
+      );
     }
   }
 
@@ -1045,7 +1051,12 @@ class _SignUpScreenState extends State<SignUpScreen>
                                 if (!ctx.mounted) return;
                                 setSheetState(() {
                                   isVerifying = false;
-                                  sheetError = e.toString().replaceFirst('Exception: ', '');
+                                  sheetError =
+                                      ApiService.getUserFriendlyErrorMessage(
+                                    e,
+                                    fallbackMessage:
+                                        'Unable to verify OTP right now. Please try again.',
+                                  );
                                 });
                               }
                             },

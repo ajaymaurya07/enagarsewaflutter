@@ -950,7 +950,16 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
       if (mounted) {
         setState(() => _isSubmitting = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(
+              ApiService.getUserFriendlyErrorMessage(
+                e,
+                fallbackMessage:
+                    'Unable to submit grievance right now. Please try again.',
+              ),
+            ),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -1085,7 +1094,14 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
                           }
                         } catch (e) {
                           if (!mounted) return;
-                          setModalState(() => errorText = e.toString());
+                          setModalState(
+                            () =>
+                                errorText = ApiService.getUserFriendlyErrorMessage(
+                              e,
+                              fallbackMessage:
+                                  'Unable to verify OTP right now. Please try again.',
+                            ),
+                          );
                         } finally {
                           if (mounted) setModalState(() => isVerifying = false);
                         }

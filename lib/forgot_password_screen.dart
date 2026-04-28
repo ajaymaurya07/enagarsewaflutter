@@ -48,7 +48,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
-      _showError(e.toString().replaceAll('Exception: ', ''));
+      _showError(
+        ApiService.getUserFriendlyErrorMessage(
+          e,
+          fallbackMessage: 'Unable to send OTP right now. Please try again.',
+        ),
+      );
     }
   }
 
@@ -322,9 +327,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                                     if (!mounted) return;
                                     setSheetState(() {
                                       isResetting = false;
-                                      sheetError = e.toString().replaceAll(
-                                        'Exception: ',
-                                        '',
+                                      sheetError =
+                                          ApiService.getUserFriendlyErrorMessage(
+                                        e,
+                                        fallbackMessage:
+                                            'Unable to reset password right now. Please try again.',
                                       );
                                     });
                                   }

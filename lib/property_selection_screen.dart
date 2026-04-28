@@ -107,7 +107,12 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
-      _showSnackBar(e.toString().replaceFirst('Exception: ', ''));
+      _showSnackBar(
+        ApiService.getUserFriendlyErrorMessage(
+          e,
+          fallbackMessage: 'Unable to send OTP right now. Please try again.',
+        ),
+      );
     }
   }
 
@@ -299,7 +304,14 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
                         }
                       } catch (e) {
                         if (!mounted) return;
-                        setModalState(() => sheetError = e.toString().replaceFirst('Exception: ', ''));
+                        setModalState(
+                          () =>
+                              sheetError = ApiService.getUserFriendlyErrorMessage(
+                            e,
+                            fallbackMessage:
+                                'Unable to verify OTP right now. Please try again.',
+                          ),
+                        );
                       } finally {
                         if (mounted) setModalState(() => isVerifying = false);
                       }

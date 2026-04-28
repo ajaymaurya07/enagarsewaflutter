@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
+import 'services/api_service.dart';
 import 'services/database_service.dart';
 import 'payment_details_screen.dart';
 import 'tour_guides/property_tax_tour.dart';
@@ -45,7 +46,17 @@ class _PropertyTaxScreenState extends State<PropertyTaxScreen> {
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Error loading properties: $e')));
+      ).showSnackBar(
+        SnackBar(
+          content: Text(
+            ApiService.getUserFriendlyErrorMessage(
+              e,
+              fallbackMessage:
+                  'Unable to load properties right now. Please try again.',
+            ),
+          ),
+        ),
+      );
     }
   }
 

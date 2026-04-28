@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'dart:io';
@@ -12,6 +13,10 @@ import '../login_screen.dart';
 
 class ApiService {
   static GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  static const String _genericErrorMessage =
+      'Something went wrong. Please try again.';
+  static const String _networkErrorMessage =
+      'Unable to connect right now. Please check your internet connection and try again.';
 
   static Future<Map<String, String>> _getHeaders() async {
     final token = await StorageService.getAccessToken();
@@ -146,7 +151,7 @@ class ApiService {
         throw Exception('Failed to save grievance: ${response.statusCode}');
       }
     } catch (e) {
-      throw Exception('Connection error: $e');
+      throw _userSafeException(e);
     }
   }
 
@@ -179,7 +184,7 @@ class ApiService {
         throw Exception('Verification failed: ${response.statusCode}');
       }
     } catch (e) {
-      throw Exception('Connection error: $e');
+      throw _userSafeException(e);
     }
   }
 
@@ -209,7 +214,7 @@ class ApiService {
         throw Exception('Server error: ${response.statusCode}');
       }
     } catch (e) {
-      throw Exception('Connection error: $e');
+      throw _userSafeException(e);
     }
   }
 
@@ -237,7 +242,7 @@ class ApiService {
         throw Exception('Server error: ${response.statusCode}');
       }
     } catch (e) {
-      throw Exception('Connection error: $e');
+      throw _userSafeException(e);
     }
   }
 
@@ -265,7 +270,7 @@ class ApiService {
         throw Exception('Server error: ${response.statusCode}');
       }
     } catch (e) {
-      throw Exception('Connection error: $e');
+      throw _userSafeException(e);
     }
   }
 
@@ -295,7 +300,7 @@ class ApiService {
         throw Exception('Server error: ${response.statusCode}');
       }
     } catch (e) {
-      throw Exception('Connection error: $e');
+      throw _userSafeException(e);
     }
   }
 
@@ -329,7 +334,7 @@ class ApiService {
         throw Exception('Server error: ${response.statusCode}');
       }
     } catch (e) {
-      throw Exception('Connection error: $e');
+      throw _userSafeException(e);
     }
   }
 
@@ -382,7 +387,7 @@ class ApiService {
         throw Exception('Search failed: ${response.statusCode}');
       }
     } catch (e) {
-      throw Exception('Connection error: $e');
+      throw _userSafeException(e);
     }
   }
 
@@ -409,7 +414,7 @@ class ApiService {
         );
       }
     } catch (e) {
-      throw Exception('Connection error: $e');
+      throw _userSafeException(e);
     }
   }
 
@@ -441,7 +446,7 @@ class ApiService {
       }
     } catch (e) {
       if (e is Exception) rethrow;
-      throw Exception('Connection error: $e');
+      throw _userSafeException(e);
     }
   }
 
@@ -487,7 +492,7 @@ class ApiService {
       }
     } catch (e) {
       if (e is Exception) rethrow;
-      throw Exception('Connection error: $e');
+      throw _userSafeException(e);
     }
   }
 
@@ -516,7 +521,7 @@ class ApiService {
         throw Exception('Failed to send OTP: ${response.statusCode}');
       }
     } catch (e) {
-      throw Exception('Connection error: $e');
+      throw _userSafeException(e);
     }
   }
 
@@ -542,7 +547,7 @@ class ApiService {
         throw Exception('OTP verification failed: ${response.statusCode}');
       }
     } catch (e) {
-      throw Exception('Connection error: $e');
+      throw _userSafeException(e);
     }
   }
 
@@ -571,7 +576,7 @@ class ApiService {
         );
       }
     } catch (e) {
-      throw Exception('Connection error: $e');
+      throw _userSafeException(e);
     }
   }
 
@@ -603,7 +608,7 @@ class ApiService {
         throw Exception('Failed to generate hash: ${response.statusCode}');
       }
     } catch (e) {
-      throw Exception('Connection error: $e');
+      throw _userSafeException(e);
     }
   }
 
@@ -630,7 +635,7 @@ class ApiService {
         throw Exception('Failed to load transactions: ${response.statusCode}');
       }
     } catch (e) {
-      throw Exception('Connection error: $e');
+      throw _userSafeException(e);
     }
   }
 
@@ -659,7 +664,7 @@ class ApiService {
         );
       }
     } catch (e) {
-      throw Exception('Connection error: $e');
+      throw _userSafeException(e);
     }
   }
 
@@ -688,7 +693,7 @@ class ApiService {
         );
       }
     } catch (e) {
-      throw Exception('Connection error: $e');
+      throw _userSafeException(e);
     }
   }
 
@@ -806,7 +811,7 @@ class ApiService {
       }
     } catch (e) {
       if (e is Exception) rethrow;
-      throw Exception('Connection error: $e');
+      throw _userSafeException(e);
     }
   }
 
@@ -840,7 +845,7 @@ class ApiService {
       }
     } catch (e) {
       if (e is Exception) rethrow;
-      throw Exception('Connection error: $e');
+      throw _userSafeException(e);
     }
   }
 
@@ -862,7 +867,7 @@ class ApiService {
         throw Exception('Logout failed: ${response.statusCode}');
       }
     } catch (e) {
-      throw Exception('Connection error: $e');
+      throw _userSafeException(e);
     }
   }
 
@@ -887,8 +892,70 @@ class ApiService {
         throw Exception('Server error: ${response.statusCode}');
       }
     } catch (e) {
-      throw Exception('Connection error: $e');
+      throw _userSafeException(e);
     }
+  }
+
+  static String getUserFriendlyErrorMessage(
+    Object error, {
+    String fallbackMessage = _genericErrorMessage,
+  }) {
+    if (error is SocketException ||
+        error is TimeoutException ||
+        error is http.ClientException) {
+      return _networkErrorMessage;
+    }
+
+    final message = _extractErrorMessage(error);
+    if (message.isEmpty) {
+      return fallbackMessage;
+    }
+
+    if (_isTechnicalErrorMessage(message)) {
+      return fallbackMessage;
+    }
+
+    return message;
+  }
+
+  static Exception _userSafeException(
+    Object error, {
+    String fallbackMessage = _genericErrorMessage,
+  }) {
+    return Exception(
+      getUserFriendlyErrorMessage(
+        error,
+        fallbackMessage: fallbackMessage,
+      ),
+    );
+  }
+
+  static String _extractErrorMessage(Object error) {
+    return error.toString().replaceFirst('Exception: ', '').trim();
+  }
+
+  static bool _isTechnicalErrorMessage(String message) {
+    final normalized = message.toLowerCase();
+    return normalized.startsWith('connection error:') ||
+        normalized.startsWith('server error:') ||
+        normalized.startsWith('login api error:') ||
+        normalized.startsWith('failed to get challenge:') ||
+        normalized.startsWith('failed to load property details:') ||
+        normalized.startsWith('transaction initiation failed:') ||
+        normalized.startsWith('failed to generate hash:') ||
+        normalized.startsWith('sign up failed:') ||
+        normalized.startsWith('otp verification failed:') ||
+        normalized.startsWith('password reset failed:') ||
+        normalized.contains('socketexception') ||
+        normalized.contains('clientexception') ||
+        normalized.contains('formatexception') ||
+        normalized.contains('xmlhttprequest error') ||
+        normalized.contains('failed host lookup') ||
+        normalized.contains('connection closed before full header was received') ||
+        (normalized.contains('type ') &&
+            normalized.contains(' is not a subtype')) ||
+        message.contains(r'${') ||
+        RegExp(r':\s*\d{3}\b').hasMatch(message);
   }
 
   static String _generateNonce(int length) {

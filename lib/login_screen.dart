@@ -64,7 +64,12 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (e) {
       setState(() => _isLoading = false);
-      _showError(e.toString().replaceAll('Exception: ', ''));
+      _showError(
+        ApiService.getUserFriendlyErrorMessage(
+          e,
+          fallbackMessage: 'Unable to log in right now. Please try again.',
+        ),
+      );
     }
   }
 

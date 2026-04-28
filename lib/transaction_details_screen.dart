@@ -154,7 +154,17 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
       }
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Error sharing receipt: $e')));
+      ).showSnackBar(
+        SnackBar(
+          content: Text(
+            ApiService.getUserFriendlyErrorMessage(
+              e,
+              fallbackMessage:
+                  'Unable to share receipt right now. Please try again.',
+            ),
+          ),
+        ),
+      );
     }
   }
 
@@ -191,7 +201,17 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
       }
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Error downloading receipt: $e')));
+      ).showSnackBar(
+        SnackBar(
+          content: Text(
+            ApiService.getUserFriendlyErrorMessage(
+              e,
+              fallbackMessage:
+                  'Unable to download receipt right now. Please try again.',
+            ),
+          ),
+        ),
+      );
     }
   }
 

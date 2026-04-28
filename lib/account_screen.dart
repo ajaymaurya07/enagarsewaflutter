@@ -221,7 +221,16 @@ class _AccountScreenState extends State<AccountScreen> {
         Navigator.pop(context); // Remove loading overlay
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Logout failed: $e')));
+        ).showSnackBar(
+          SnackBar(
+            content: Text(
+              ApiService.getUserFriendlyErrorMessage(
+                e,
+                fallbackMessage: 'Logout failed. Please try again.',
+              ),
+            ),
+          ),
+        );
       }
     }
   }

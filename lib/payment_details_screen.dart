@@ -239,7 +239,11 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
       if (!mounted) return;
 
       setState(() {
-        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+        _errorMessage = ApiService.getUserFriendlyErrorMessage(
+          e,
+          fallbackMessage:
+              'Unable to load payment details right now. Please try again.',
+        );
         _isLoading = false;
       });
     }
@@ -366,7 +370,15 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
 
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
+        SnackBar(
+          content: Text(
+            ApiService.getUserFriendlyErrorMessage(
+              e,
+              fallbackMessage:
+                  'Unable to send OTP right now. Please try again.',
+            ),
+          ),
+        ),
       );
     }
   }
@@ -515,7 +527,14 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
                           setModalState(() => sheetError = res.message ?? 'Invalid OTP');
                         }
                       } catch (e) {
-                        setModalState(() => sheetError = e.toString().replaceFirst('Exception: ', ''));
+                        setModalState(
+                          () =>
+                              sheetError = ApiService.getUserFriendlyErrorMessage(
+                            e,
+                            fallbackMessage:
+                                'Unable to verify OTP right now. Please try again.',
+                          ),
+                        );
                       } finally {
                         if (mounted) setModalState(() => isVerifying = false);
                       }
@@ -642,7 +661,15 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
     } catch (e) {
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
+        SnackBar(
+          content: Text(
+            ApiService.getUserFriendlyErrorMessage(
+              e,
+              fallbackMessage:
+                  'Unable to create transaction right now. Please try again.',
+            ),
+          ),
+        ),
       );
       if (kDebugMode) {
         print('--- TRANSACTION ERROR ---');
@@ -740,13 +767,33 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
         if (!mounted) return;
 
         if (kDebugMode) print('PayU plugin error: $e');
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to start PayU payment: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              ApiService.getUserFriendlyErrorMessage(
+                e,
+                fallbackMessage:
+                    'Unable to start PayU payment right now. Please try again.',
+              ),
+            ),
+          ),
+        );
       }
     } catch (e) {
       if (!mounted) return;
 
       if (kDebugMode) print('Payment error: $e');
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            ApiService.getUserFriendlyErrorMessage(
+              e,
+              fallbackMessage:
+                  'Unable to start payment right now. Please try again.',
+            ),
+          ),
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);

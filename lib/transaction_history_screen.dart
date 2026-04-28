@@ -170,7 +170,11 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       }
     } catch (e) {
       setState(() {
-        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+        _errorMessage = ApiService.getUserFriendlyErrorMessage(
+          e,
+          fallbackMessage:
+              'Unable to load transactions right now. Please try again.',
+        );
         _isLoading = false;
       });
     }
