@@ -1,6 +1,5 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
-import 'package:flutter/foundation.dart';
 
 class PropertyEntity {
   final String propertyId;
@@ -148,9 +147,6 @@ class DatabaseService {
       }
       
       await deleteDatabase(path);
-      debugPrint("Database cleared and file deleted successfully.");
-    } catch (e) {
-      debugPrint("Database clear error: $e");
-    }
+    } catch (_) {}
   }
 }

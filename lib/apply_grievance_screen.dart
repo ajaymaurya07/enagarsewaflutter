@@ -293,9 +293,7 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
           _selectedImage = file;
         });
       }
-    } catch (e) {
-      debugPrint("Error picking image: $e");
-    }
+    } catch (_) {}
   }
 
   void _showImageSourceSheet() {
@@ -1075,9 +1073,6 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
                                 otp: otpController.text,
                                 grievanceId: grievanceId,
                               );
-                          debugPrint(
-                            'OTP Verify Response => success: ${res.success}, message: ${res.message}, responseCode: ${res.responseCode}, data: ${res.data}',
-                          );
                           if (res.success == true) {
                             if (!mounted || !sheetContext.mounted) return;
                             Navigator.pop(sheetContext); // Close OTP sheet

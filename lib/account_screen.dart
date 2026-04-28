@@ -194,8 +194,7 @@ class _AccountScreenState extends State<AccountScreen> {
       // 1. Call Logout API
       try {
         await ApiService.logout();
-      } catch (e) {
-        debugPrint("Logout API failed: $e");
+      } catch (_) {
         // We continue logout even if API fails to ensure local data is cleared
       }
 

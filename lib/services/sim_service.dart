@@ -35,14 +35,11 @@ class SimService {
         if (phoneNumbers.isNotEmpty) {
           return phoneNumbers;
         }
-      } catch (e) {
-        print('Error getting phone numbers from native: $e');
-      }
+      } catch (_) {}
 
       // Fallback to default if no actual numbers found
       return defaultPhoneNumbers;
-    } catch (e) {
-      print('Error getting phone numbers: $e');
+    } catch (_) {
       return defaultPhoneNumbers;
     }
   }
@@ -52,8 +49,7 @@ class SimService {
     try {
       final status = await Permission.phone.request();
       return status.isGranted;
-    } catch (e) {
-      print('Error requesting phone permission: $e');
+    } catch (_) {
       return false;
     }
   }

@@ -28,14 +28,11 @@ class EmailService {
         if (emails.isNotEmpty) {
           return emails;
         }
-      } catch (e) {
-        print('Error getting emails from native: $e');
-      }
+      } catch (_) {}
 
       // Return empty list if no actual emails found
       return [];
-    } catch (e) {
-      print('Error getting emails: $e');
+    } catch (_) {
       return [];
     }
   }
@@ -45,8 +42,7 @@ class EmailService {
     try {
       final status = await Permission.contacts.request();
       return status.isGranted;
-    } catch (e) {
-      print('Error requesting contacts permission: $e');
+    } catch (_) {
       return false;
     }
   }
@@ -63,9 +59,7 @@ class EmailService {
       if (emails.isNotEmpty) {
         return emails;
       }
-    } catch (e) {
-      print('Error getting Gmail emails from native: $e');
-    }
+    } catch (_) {}
     
     return [];
   }

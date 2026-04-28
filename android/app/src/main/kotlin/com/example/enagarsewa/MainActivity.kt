@@ -59,9 +59,7 @@ class MainActivity : FlutterActivity() {
                     phoneNumbers.add(number)
                 }
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        } catch (_: Exception) {}
         
         return phoneNumbers
     }
@@ -96,9 +94,7 @@ class MainActivity : FlutterActivity() {
                     }
                 }
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        } catch (_: Exception) {}
         
         return emails
     }
@@ -117,8 +113,7 @@ class MainActivity : FlutterActivity() {
             }
             
             gmailEmails
-        } catch (e: Exception) {
-            e.printStackTrace()
+        } catch (_: Exception) {
             emptyList()
         }
     }
