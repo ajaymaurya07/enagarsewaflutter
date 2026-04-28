@@ -8,16 +8,16 @@ This project is a starting point for a Flutter application.
 
 ## Runtime Configuration
 
-The app requires the API base URL to be passed at build or run time so the environment is not hardcoded in source.
+The app requires runtime defines so API and payment environments are not hardcoded in source.
 
 Example:
 
 ```bash
-flutter run --dart-define=BASE_URL=https://iamsup.in/ulb_property_tax/
-flutter build apk --dart-define=BASE_URL=https://iamsup.in/ulb_property_tax/
+flutter run --dart-define=BASE_URL=https://iamsup.in/ulb_property_tax/ --dart-define=PAYU_ENV=0
+flutter build apk --dart-define=BASE_URL=https://iamsup.in/ulb_property_tax/ --dart-define=PAYU_ENV=0
 ```
 
-You can supply a staging or production URL through the same `BASE_URL` define.
+Use `PAYU_ENV=0` for production and `PAYU_ENV=1` for test/sandbox. You can supply a staging or production API URL through the same `BASE_URL` define.
 
 A few resources to get you started if this is your first Flutter project:
 

@@ -5,6 +5,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'constants/app_constants.dart';
 import 'services/api_service.dart';
 import 'services/storage_service.dart';
 import 'services/database_service.dart';
@@ -714,7 +715,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
           PayUPaymentParamKey.android_furl: furl,
           PayUPaymentParamKey.ios_surl: surl,
           PayUPaymentParamKey.ios_furl: furl,
-          PayUPaymentParamKey.environment: '1', // 0 = production, 1 = test/sandbox
+          PayUPaymentParamKey.environment: AppConstants.payuEnvironment,
           PayUPaymentParamKey.userCredential: '$key:$email',
         };
 
