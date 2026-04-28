@@ -91,7 +91,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                     color: Colors.white,
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFFE67514).withOpacity(0.3),
+                        color: const Color(0xFFE67514).withValues(alpha: 0.3),
                         blurRadius: 40,
                         spreadRadius: 8,
                       ),
@@ -121,7 +121,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                   style: GoogleFonts.poppins(
                     fontSize: 13,
                     fontWeight: FontWeight.w400,
-                    color: const Color(0xFFE67514).withOpacity(0.7),
+                    color: const Color(0xFFE67514).withValues(alpha: 0.7),
                   ),
                 ),
 
@@ -134,7 +134,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                   child: CircularProgressIndicator(
                     strokeWidth: 3,
                     valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFE67514)),
-                    backgroundColor: const Color(0xFFE67514).withOpacity(0.15),
+                    backgroundColor: const Color(0xFFE67514).withValues(alpha: 0.15),
                   ),
                 ),
 

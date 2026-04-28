@@ -19,7 +19,7 @@ class PaymentGrievanceScreen extends StatefulWidget {
 
 class _PaymentGrievanceScreenState extends State<PaymentGrievanceScreen> {
   final _formKey = GlobalKey<FormState>();
-  bool _isSubmitting = false;
+  final bool _isSubmitting = false;
 
   // Grievance category options
   final List<String> _grievanceCategories = [
@@ -281,7 +281,7 @@ class _PaymentGrievanceScreenState extends State<PaymentGrievanceScreen> {
           ),
           if (_isSubmitting)
             Container(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withValues(alpha: 0.3),
               child: const Center(
                 child: CircularProgressIndicator(color: Color(0xFF0E3B90)),
               ),

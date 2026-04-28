@@ -44,13 +44,16 @@ class _LoginScreenState extends State<LoginScreen> {
       final String deviceId = await DeviceService.getDeviceId();
       final response = await ApiService.secureLogin(email, password, deviceId);
 
+      if (!mounted) return;
+
       if (response.success) {
-        if (!mounted) return;
         setState(() => _isLoading = false);
         _showSuccess('Login successful!');
 
         final emailToSave = response.data?.emailId ?? email;
         await StorageService.saveEmailId(emailToSave);
+
+        if (!mounted) return;
 
         _emailController.clear();
         _passwordController.clear();
@@ -63,6 +66,7 @@ class _LoginScreenState extends State<LoginScreen> {
         _showError(response.message);
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
       _showError(
         ApiService.getUserFriendlyErrorMessage(
@@ -129,7 +133,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.06),
+                          color: Colors.black.withValues(alpha: 0.06),
                           blurRadius: 20,
                           offset: const Offset(0, 8),
                         ),
@@ -269,7 +273,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             onPressed: _isLoading ? null : _handleLogin,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFFE67514),
-                              disabledBackgroundColor: const Color(0xFFE67514).withOpacity(0.6),
+                              disabledBackgroundColor: const Color(0xFFE67514).withValues(alpha: 0.6),
                               foregroundColor: Colors.white,
                               elevation: 0,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),

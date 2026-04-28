@@ -813,8 +813,11 @@ class _SignUpScreenState extends State<SignUpScreen>
     // Remove spaces, dashes, brackets
     String cleaned = phone.replaceAll(RegExp(r'[\s\-()]'), '');
     // Remove +91 or 91 prefix
-    if (cleaned.startsWith('+91')) cleaned = cleaned.substring(3);
-    else if (cleaned.startsWith('91') && cleaned.length > 10) cleaned = cleaned.substring(2);
+    if (cleaned.startsWith('+91')) {
+      cleaned = cleaned.substring(3);
+    } else if (cleaned.startsWith('91') && cleaned.length > 10) {
+      cleaned = cleaned.substring(2);
+    }
     // Return last 10 digits as fallback
     if (cleaned.length > 10) cleaned = cleaned.substring(cleaned.length - 10);
     return cleaned;
@@ -854,6 +857,7 @@ class _SignUpScreenState extends State<SignUpScreen>
       }
 
       // Step 3: Show success dialog and go back
+      if (!mounted) return;
       await showDialog(
         context: context,
         barrierDismissible: false,
@@ -1123,18 +1127,6 @@ class _SignUpScreenState extends State<SignUpScreen>
     );
   }
 
-  void _showSuccess(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: GoogleFonts.poppins()),
-        backgroundColor: Colors.green.shade600,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1180,7 +1172,7 @@ class _SignUpScreenState extends State<SignUpScreen>
                           borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.06),
+                              color: Colors.black.withValues(alpha: 0.06),
                               blurRadius: 20,
                               offset: const Offset(0, 8),
                             ),
@@ -1314,7 +1306,7 @@ class _SignUpScreenState extends State<SignUpScreen>
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFFE67514),
                                   disabledBackgroundColor:
-                                      const Color(0xFFE67514).withOpacity(0.6),
+                                    const Color(0xFFE67514).withValues(alpha: 0.6),
                                   foregroundColor: Colors.white,
                                   elevation: 0,
                                   shape: RoundedRectangleBorder(

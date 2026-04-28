@@ -246,6 +246,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           onPressed: isResetting
                               ? null
                               : () async {
+                                  final sheetNavigator = Navigator.of(context);
                                   final otp = otpController.text.trim();
                                   final newPass = newPasswordController.text;
                                   final confirmPass =
@@ -304,7 +305,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                                     setSheetState(() => isResetting = false);
 
                                     if (response.status) {
-                                      Navigator.pop(context); // close sheet
+                                      sheetNavigator.pop();
                                       _showSuccessAndGoBack(
                                         response.message.isNotEmpty
                                             ? response.message
@@ -340,7 +341,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             backgroundColor: const Color(0xFFE67514),
                             disabledBackgroundColor: const Color(
                               0xFFE67514,
-                            ).withOpacity(0.6),
+                            ).withValues(alpha: 0.6),
                             foregroundColor: Colors.white,
                             elevation: 0,
                             shape: RoundedRectangleBorder(
@@ -516,7 +517,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           width: 80,
                           height: 80,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFE67514).withOpacity(0.1),
+                            color: const Color(0xFFE67514).withValues(alpha: 0.1),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
@@ -535,7 +536,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             borderRadius: BorderRadius.circular(20),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.06),
+                                  color: Colors.black.withValues(alpha: 0.06),
                                 blurRadius: 20,
                                 offset: const Offset(0, 8),
                               ),
@@ -624,7 +625,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                                     backgroundColor: const Color(0xFFE67514),
                                     disabledBackgroundColor: const Color(
                                       0xFFE67514,
-                                    ).withOpacity(0.6),
+                                    ).withValues(alpha: 0.6),
                                     foregroundColor: Colors.white,
                                     elevation: 0,
                                     shape: RoundedRectangleBorder(
