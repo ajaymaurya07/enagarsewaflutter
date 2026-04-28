@@ -281,18 +281,6 @@ class SearchPropertyTourGuide {
               height: 1.5,
             ),
           ),
-          const SizedBox(height: 10),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Text(
-              'Tap to continue →',
-              style: GoogleFonts.poppins(
-                fontSize: 11,
-                color: const Color(0xFFE67514),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
         ],
       ),
     );
