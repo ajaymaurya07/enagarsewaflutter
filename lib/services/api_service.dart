@@ -801,9 +801,6 @@ class ApiService {
           )
           .timeout(Duration(seconds: AppConstants.networkTimeout));
 
-      debugPrint('[SignUp] Status: ${response.statusCode}');
-      debugPrint('[SignUp] Response: ${response.body}');
-
       if (response.statusCode == 200) {
         return SignUpResponse.fromJson(jsonDecode(response.body));
       } else {
@@ -834,9 +831,6 @@ class ApiService {
             body: jsonEncode({'email': email, 'otp': otp}),
           )
           .timeout(Duration(seconds: AppConstants.networkTimeout));
-
-      debugPrint('[VerifyOtpEmail] Status: ${response.statusCode}');
-      debugPrint('[VerifyOtpEmail] Response: ${response.body}');
 
       if (response.statusCode == 200) {
         return VerifyOtpMailResponse.fromJson(jsonDecode(response.body));
