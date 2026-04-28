@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pdf/pdf.dart';
@@ -37,7 +36,6 @@ class _PayuDelegate implements PayUCheckoutProProtocol {
 
   @override
   generateHash(Map response) async {
-    if (kDebugMode) print('generateHash callback: $response');
     try {
       String? hashName;
       String? hashString;
@@ -56,24 +54,19 @@ class _PayuDelegate implements PayUCheckoutProProtocol {
       }
 
       if (hashName == null || hashString == null) {
-        if (kDebugMode) print('generateHash: missing hashName/hashString');
         return;
       }
 
       final hashRes = await ApiService.generateHash(hashName, hashString);
       final hash = hashRes.data;
-      if (kDebugMode) print('Server returned hash for $hashName: $hash');
 
       if (hash == null || hash.isEmpty) {
-        if (kDebugMode) print('generateHash: empty hash from server');
         return;
       }
 
       // send back to native SDK via plugin
       await _payu?.hashGenerated(hash: {hashName: hash});
-    } catch (e) {
-      if (kDebugMode) print('generateHash error: $e');
-    }
+    } catch (_) {}
   }
 
   Map<String, String> _extractDetails(dynamic response) {
@@ -101,9 +94,7 @@ class _PayuDelegate implements PayUCheckoutProProtocol {
         }
         if (payuResp['addedon'] != null) details['Date'] = payuResp['addedon'].toString();
       }
-    } catch (e) {
-      if (kDebugMode) print('Error extracting PayU details: $e');
-    }
+    } catch (_) {}
     return details;
   }
 
@@ -125,7 +116,6 @@ class _PayuDelegate implements PayUCheckoutProProtocol {
 
   @override
   onError(Map? response) {
-    if (kDebugMode) print('PayU error: $response');
     final errorMsg = response?['errorMsg']?.toString() ?? 'Something went wrong';
     Navigator.of(context).pushReplacement(MaterialPageRoute(
       builder: (_) => PaymentResultScreen(
@@ -137,7 +127,6 @@ class _PayuDelegate implements PayUCheckoutProProtocol {
 
   @override
   onPaymentCancel(Map? response) {
-    if (kDebugMode) print('PayU cancelled: $response');
     final isTxnInitiated = response?['isTxnInitiated'] == true;
     Navigator.of(context).pushReplacement(MaterialPageRoute(
       builder: (_) => PaymentResultScreen(
@@ -151,7 +140,6 @@ class _PayuDelegate implements PayUCheckoutProProtocol {
 
   @override
   onPaymentFailure(response) {
-    if (kDebugMode) print('PayU failure: $response');
     final details = _extractDetails(response);
     final txnId = _extractField(response, 'txnid');
     final amount = _extractField(response, 'amount');
@@ -170,7 +158,6 @@ class _PayuDelegate implements PayUCheckoutProProtocol {
 
   @override
   onPaymentSuccess(response) {
-    if (kDebugMode) print('PayU success: $response');
     final details = _extractDetails(response);
     final txnId = _extractField(response, 'txnid');
     final amount = _extractField(response, 'amount');
@@ -623,25 +610,8 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
         emailId: email ?? "",
       );
 
-      // --- LOGGING THE REQUEST DATA ---
-      if (kDebugMode) {
-        print('--- API CALL: create_transaction ---');
-        print('Payload: ${jsonEncode(request.toJson())}');
-        print('-------------------------------------');
-      }
-
       final response = await ApiService.initiateTransaction(request);
       if (!mounted) return;
-      
-      if (kDebugMode) {
-        print('--- API RESPONSE: create_transaction ---');
-        print('Status: ${response.status}');
-        print('Message: ${response.message}');
-        if (response.data != null) {
-          print('TxnID: ${response.data?.txnid}');
-        }
-        print('----------------------------------------');
-      }
 
       setState(() => _isLoading = false);
 
@@ -671,11 +641,6 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
           ),
         ),
       );
-      if (kDebugMode) {
-        print('--- TRANSACTION ERROR ---');
-        print(e.toString());
-        print('--------------------------');
-      }
     }
   }
 
@@ -757,16 +722,13 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
           PayUCheckoutProConfigKeys.merchantName: 'eNagarSewa',
         };
 
-        final result = await payu.openCheckoutScreen(
+        await payu.openCheckoutScreen(
           payUPaymentParams: payUPaymentParams,
           payUCheckoutProConfig: payUCheckoutProConfig,
         );
-
-        if (kDebugMode) print('PayU openCheckoutScreen returned: $result');
       } catch (e) {
         if (!mounted) return;
 
-        if (kDebugMode) print('PayU plugin error: $e');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -782,7 +744,6 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
     } catch (e) {
       if (!mounted) return;
 
-      if (kDebugMode) print('Payment error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
