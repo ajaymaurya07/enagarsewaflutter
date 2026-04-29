@@ -4,6 +4,8 @@ import 'login_screen.dart';
 import 'search_property_screen.dart';
 import 'dashboard_screen.dart';
 import 'services/storage_service.dart';
+import 'services/device_service.dart';
+import 'rooted_device_screen.dart';
 import 'constants/app_constants.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -38,6 +40,18 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   Future<void> _checkLoginStatus() async {
     await Future.delayed(const Duration(seconds: 3));
+
+    if (!mounted) return;
+
+    // Block rooted / jailbroken devices
+    final bool rooted = await DeviceService.isDeviceRooted();
+    if (rooted) {
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const RootedDeviceScreen()),
+      );
+      return;
+    }
 
     final bool loggedIn = await StorageService.isLoggedIn();
     final bool propertyVerified = await StorageService.isPropertyVerified();

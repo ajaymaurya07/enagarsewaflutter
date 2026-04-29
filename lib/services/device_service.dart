@@ -2,9 +2,62 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:crypto/crypto.dart';
+import 'package:flutter/services.dart';
 
 class DeviceService {
   static final DeviceInfoPlugin _deviceInfo = DeviceInfoPlugin();
+  static const _securityChannel = MethodChannel('com.enagarsewa.app/device_security');
+
+  /// Returns true if the device is rooted (Android) or jailbroken (iOS).
+  static Future<bool> isDeviceRooted() async {
+    if (Platform.isAndroid) {
+      try {
+        final result = await _securityChannel.invokeMethod<bool>('isRooted');
+        if (result == true) return true;
+      } catch (_) {}
+    }
+
+    if (Platform.isIOS) {
+      return _isIosJailbroken();
+    }
+
+    return false;
+  }
+
+  /// iOS jailbreak detection via file system and sandbox escape checks.
+  static bool _isIosJailbroken() {
+    // Common jailbreak file paths
+    const jailbreakPaths = [
+      '/Applications/Cydia.app',
+      '/Applications/Sileo.app',
+      '/Applications/Zebra.app',
+      '/Applications/Installer.app',
+      '/Library/MobileSubstrate/MobileSubstrate.dylib',
+      '/bin/bash',
+      '/usr/sbin/sshd',
+      '/etc/apt',
+      '/usr/bin/ssh',
+      '/private/var/lib/apt/',
+      '/private/var/lib/cydia',
+      '/private/var/stash',
+      '/usr/libexec/sftp-server',
+      '/usr/libexec/ssh-keysign',
+    ];
+
+    for (final path in jailbreakPaths) {
+      if (File(path).existsSync()) return true;
+    }
+
+    // Sandbox escape check — jailbroken devices can write outside sandbox
+    try {
+      const testPath = '/private/jailbreak_test.txt';
+      File(testPath).writeAsStringSync('test');
+      File(testPath).deleteSync();
+      return true; // write succeeded = jailbroken
+    } catch (_) {}
+
+    return false;
+  }
 
   static Future<String> getDeviceId() async {
     try {
