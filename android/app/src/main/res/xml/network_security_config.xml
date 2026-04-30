@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android Network Security Config — SSL Pinning for iamsup.in
+  SPKI SHA-256 pin:  9cfpRdt3u5byy0K2nxVHhWnByC+qBa0BS+RG60siZpQ=
+  Cert expires:      2026-09-27
+  UPDATE this pin AND assets/certs/iamsup_in.cer before that date,
+  then rebuild and publish the app.
+-->
+<network-security-config>
+
+    <!--
+      Production API domain.
+      Pin is the SHA-256 of the leaf certificate's SubjectPublicKeyInfo (SPKI).
+      A second (backup) pin using the intermediate CA is included so that
+      a certificate renewal with the same CA does not break the app.
+    -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">iamsup.in</domain>
+        <pin-set>
+            <!--
+              Primary pin: leaf cert for iamsup.in
+              SPKI SHA-256 of current cert (expires 2026-09-27)
+            -->
+            <pin digest="SHA-256">9cfpRdt3u5byy0K2nxVHhWnByC+qBa0BS+RG60siZpQ=</pin>
+            <!--
+              Backup pin: RapidSSL TLS RSA CA G1 intermediate CA (DigiCert)
+              SPKI SHA-256 of intermediate (expires 2027-11-02)
+              Android matches against ANY cert in the server's chain, so when
+              the leaf is renewed with the same CA, this pin keeps the app working.
+            -->
+            <pin digest="SHA-256">E3tYcwo9CiqATmKtpMLW5V+pzIq+ZoDmpXSiJlXGmTo=</pin>
+        </pin-set>
+    </domain-config>
+
+    <!-- All other domains use the system default (full CA validation). -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system"/>
+        </trust-anchors>
+    </base-config>
+
+</network-security-config>

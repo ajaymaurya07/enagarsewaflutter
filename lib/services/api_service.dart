@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'storage_service.dart';
 import 'device_service.dart';
 import 'database_service.dart';
+import 'pinned_http_client.dart';
 import '../constants/app_constants.dart';
 import '../login_screen.dart';
 
@@ -79,6 +80,23 @@ class ApiService {
     return response;
   }
 
+  // Pinned HTTP helpers — all outbound calls go through the certificate-pinned client.
+  static Future<http.Response> _get(
+    Uri url, {
+    Map<String, String>? headers,
+  }) =>
+      PinnedHttpClient.getInstance()
+          .then((c) => c.get(url, headers: headers));
+
+  static Future<http.Response> _post(
+    Uri url, {
+    Map<String, String>? headers,
+    Object? body,
+    Encoding? encoding,
+  }) =>
+      PinnedHttpClient.getInstance()
+          .then((c) => c.post(url, headers: headers, body: body, encoding: encoding));
+
   // Save Grievance API (Multipart)
   static Future<SaveGrievanceResponse> saveGrievance({
     required String ulbId,
@@ -137,7 +155,8 @@ class ApiService {
         );
       }
 
-      final streamedResponse = await request.send().timeout(
+      final pinnedClient = await PinnedHttpClient.getInstance();
+      final streamedResponse = await pinnedClient.send(request).timeout(
         Duration(seconds: AppConstants.networkTimeout),
       );
       final response = await http.Response.fromStream(streamedResponse);
@@ -163,8 +182,7 @@ class ApiService {
   }) async {
     try {
       final response = await _makeAuthenticatedRequest(
-        (headers) => http
-            .post(
+        (headers) => _post(
               Uri.parse(
                 '${AppConstants.baseUrl}api/house_tax/registerGrievanceAfterOtp',
               ),
@@ -192,8 +210,7 @@ class ApiService {
   static Future<List<GrievanceCategory>> getGrievanceCategories() async {
     try {
       final response = await _makeAuthenticatedRequest(
-        (headers) => http
-            .get(
+        (headers) => _get(
               Uri.parse(
                 '${AppConstants.baseUrl}api/House_tax/grievanceCategory',
               ),
@@ -222,8 +239,7 @@ class ApiService {
   static Future<List<UlbData>> getUlbData() async {
     try {
       final response = await _makeAuthenticatedRequest(
-        (headers) => http
-            .get(
+        (headers) => _get(
               Uri.parse('${AppConstants.baseUrl}api/House_tax/ulbdata'),
               headers: headers,
             )
@@ -250,8 +266,7 @@ class ApiService {
   static Future<List<ZoneData>> getZoneData(String ulbId) async {
     try {
       final response = await _makeAuthenticatedRequest(
-        (headers) => http
-            .get(
+        (headers) => _get(
               Uri.parse('${AppConstants.baseUrl}api/House_tax/zonedata/$ulbId'),
               headers: headers,
             )
@@ -278,8 +293,7 @@ class ApiService {
   static Future<List<WardData>> getWardData(String ulbId, String zoneId) async {
     try {
       final response = await _makeAuthenticatedRequest(
-        (headers) => http
-            .get(
+        (headers) => _get(
               Uri.parse(
                 '${AppConstants.baseUrl}api/House_tax/warddata/$ulbId/$zoneId',
               ),
@@ -312,8 +326,7 @@ class ApiService {
   ) async {
     try {
       final response = await _makeAuthenticatedRequest(
-        (headers) => http
-            .get(
+        (headers) => _get(
               Uri.parse(
                 '${AppConstants.baseUrl}api/House_tax/mohalladata/$ulbId/$zoneId/$wardId',
               ),
@@ -354,8 +367,7 @@ class ApiService {
   }) async {
     try {
       final response = await _makeAuthenticatedRequest(
-        (headers) => http
-            .post(
+        (headers) => _post(
               Uri.parse('${AppConstants.baseUrl}api/House_tax/propertysearch'),
               headers: headers,
               body: jsonEncode({
@@ -397,8 +409,7 @@ class ApiService {
   ) async {
     try {
       final response = await _makeAuthenticatedRequest(
-        (headers) => http
-            .post(
+        (headers) => _post(
               Uri.parse('${AppConstants.baseUrl}api/House_tax/propertydetails'),
               headers: headers,
               body: jsonEncode({'propertyId': propertyId}),
@@ -429,8 +440,7 @@ class ApiService {
         'X-App-Version': AppConstants.apiVersion,
       };
 
-      final response = await http
-          .post(
+      final response = await _post(
             Uri.parse(
               '${AppConstants.baseUrl}api/house_tax/forgot_password_request',
             ),
@@ -468,8 +478,7 @@ class ApiService {
         'X-App-Version': AppConstants.apiVersion,
       };
 
-      final response = await http
-          .post(
+      final response = await _post(
             Uri.parse(
               '${AppConstants.baseUrl}api/house_tax/verify_forgot_password_otp',
             ),
@@ -503,8 +512,7 @@ class ApiService {
   ) async {
     try {
       final response = await _makeAuthenticatedRequest(
-        (headers) => http
-            .post(
+        (headers) => _post(
               Uri.parse('${AppConstants.baseUrl}api/house_tax/sendOtp'),
               headers: headers,
               body: jsonEncode({
@@ -532,8 +540,7 @@ class ApiService {
   ) async {
     try {
       final response = await _makeAuthenticatedRequest(
-        (headers) => http
-            .post(
+        (headers) => _post(
               Uri.parse('${AppConstants.baseUrl}api/house_tax/verifyOtp'),
               headers: headers,
               body: jsonEncode({'mobileNo': mobileNo, 'otp': otp}),
@@ -557,8 +564,7 @@ class ApiService {
   ) async {
     try {
       final response = await _makeAuthenticatedRequest(
-        (headers) => http
-            .post(
+        (headers) => _post(
               Uri.parse(
                 '${AppConstants.baseUrl}api/Payment/create_transaction',
               ),
@@ -590,8 +596,7 @@ class ApiService {
         headers['Content-Type'] = 'application/x-www-form-urlencoded';
         final body =
             'hashName=${Uri.encodeComponent(hashName)}&hashString=${Uri.encodeComponent(hashString)}';
-        return http
-            .post(
+        return _post(
               Uri.parse('${AppConstants.baseUrl}api/Payment/generate_hash'),
               headers: headers,
               body: body,
@@ -618,8 +623,7 @@ class ApiService {
   ) async {
     try {
       final response = await _makeAuthenticatedRequest(
-        (headers) => http
-            .post(
+        (headers) => _post(
               Uri.parse(
                 '${AppConstants.baseUrl}api/payment/get_transactions_by_email',
               ),
@@ -645,8 +649,7 @@ class ApiService {
   ) async {
     try {
       final response = await _makeAuthenticatedRequest(
-        (headers) => http
-            .post(
+        (headers) => _post(
               Uri.parse(
                 '${AppConstants.baseUrl}api/house_tax/getGrievanceDetails',
               ),
@@ -674,8 +677,7 @@ class ApiService {
   ) async {
     try {
       final response = await _makeAuthenticatedRequest(
-        (headers) => http
-            .post(
+        (headers) => _post(
               Uri.parse(
                 '${AppConstants.baseUrl}api/house_tax/getGrievanceStatus',
               ),
@@ -710,8 +712,7 @@ class ApiService {
         'X-App-Version': AppConstants.apiVersion,
       };
 
-      final challengeResponse = await http
-          .post(
+      final challengeResponse = await _post(
             Uri.parse('${AppConstants.baseUrl}api/house_tax/get_challenge'),
             headers: headers,
             body: jsonEncode({'username': username, 'device_id': deviceId}),
@@ -742,8 +743,7 @@ class ApiService {
           .convert(utf8.encode(inputString))
           .toString();
 
-      final loginResponse = await http
-          .post(
+      final loginResponse = await _post(
             Uri.parse('${AppConstants.baseUrl}api/house_tax/login'),
             headers: headers,
             body: jsonEncode({
@@ -788,8 +788,7 @@ class ApiService {
         'X-App-Version': AppConstants.apiVersion,
       };
 
-      final response = await http
-          .post(
+      final response = await _post(
             Uri.parse('${AppConstants.baseUrl}api/house_tax/signup'),
             headers: headers,
             body: jsonEncode({
@@ -824,8 +823,7 @@ class ApiService {
         'X-App-Version': AppConstants.apiVersion,
       };
 
-      final response = await http
-          .post(
+      final response = await _post(
             Uri.parse('${AppConstants.baseUrl}api/house_tax/verifyOtpEmail'),
             headers: headers,
             body: jsonEncode({'email': email, 'otp': otp}),
@@ -847,8 +845,7 @@ class ApiService {
   static Future<LogoutResponse> logout() async {
     try {
       final response = await _makeAuthenticatedRequest(
-        (headers) => http
-            .post(
+        (headers) => _post(
               Uri.parse('${AppConstants.baseUrl}api/house_tax/logout'),
               headers: headers,
             )
@@ -868,8 +865,7 @@ class ApiService {
   // Refresh Token API
   static Future<RefreshTokenResponse> refreshToken(String refreshToken) async {
     try {
-      final response = await http
-          .post(
+      final response = await _post(
             Uri.parse('${AppConstants.baseUrl}api/house_tax/refreshToken'),
             headers: {
               'Accept': 'application/json',
