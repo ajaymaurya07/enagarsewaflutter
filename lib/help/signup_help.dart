@@ -12,8 +12,7 @@ class SignUpHelp {
   static const String phoneMessage =
       'Enter your 10-digit mobile number.\n'
       'Example: 9876543210\n\n'
-      'The app can auto-detect SIM numbers on your device. '
-      'You can also type your number manually.';
+      'The app can auto-detect SIM numbers on your device.';
 
   static const String emailTitle = 'Email ID';
   static const String emailMessage =

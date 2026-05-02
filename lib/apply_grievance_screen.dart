@@ -429,7 +429,11 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildSectionTitle('Property Information'),
+                  _buildSectionTitle(
+                    'Property Information',
+                    helpTitle: ApplyGrievanceHelp.propertyInfoTitle,
+                    helpMessage: ApplyGrievanceHelp.propertyInfoMessage,
+                  ),
                   const SizedBox(height: 12),
                   _buildSelectableField(
                     key: _keyPropertySection,
@@ -483,6 +487,8 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
                   _buildSectionTitle(
                     'Location Details',
                     key: _keyLocationSection,
+                    helpTitle: ApplyGrievanceHelp.locationDetailsTitle,
+                    helpMessage: ApplyGrievanceHelp.locationDetailsMessage,
                   ),
                   const SizedBox(height: 12),
 
@@ -598,6 +604,8 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
                   _buildSectionTitle(
                     'Grievance Details',
                     key: _keyGrievanceSection,
+                    helpTitle: ApplyGrievanceHelp.grievanceDetailsTitle,
+                    helpMessage: ApplyGrievanceHelp.grievanceDetailsMessage,
                   ),
                   const SizedBox(height: 12),
 
@@ -656,6 +664,12 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
                   ),
 
                   const SizedBox(height: 16),
+                  _buildSectionTitle(
+                    'Upload Related Photo',
+                    helpTitle: ApplyGrievanceHelp.photoTitle,
+                    helpMessage: ApplyGrievanceHelp.photoMessage,
+                  ),
+                  const SizedBox(height: 12),
                   _buildPhotoUploadSection(key: _keyPhotoSection),
 
                   const SizedBox(height: 32),
@@ -701,15 +715,77 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
     );
   }
 
-  Widget _buildSectionTitle(String title, {Key? key}) {
-    return Text(
-      title,
+  Widget _buildSectionTitle(String title, {Key? key, String? helpTitle, String? helpMessage}) {
+    if (helpMessage == null) {
+      return Text(
+        title,
+        key: key,
+        style: GoogleFonts.poppins(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: _primaryColor,
+        ),
+      );
+    }
+    return Row(
       key: key,
-      style: GoogleFonts.poppins(
-        fontSize: 16,
-        fontWeight: FontWeight.bold,
-        color: _primaryColor,
-      ),
+      children: [
+        Text(
+          title,
+          style: GoogleFonts.poppins(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: _primaryColor,
+          ),
+        ),
+        const SizedBox(width: 6),
+        Builder(
+          builder: (ctx) => GestureDetector(
+            onTap: () => showDialog(
+              context: ctx,
+              builder: (_) => AlertDialog(
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+                title: Row(
+                  children: [
+                    const Icon(Icons.info_outline_rounded,
+                        color: Color(0xFFE67514), size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        helpTitle ?? title,
+                        style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w700, fontSize: 16),
+                      ),
+                    ),
+                  ],
+                ),
+                content: Text(
+                  helpMessage,
+                  style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      color: Colors.grey.shade700,
+                      height: 1.6),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: Text('OK',
+                        style: GoogleFonts.poppins(
+                            color: const Color(0xFFE67514),
+                            fontWeight: FontWeight.w600)),
+                  ),
+                ],
+              ),
+            ),
+            child: const Icon(
+              Icons.info_outline_rounded,
+              color: Color(0xFFE67514),
+              size: 16,
+            ),
+          ),
+        ),
+      ],
     );
   }
 

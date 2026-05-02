@@ -7,6 +7,8 @@ import 'services/storage_service.dart';
 import 'services/database_service.dart';
 import 'dashboard_screen.dart';
 import 'tour_guides/property_selection_tour.dart';
+import 'widgets/info_label.dart';
+import 'help/property_selection_help.dart';
 
 class PropertySelectionScreen extends StatefulWidget {
   final List<PropertyData> properties;
@@ -200,13 +202,10 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
                 ],
 
                 // OTP Field
-                Text(
-                  'Enter OTP',
-                  style: GoogleFonts.poppins(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade700,
-                  ),
+                InfoLabel(
+                  label: 'Enter OTP',
+                  helpTitle: PropertySelectionHelp.otpTitle,
+                  helpMessage: PropertySelectionHelp.otpMessage,
                 ),
                 const SizedBox(height: 8),
                 TextField(

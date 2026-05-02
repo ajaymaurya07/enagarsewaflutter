@@ -2,6 +2,12 @@
 class PropertyTaxAssessmentHelp {
   PropertyTaxAssessmentHelp._();
 
+  static const String selectPropertyTitle = 'Select Property';
+  static const String selectPropertyMessage =
+      'Select a property from your saved list to auto-fill assessment details.\n\n'
+      'Only properties linked to your account are shown here.\n'
+      'If your property is not listed, please search and add it from the home screen first.';
+
   static const String ownerNameTitle = 'Owner Name';
   static const String ownerNameMessage =
       'Enter the full name of the property owner.\n\n'

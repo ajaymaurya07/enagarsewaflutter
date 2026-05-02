@@ -663,7 +663,11 @@ class _PropertyTaxAssessmentScreenState
       children: [
         // Property Selection from DB
         if (_savedProperties.isNotEmpty) ...[
-          _sectionTitle('Select Property'),
+          _sectionTitle(
+            'Select Property',
+            helpTitle: PropertyTaxAssessmentHelp.selectPropertyTitle,
+            helpMessage: PropertyTaxAssessmentHelp.selectPropertyMessage,
+          ),
           const SizedBox(height: 12),
           Material(
             key: _keyChooseProperty,
@@ -826,32 +830,24 @@ class _PropertyTaxAssessmentScreenState
           'Owner Name',
           _ownerNameController,
           Icons.person_outlined,
-          helpTitle: PropertyTaxAssessmentHelp.ownerNameTitle,
-          helpMessage: PropertyTaxAssessmentHelp.ownerNameMessage,
         ),
         const SizedBox(height: 14),
         _buildTextField(
           'Father/Husband Name',
           _fatherNameController,
           Icons.person_outline,
-          helpTitle: PropertyTaxAssessmentHelp.fatherNameTitle,
-          helpMessage: PropertyTaxAssessmentHelp.fatherNameMessage,
         ),
         const SizedBox(height: 14),
         _buildTextField(
           'House No.',
           _houseNoController,
           Icons.home_outlined,
-          helpTitle: PropertyTaxAssessmentHelp.houseNoTitle,
-          helpMessage: PropertyTaxAssessmentHelp.houseNoMessage,
         ),
         const SizedBox(height: 14),
         _buildTextField(
           'Property ID',
           _propertyIdController,
           Icons.badge_outlined,
-          helpTitle: PropertyTaxAssessmentHelp.propertyIdTitle,
-          helpMessage: PropertyTaxAssessmentHelp.propertyIdMessage,
         ),
         const SizedBox(height: 14),
         _buildTextField(
@@ -859,8 +855,6 @@ class _PropertyTaxAssessmentScreenState
           _mobileNoController,
           Icons.phone_outlined,
           keyboardType: TextInputType.phone,
-          helpTitle: PropertyTaxAssessmentHelp.mobileNoTitle,
-          helpMessage: PropertyTaxAssessmentHelp.mobileNoMessage,
         ),
       ],
     );
@@ -1091,14 +1085,75 @@ class _PropertyTaxAssessmentScreenState
 
   // ─── Reusable Widgets ───
 
-  Widget _sectionTitle(String text) {
-    return Text(
-      text,
-      style: GoogleFonts.poppins(
-        fontSize: 16,
-        fontWeight: FontWeight.w700,
-        color: const Color(0xFF333333),
-      ),
+  Widget _sectionTitle(String text, {String? helpTitle, String? helpMessage}) {
+    if (helpMessage == null) {
+      return Text(
+        text,
+        style: GoogleFonts.poppins(
+          fontSize: 16,
+          fontWeight: FontWeight.w700,
+          color: const Color(0xFF333333),
+        ),
+      );
+    }
+    return Row(
+      children: [
+        Text(
+          text,
+          style: GoogleFonts.poppins(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF333333),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Builder(
+          builder: (ctx) => GestureDetector(
+            onTap: () => showDialog(
+              context: ctx,
+              builder: (_) => AlertDialog(
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+                title: Row(
+                  children: [
+                    const Icon(Icons.info_outline_rounded,
+                        color: Color(0xFFE67514), size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        helpTitle ?? text,
+                        style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w700, fontSize: 16),
+                      ),
+                    ),
+                  ],
+                ),
+                content: Text(
+                  helpMessage,
+                  style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      color: Colors.grey.shade700,
+                      height: 1.6),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: Text('OK',
+                        style: GoogleFonts.poppins(
+                            color: const Color(0xFFE67514),
+                            fontWeight: FontWeight.w600)),
+                  ),
+                ],
+              ),
+            ),
+            child: const Icon(
+              Icons.info_outline_rounded,
+              color: Color(0xFFE67514),
+              size: 16,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
