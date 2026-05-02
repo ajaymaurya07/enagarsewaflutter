@@ -14,6 +14,28 @@ import DeviceCheck
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
 
+    // ── Security channel (device_security) ──────────────────────────────────
+    let secRegistrar = engineBridge.pluginRegistry.registrar(forPlugin: "SecurityPlugin")
+    let secMessenger = secRegistrar?.messenger()
+    if let secMessenger = secMessenger {
+      let securityChannel = FlutterMethodChannel(
+        name: "com.enagarsewa.app/device_security",
+        binaryMessenger: secMessenger
+      )
+      securityChannel.setMethodCallHandler { call, result in
+        switch call.method {
+        case "isDeveloperModeEnabled":
+          if #available(iOS 16.0, *) {
+            result(DCDeveloperModeQuery.isEnabled)
+          } else {
+            result(false)
+          }
+        default:
+          result(FlutterMethodNotImplemented)
+        }
+      }
+    }
+
     let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "IntegrityPlugin")
     let messenger = registrar?.messenger()
     guard let messenger = messenger else { return }

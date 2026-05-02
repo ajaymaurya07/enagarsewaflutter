@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+enum BlockReason { rooted, developerMode }
+
 class RootedDeviceScreen extends StatelessWidget {
-  const RootedDeviceScreen({super.key});
+  final BlockReason reason;
+  const RootedDeviceScreen({super.key, this.reason = BlockReason.rooted});
 
   @override
   Widget build(BuildContext context) {
+    final _Config cfg = _Config.from(reason);
     return PopScope(
       canPop: false,
       child: Scaffold(
@@ -25,13 +29,13 @@ class RootedDeviceScreen extends StatelessWidget {
                   width: 96,
                   height: 96,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFEBEE),
+                    color: cfg.iconBg,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
-                    Icons.security_rounded,
+                  child: Icon(
+                    cfg.icon,
                     size: 48,
-                    color: Color(0xFFD32F2F),
+                    color: cfg.iconColor,
                   ),
                 ),
 
@@ -39,7 +43,7 @@ class RootedDeviceScreen extends StatelessWidget {
 
                 // Title
                 Text(
-                  'Device Not Supported',
+                  cfg.title,
                   style: GoogleFonts.poppins(
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
@@ -52,7 +56,7 @@ class RootedDeviceScreen extends StatelessWidget {
 
                 // Message
                 Text(
-                  'This app cannot run on a rooted or modified device. Please use a standard device to continue.',
+                  cfg.message,
                   style: GoogleFonts.poppins(
                     fontSize: 14,
                     color: Colors.grey.shade600,
@@ -70,7 +74,7 @@ class RootedDeviceScreen extends StatelessWidget {
                   child: ElevatedButton(
                     onPressed: () => SystemNavigator.pop(),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFD32F2F),
+                      backgroundColor: cfg.iconColor,
                       foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
@@ -94,5 +98,44 @@ class RootedDeviceScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _Config {
+  final IconData icon;
+  final Color iconBg;
+  final Color iconColor;
+  final String title;
+  final String message;
+
+  const _Config({
+    required this.icon,
+    required this.iconBg,
+    required this.iconColor,
+    required this.title,
+    required this.message,
+  });
+
+  factory _Config.from(BlockReason reason) {
+    switch (reason) {
+      case BlockReason.developerMode:
+        return const _Config(
+          icon: Icons.developer_mode_rounded,
+          iconBg: Color(0xFFFFF3E0),
+          iconColor: Color(0xFFE65100),
+          title: 'Developer Mode Detected',
+          message:
+              'This app cannot run with Developer Options or USB Debugging enabled.\n\nPlease disable Developer Options from Settings and restart the app.',
+        );
+      case BlockReason.rooted:
+        return const _Config(
+          icon: Icons.security_rounded,
+          iconBg: Color(0xFFFFEBEE),
+          iconColor: Color(0xFFD32F2F),
+          title: 'Device Not Supported',
+          message:
+              'This app cannot run on a rooted or modified device. Please use a standard device to continue.',
+        );
+    }
   }
 }

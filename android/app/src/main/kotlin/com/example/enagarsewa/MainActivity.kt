@@ -43,6 +43,7 @@ class MainActivity : FlutterActivity() {
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "isRooted" -> result.success(isDeviceRooted())
+                    "isDeveloperModeEnabled" -> result.success(isDeveloperModeEnabled())
                     else -> result.notImplemented()
                 }
             }
@@ -110,6 +111,23 @@ class MainActivity : FlutterActivity() {
         } catch (_: Exception) {
             false
         }
+    }
+
+    /**
+     * Returns true if Developer Options or USB Debugging is enabled.
+     * Both are checked because a user can enable ADB without fully enabling
+     * Developer Options on some custom ROMs.
+     */
+    private fun isDeveloperModeEnabled(): Boolean {
+        val devOptions = android.provider.Settings.Global.getInt(
+            contentResolver,
+            android.provider.Settings.Global.DEVELOPMENT_SETTINGS_ENABLED, 0
+        )
+        val adbEnabled = android.provider.Settings.Global.getInt(
+            contentResolver,
+            android.provider.Settings.Global.ADB_ENABLED, 0
+        )
+        return devOptions == 1 || adbEnabled == 1
     }
 
     /**

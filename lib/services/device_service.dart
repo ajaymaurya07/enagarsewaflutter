@@ -24,6 +24,16 @@ class DeviceService {
     return false;
   }
 
+  /// Returns true if Developer Options (Android) or Developer Mode (iOS 16+) is enabled.
+  static Future<bool> isDeveloperModeEnabled() async {
+    try {
+      final result = await _securityChannel.invokeMethod<bool>('isDeveloperModeEnabled');
+      return result == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// iOS jailbreak detection via file system and sandbox escape checks.
   static bool _isIosJailbroken() {
     // Common jailbreak file paths
