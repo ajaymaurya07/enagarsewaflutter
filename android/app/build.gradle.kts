@@ -49,4 +49,6 @@ flutter {
 dependencies {
     // Google Play Services for AccountPicker
     implementation("com.google.android.gms:play-services-auth:20.7.0")
+    // Play Integrity API — device/app integrity attestation
+    implementation("com.google.android.play:integrity:1.4.0")
 }

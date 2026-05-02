@@ -5,6 +5,7 @@ import 'search_property_screen.dart';
 import 'dashboard_screen.dart';
 import 'services/storage_service.dart';
 import 'services/device_service.dart';
+import 'services/integrity_service.dart';
 import 'rooted_device_screen.dart';
 import 'constants/app_constants.dart';
 
@@ -46,6 +47,16 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     // Block rooted / jailbroken devices
     final bool rooted = await DeviceService.isDeviceRooted();
     if (rooted) {
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const RootedDeviceScreen()),
+      );
+      return;
+    }
+
+    // Play Integrity (Android) / App Attest (iOS) — verifies device & app genuineness
+    final bool integrityPassed = await IntegrityService.verify();
+    if (!integrityPassed) {
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const RootedDeviceScreen()),

@@ -9,10 +9,13 @@ import android.content.Context
 import android.provider.ContactsContract
 import android.accounts.AccountManager
 import java.io.File
+import com.google.android.play.core.integrity.IntegrityManagerFactory
+import com.google.android.play.core.integrity.IntegrityTokenRequest
 
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.enagarsewa.app/sim"
     private val SECURITY_CHANNEL = "com.enagarsewa.app/device_security"
+    private val INTEGRITY_CHANNEL = "com.enagarsewa.app/integrity"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -40,6 +43,17 @@ class MainActivity : FlutterActivity() {
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "isRooted" -> result.success(isDeviceRooted())
+                    else -> result.notImplemented()
+                }
+            }
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, INTEGRITY_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "getIntegrityToken" -> {
+                        val nonce = call.argument<String>("nonce") ?: ""
+                        getPlayIntegrityToken(nonce, result)
+                    }
                     else -> result.notImplemented()
                 }
             }
@@ -96,6 +110,29 @@ class MainActivity : FlutterActivity() {
         } catch (_: Exception) {
             false
         }
+    }
+
+    /**
+     * Requests a Play Integrity token using the provided nonce.
+     * The token must be verified server-side via the Play Integrity API.
+     *
+     * TODO: Set your Google Cloud project number via setCloudProjectNumber() for production.
+     * See: https://developer.android.com/google/play/integrity/setup
+     */
+    private fun getPlayIntegrityToken(nonce: String, result: MethodChannel.Result) {
+        val integrityManager = IntegrityManagerFactory.create(applicationContext)
+        val request = IntegrityTokenRequest.builder()
+            .setNonce(nonce)
+            // TODO: .setCloudProjectNumber(YOUR_CLOUD_PROJECT_NUMBER)
+            .build()
+
+        integrityManager.requestIntegrityToken(request)
+            .addOnSuccessListener { response ->
+                result.success(response.token())
+            }
+            .addOnFailureListener { exception ->
+                result.error("INTEGRITY_ERROR", exception.message, null)
+            }
     }
 
     private fun getPhoneNumbers(): List<String> {
