@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'services/api_service.dart';
 import 'services/database_service.dart';
 import 'tour_guides/apply_grievance_tour.dart';
+import 'help/apply_grievance_help.dart';
 
 class ApplyGrievanceScreen extends StatefulWidget {
   const ApplyGrievanceScreen({super.key});
@@ -589,6 +590,8 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
                     'Enter Landmark',
                     _landmarkController,
                     isRequired: true,
+                    helpMessage: ApplyGrievanceHelp.landmarkMessage,
+                    helpTitle: ApplyGrievanceHelp.landmarkTitle,
                   ),
 
                   const SizedBox(height: 24),
@@ -648,6 +651,8 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
                     _descriptionController,
                     maxLines: 4,
                     isRequired: true,
+                    helpMessage: ApplyGrievanceHelp.descriptionMessage,
+                    helpTitle: ApplyGrievanceHelp.descriptionTitle,
                   ),
 
                   const SizedBox(height: 16),
@@ -753,6 +758,8 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
     int maxLines = 1,
     bool enabled = true,
     bool isRequired = false,
+    String? helpTitle,
+    String? helpMessage,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -778,6 +785,52 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
           labelStyle: GoogleFonts.poppins(color: _hintColor, fontSize: 14),
           prefixIcon: icon != null
               ? Icon(icon, color: _primaryColor, size: 20)
+              : null,
+          suffixIcon: (helpMessage != null && enabled)
+              ? Builder(
+                  builder: (ctx) => IconButton(
+                    icon: const Icon(
+                      Icons.info_outline_rounded,
+                      color: Color(0xFFE67514),
+                      size: 18,
+                    ),
+                    onPressed: () => showDialog(
+                      context: ctx,
+                      builder: (_) => AlertDialog(
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16)),
+                        title: Row(
+                          children: [
+                            const Icon(Icons.info_outline_rounded,
+                                color: Color(0xFFE67514), size: 20),
+                            const SizedBox(width: 8),
+                            Text(
+                              helpTitle ?? label,
+                              style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.w700, fontSize: 16),
+                            ),
+                          ],
+                        ),
+                        content: Text(
+                          helpMessage,
+                          style: GoogleFonts.poppins(
+                              fontSize: 13,
+                              color: Colors.grey.shade700,
+                              height: 1.6),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: Text('OK',
+                                style: GoogleFonts.poppins(
+                                    color: const Color(0xFFE67514),
+                                    fontWeight: FontWeight.w600)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
               : null,
           filled: true,
           fillColor: enabled ? _surfaceColor : const Color(0xFFF3F4F6),

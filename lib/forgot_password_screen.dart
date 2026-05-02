@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'services/api_service.dart';
+import 'widgets/info_label.dart';
+import 'help/forgot_password_help.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -157,7 +159,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       ],
 
                       // OTP Field
-                      _sheetLabel('Enter OTP'),
+                      InfoLabel(
+                        label: 'Enter OTP',
+                        helpTitle: ForgotPasswordHelp.otpTitle,
+                        helpMessage: ForgotPasswordHelp.otpMessage,
+                      ),
                       const SizedBox(height: 8),
                       TextField(
                         controller: otpController,
@@ -175,7 +181,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       const SizedBox(height: 20),
 
                       // New Password
-                      _sheetLabel('New Password'),
+                      InfoLabel(
+                        label: 'New Password',
+                        helpTitle: ForgotPasswordHelp.newPasswordTitle,
+                        helpMessage: ForgotPasswordHelp.newPasswordMessage,
+                      ),
                       const SizedBox(height: 8),
                       TextField(
                         controller: newPasswordController,
@@ -211,7 +221,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       const SizedBox(height: 16),
 
                       // Confirm Password
-                      _sheetLabel('Confirm Password'),
+                      InfoLabel(
+                        label: 'Confirm Password',
+                        helpTitle: ForgotPasswordHelp.confirmPasswordTitle,
+                        helpMessage: ForgotPasswordHelp.confirmPasswordMessage,
+                      ),
                       const SizedBox(height: 8),
                       TextField(
                         controller: confirmPasswordController,
@@ -435,17 +449,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     );
   }
 
-  Widget _sheetLabel(String text) {
-    return Text(
-      text,
-      style: GoogleFonts.poppins(
-        fontSize: 13,
-        fontWeight: FontWeight.w600,
-        color: Colors.grey.shade700,
-      ),
-    );
-  }
-
   InputDecoration _sheetInputDecoration({
     required String hint,
     required IconData icon,
@@ -564,13 +567,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                               const SizedBox(height: 28),
 
                               // Email Field
-                              Text(
-                                'Email',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.grey.shade700,
-                                ),
+                              const InfoLabel(
+                                label: 'Email',
+                                helpTitle: ForgotPasswordHelp.emailTitle,
+                                helpMessage: ForgotPasswordHelp.emailMessage,
                               ),
                               const SizedBox(height: 8),
                               TextField(

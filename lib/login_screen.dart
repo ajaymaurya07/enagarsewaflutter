@@ -6,6 +6,8 @@ import 'search_property_screen.dart';
 import 'services/api_service.dart';
 import 'services/device_service.dart';
 import 'services/storage_service.dart';
+import 'widgets/info_label.dart';
+import 'help/login_help.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -161,13 +163,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(height: 28),
 
                         // Email Field
-                        Text(
-                          'Email',
-                          style: GoogleFonts.poppins(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey.shade700,
-                          ),
+                        const InfoLabel(
+                          label: 'Email',
+                          helpTitle: LoginHelp.emailTitle,
+                          helpMessage: LoginHelp.emailMessage,
                         ),
                         const SizedBox(height: 8),
                         TextField(
@@ -198,13 +197,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(height: 20),
 
                         // Password Field
-                        Text(
-                          'Password',
-                          style: GoogleFonts.poppins(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey.shade700,
-                          ),
+                        const InfoLabel(
+                          label: 'Password',
+                          helpTitle: LoginHelp.passwordTitle,
+                          helpMessage: LoginHelp.passwordMessage,
                         ),
                         const SizedBox(height: 8),
                         TextField(

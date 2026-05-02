@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'services/api_service.dart';
 import 'services/database_service.dart';
+import 'help/payment_grievance_help.dart';
 
 class PaymentGrievanceScreen extends StatefulWidget {
   final String propertyId;
@@ -250,6 +251,8 @@ class _PaymentGrievanceScreenState extends State<PaymentGrievanceScreen> {
                     _descriptionController,
                     maxLines: 5,
                     isRequired: true,
+                    helpTitle: PaymentGrievanceHelp.descriptionTitle,
+                    helpMessage: PaymentGrievanceHelp.descriptionMessage,
                   ),
 
                   const SizedBox(height: 32),
@@ -340,6 +343,8 @@ class _PaymentGrievanceScreenState extends State<PaymentGrievanceScreen> {
     int maxLines = 1,
     bool enabled = true,
     bool isRequired = false,
+    String? helpTitle,
+    String? helpMessage,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -361,6 +366,52 @@ class _PaymentGrievanceScreenState extends State<PaymentGrievanceScreen> {
           labelText: label,
           labelStyle: GoogleFonts.poppins(color: Colors.grey.shade600, fontSize: 14),
           prefixIcon: icon != null ? Icon(icon, color: const Color(0xFF0E3B90), size: 20) : null,
+          suffixIcon: (helpMessage != null && enabled)
+              ? Builder(
+                  builder: (ctx) => IconButton(
+                    icon: const Icon(
+                      Icons.info_outline_rounded,
+                      color: Color(0xFFE67514),
+                      size: 18,
+                    ),
+                    onPressed: () => showDialog(
+                      context: ctx,
+                      builder: (_) => AlertDialog(
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16)),
+                        title: Row(
+                          children: [
+                            const Icon(Icons.info_outline_rounded,
+                                color: Color(0xFFE67514), size: 20),
+                            const SizedBox(width: 8),
+                            Text(
+                              helpTitle ?? label,
+                              style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.w700, fontSize: 16),
+                            ),
+                          ],
+                        ),
+                        content: Text(
+                          helpMessage,
+                          style: GoogleFonts.poppins(
+                              fontSize: 13,
+                              color: Colors.grey.shade700,
+                              height: 1.6),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: Text('OK',
+                                style: GoogleFonts.poppins(
+                                    color: const Color(0xFFE67514),
+                                    fontWeight: FontWeight.w600)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
+              : null,
           filled: true,
           fillColor: enabled ? Colors.white : Colors.grey.shade100,
           border: OutlineInputBorder(

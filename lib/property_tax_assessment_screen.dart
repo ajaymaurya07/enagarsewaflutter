@@ -11,6 +11,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
 import 'tour_guides/property_tax_assessment_tour.dart';
+import 'help/property_tax_assessment_help.dart';
 
 class PropertyTaxAssessmentScreen extends StatefulWidget {
   const PropertyTaxAssessmentScreen({super.key});
@@ -825,24 +826,32 @@ class _PropertyTaxAssessmentScreenState
           'Owner Name',
           _ownerNameController,
           Icons.person_outlined,
+          helpTitle: PropertyTaxAssessmentHelp.ownerNameTitle,
+          helpMessage: PropertyTaxAssessmentHelp.ownerNameMessage,
         ),
         const SizedBox(height: 14),
         _buildTextField(
           'Father/Husband Name',
           _fatherNameController,
           Icons.person_outline,
+          helpTitle: PropertyTaxAssessmentHelp.fatherNameTitle,
+          helpMessage: PropertyTaxAssessmentHelp.fatherNameMessage,
         ),
         const SizedBox(height: 14),
         _buildTextField(
           'House No.',
           _houseNoController,
           Icons.home_outlined,
+          helpTitle: PropertyTaxAssessmentHelp.houseNoTitle,
+          helpMessage: PropertyTaxAssessmentHelp.houseNoMessage,
         ),
         const SizedBox(height: 14),
         _buildTextField(
           'Property ID',
           _propertyIdController,
           Icons.badge_outlined,
+          helpTitle: PropertyTaxAssessmentHelp.propertyIdTitle,
+          helpMessage: PropertyTaxAssessmentHelp.propertyIdMessage,
         ),
         const SizedBox(height: 14),
         _buildTextField(
@@ -850,6 +859,8 @@ class _PropertyTaxAssessmentScreenState
           _mobileNoController,
           Icons.phone_outlined,
           keyboardType: TextInputType.phone,
+          helpTitle: PropertyTaxAssessmentHelp.mobileNoTitle,
+          helpMessage: PropertyTaxAssessmentHelp.mobileNoMessage,
         ),
       ],
     );
@@ -872,6 +883,8 @@ class _PropertyTaxAssessmentScreenState
                 _rentAreaController,
                 Icons.square_foot_outlined,
                 keyboardType: TextInputType.number,
+                helpTitle: PropertyTaxAssessmentHelp.rentAreaTitle,
+                helpMessage: PropertyTaxAssessmentHelp.rentAreaMessage,
               ),
               const SizedBox(height: 14),
               _buildTextField(
@@ -879,6 +892,8 @@ class _PropertyTaxAssessmentScreenState
                 _ownAreaController,
                 Icons.square_foot_outlined,
                 keyboardType: TextInputType.number,
+                helpTitle: PropertyTaxAssessmentHelp.ownAreaTitle,
+                helpMessage: PropertyTaxAssessmentHelp.ownAreaMessage,
               ),
               const SizedBox(height: 14),
               _buildInfoCard(
@@ -901,6 +916,8 @@ class _PropertyTaxAssessmentScreenState
                 _constructionYearController,
                 Icons.calendar_today_outlined,
                 keyboardType: TextInputType.number,
+                helpTitle: PropertyTaxAssessmentHelp.constructionYearTitle,
+                helpMessage: PropertyTaxAssessmentHelp.constructionYearMessage,
               ),
               const SizedBox(height: 14),
               _buildInfoCard('Age of Structure', '$_ageOfConstruction years'),
@@ -1130,6 +1147,8 @@ class _PropertyTaxAssessmentScreenState
     TextEditingController controller,
     IconData icon, {
     TextInputType keyboardType = TextInputType.text,
+    String? helpTitle,
+    String? helpMessage,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -1150,6 +1169,52 @@ class _PropertyTaxAssessmentScreenState
             color: Colors.grey.shade600,
           ),
           prefixIcon: Icon(icon, color: _primaryColor, size: 20),
+          suffixIcon: helpMessage != null
+              ? Builder(
+                  builder: (ctx) => IconButton(
+                    icon: const Icon(
+                      Icons.info_outline_rounded,
+                      color: Color(0xFFE67514),
+                      size: 18,
+                    ),
+                    onPressed: () => showDialog(
+                      context: ctx,
+                      builder: (_) => AlertDialog(
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16)),
+                        title: Row(
+                          children: [
+                            const Icon(Icons.info_outline_rounded,
+                                color: Color(0xFFE67514), size: 20),
+                            const SizedBox(width: 8),
+                            Text(
+                              helpTitle ?? label,
+                              style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.w700, fontSize: 16),
+                            ),
+                          ],
+                        ),
+                        content: Text(
+                          helpMessage,
+                          style: GoogleFonts.poppins(
+                              fontSize: 13,
+                              color: Colors.grey.shade700,
+                              height: 1.6),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: Text('OK',
+                                style: GoogleFonts.poppins(
+                                    color: const Color(0xFFE67514),
+                                    fontWeight: FontWeight.w600)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
+              : null,
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 16,

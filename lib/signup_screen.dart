@@ -4,6 +4,8 @@ import 'package:permission_handler/permission_handler.dart';
 import 'services/sim_service.dart';
 import 'services/email_service.dart';
 import 'services/api_service.dart';
+import 'widgets/info_label.dart';
+import 'help/signup_help.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -1200,7 +1202,11 @@ class _SignUpScreenState extends State<SignUpScreen>
                             const SizedBox(height: 24),
 
                             // Full Name
-                            _fieldLabel('Full Name'),
+                            const InfoLabel(
+                              label: 'Full Name',
+                              helpTitle: SignUpHelp.fullNameTitle,
+                              helpMessage: SignUpHelp.fullNameMessage,
+                            ),
                             const SizedBox(height: 8),
                             TextField(
                               controller: _nameController,
@@ -1213,7 +1219,11 @@ class _SignUpScreenState extends State<SignUpScreen>
                             const SizedBox(height: 20),
 
                             // Phone Number
-                            _fieldLabel('Phone Number'),
+                            const InfoLabel(
+                              label: 'Phone Number',
+                              helpTitle: SignUpHelp.phoneTitle,
+                              helpMessage: SignUpHelp.phoneMessage,
+                            ),
                             const SizedBox(height: 8),
                             _SelectorTile(
                               label: 'Select Phone Number',
@@ -1229,7 +1239,11 @@ class _SignUpScreenState extends State<SignUpScreen>
                             const SizedBox(height: 20),
 
                             // Email
-                            _fieldLabel('Email ID'),
+                            const InfoLabel(
+                              label: 'Email ID',
+                              helpTitle: SignUpHelp.emailTitle,
+                              helpMessage: SignUpHelp.emailMessage,
+                            ),
                             const SizedBox(height: 8),
                             _SelectorTile(
                               label: 'Select Email Address',
@@ -1245,7 +1259,11 @@ class _SignUpScreenState extends State<SignUpScreen>
                             const SizedBox(height: 20),
 
                             // Password
-                            _fieldLabel('Password'),
+                            const InfoLabel(
+                              label: 'Password',
+                              helpTitle: SignUpHelp.passwordTitle,
+                              helpMessage: SignUpHelp.passwordMessage,
+                            ),
                             const SizedBox(height: 8),
                             TextField(
                               controller: _passwordController,
@@ -1271,7 +1289,11 @@ class _SignUpScreenState extends State<SignUpScreen>
                             const SizedBox(height: 20),
 
                             // Confirm Password
-                            _fieldLabel('Confirm Password'),
+                            const InfoLabel(
+                              label: 'Confirm Password',
+                              helpTitle: SignUpHelp.confirmPasswordTitle,
+                              helpMessage: SignUpHelp.confirmPasswordMessage,
+                            ),
                             const SizedBox(height: 8),
                             TextField(
                               controller: _confirmPasswordController,
@@ -1366,17 +1388,6 @@ class _SignUpScreenState extends State<SignUpScreen>
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _fieldLabel(String text) {
-    return Text(
-      text,
-      style: GoogleFonts.poppins(
-        fontSize: 13,
-        fontWeight: FontWeight.w600,
-        color: Colors.grey.shade700,
       ),
     );
   }

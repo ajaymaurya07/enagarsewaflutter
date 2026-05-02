@@ -6,6 +6,8 @@ import 'package:enagarsewa/services/api_service.dart';
 import 'package:enagarsewa/services/storage_service.dart';
 import 'property_selection_screen.dart';
 import 'tour_guides/search_property_tour.dart';
+import 'widgets/info_label.dart';
+import 'help/search_property_help.dart';
 
 class SearchPropertyScreen extends StatefulWidget {
   const SearchPropertyScreen({super.key});
@@ -541,7 +543,11 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             // ULB Picker
-                            _fieldLabel('Select ULB'),
+                            const InfoLabel(
+                              label: 'Select ULB',
+                              helpTitle: SearchPropertyHelp.ulbTitle,
+                              helpMessage: SearchPropertyHelp.ulbMessage,
+                            ),
                             const SizedBox(height: 8),
                             _buildSelectableField(
                               key: _keyUlbPicker,
@@ -568,11 +574,19 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
                                 key: _keyOwnerFields,
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  _fieldLabel('Owner Name'),
+                                  const InfoLabel(
+                                    label: 'Owner Name',
+                                    helpTitle: SearchPropertyHelp.ownerNameTitle,
+                                    helpMessage: SearchPropertyHelp.ownerNameMessage,
+                                  ),
                                   const SizedBox(height: 8),
                                   _buildTextField('Enter owner name', _ownerController),
                                   const SizedBox(height: 16),
-                                  _fieldLabel('Father Name'),
+                                  const InfoLabel(
+                                    label: 'Father Name',
+                                    helpTitle: SearchPropertyHelp.fatherNameTitle,
+                                    helpMessage: SearchPropertyHelp.fatherNameMessage,
+                                  ),
                                   const SizedBox(height: 8),
                                   _buildTextField('Enter father name', _fatherController),
                                 ],
@@ -582,7 +596,11 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
                                 key: _keyPropertyIdFields,
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  _fieldLabel('Property ID'),
+                                  const InfoLabel(
+                                    label: 'Property ID',
+                                    helpTitle: SearchPropertyHelp.propertyIdTitle,
+                                    helpMessage: SearchPropertyHelp.propertyIdMessage,
+                                  ),
                                   const SizedBox(height: 8),
                                   _buildTextField('Enter property ID', _propertyIdController),
                                 ],
@@ -592,7 +610,11 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
                                 key: _keyHouseNoFields,
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  _fieldLabel('Zone'),
+                                  const InfoLabel(
+                                    label: 'Zone',
+                                    helpTitle: SearchPropertyHelp.zoneTitle,
+                                    helpMessage: SearchPropertyHelp.zoneMessage,
+                                  ),
                                   const SizedBox(height: 8),
                                   _buildSelectableField(
                                     hint: _isLoadingZones
@@ -602,7 +624,11 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
                                     onTap: _showZoneSelection,
                                   ),
                                   const SizedBox(height: 16),
-                                  _fieldLabel('Ward'),
+                                  const InfoLabel(
+                                    label: 'Ward',
+                                    helpTitle: SearchPropertyHelp.wardTitle,
+                                    helpMessage: SearchPropertyHelp.wardMessage,
+                                  ),
                                   const SizedBox(height: 8),
                                   _buildSelectableField(
                                     hint: _isLoadingWards
@@ -612,7 +638,11 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
                                     onTap: _showWardSelection,
                                   ),
                                   const SizedBox(height: 16),
-                                  _fieldLabel('House Number'),
+                                  const InfoLabel(
+                                    label: 'House Number',
+                                    helpTitle: SearchPropertyHelp.houseNumberTitle,
+                                    helpMessage: SearchPropertyHelp.houseNumberMessage,
+                                  ),
                                   const SizedBox(height: 8),
                                   _buildTextField('Enter house number', _houseNoController),
                                 ],
@@ -622,7 +652,11 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
                                 key: _keyLocationFields,
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  _fieldLabel('Zone'),
+                                  const InfoLabel(
+                                    label: 'Zone',
+                                    helpTitle: SearchPropertyHelp.zoneTitle,
+                                    helpMessage: SearchPropertyHelp.zoneMessage,
+                                  ),
                                   const SizedBox(height: 8),
                                   _buildSelectableField(
                                     hint: _isLoadingZones
@@ -632,7 +666,11 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
                                     onTap: _showZoneSelection,
                                   ),
                                   const SizedBox(height: 16),
-                                  _fieldLabel('Ward'),
+                                  const InfoLabel(
+                                    label: 'Ward',
+                                    helpTitle: SearchPropertyHelp.wardTitle,
+                                    helpMessage: SearchPropertyHelp.wardMessage,
+                                  ),
                                   const SizedBox(height: 8),
                                   _buildSelectableField(
                                     hint: _isLoadingWards
@@ -642,7 +680,11 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
                                     onTap: _showWardSelection,
                                   ),
                                   const SizedBox(height: 16),
-                                  _fieldLabel('Mohalla'),
+                                  const InfoLabel(
+                                    label: 'Mohalla',
+                                    helpTitle: SearchPropertyHelp.mohallaTitle,
+                                    helpMessage: SearchPropertyHelp.mohallaMessage,
+                                  ),
                                   const SizedBox(height: 8),
                                   _buildSelectableField(
                                     hint: _isLoadingMohallas
@@ -652,7 +694,11 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
                                     onTap: _showMohallaSelection,
                                   ),
                                   const SizedBox(height: 16),
-                                  _fieldLabel('House Number'),
+                                  const InfoLabel(
+                                    label: 'House Number',
+                                    helpTitle: SearchPropertyHelp.houseNumberTitle,
+                                    helpMessage: SearchPropertyHelp.houseNumberMessage,
+                                  ),
                                   const SizedBox(height: 8),
                                   _buildTextField('Enter house number', _houseNoController),
                                 ],
@@ -662,7 +708,11 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
                                 key: _keyMobileFields,
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  _fieldLabel('Mobile Number'),
+                                  const InfoLabel(
+                                    label: 'Mobile Number',
+                                    helpTitle: SearchPropertyHelp.mobileNumberTitle,
+                                    helpMessage: SearchPropertyHelp.mobileNumberMessage,
+                                  ),
                                   const SizedBox(height: 8),
                                   _buildTextField('Enter mobile number', _mobileController),
                                 ],
@@ -717,17 +767,6 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _fieldLabel(String text) {
-    return Text(
-      text,
-      style: GoogleFonts.poppins(
-        fontSize: 13,
-        fontWeight: FontWeight.w600,
-        color: Colors.grey.shade700,
       ),
     );
   }
