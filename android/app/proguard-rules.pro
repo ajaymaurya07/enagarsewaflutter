@@ -27,7 +27,7 @@
 -keep class org.sqlite.database.** { *; }
 
 # Keep app's MethodChannel handler
--keep class com.example.enagarsewa.** { *; }
+-keep class com.vdsai.enagaesewa.** { *; }
 
 # Remove logging in release
 -assumenosideeffects class android.util.Log {

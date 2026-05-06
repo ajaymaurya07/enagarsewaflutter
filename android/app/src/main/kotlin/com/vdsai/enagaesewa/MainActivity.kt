@@ -1,4 +1,4 @@
-package com.example.enagarsewa
+package com.vdsai.enagaesewa
 
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
