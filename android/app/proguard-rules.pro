@@ -26,8 +26,9 @@
 -keep class org.sqlite.** { *; }
 -keep class org.sqlite.database.** { *; }
 
-# Keep app's MethodChannel handler
--keep class com.vdsai.enagaesewa.** { *; }
+# Keep only MainActivity — Android instantiates it by name.
+# All private helper methods are obfuscated by R8.
+-keep class com.vdsai.enagaesewa.MainActivity { *; }
 
 # Remove logging in release
 -assumenosideeffects class android.util.Log {
