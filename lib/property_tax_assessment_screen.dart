@@ -877,6 +877,8 @@ class _PropertyTaxAssessmentScreenState
                 _rentAreaController,
                 Icons.square_foot_outlined,
                 keyboardType: TextInputType.number,
+                maxLength: 10,
+                showCounter: false,
                 helpTitle: PropertyTaxAssessmentHelp.rentAreaTitle,
                 helpMessage: PropertyTaxAssessmentHelp.rentAreaMessage,
               ),
@@ -886,6 +888,8 @@ class _PropertyTaxAssessmentScreenState
                 _ownAreaController,
                 Icons.square_foot_outlined,
                 keyboardType: TextInputType.number,
+                maxLength: 10,
+                showCounter: false,
                 helpTitle: PropertyTaxAssessmentHelp.ownAreaTitle,
                 helpMessage: PropertyTaxAssessmentHelp.ownAreaMessage,
               ),
@@ -910,6 +914,8 @@ class _PropertyTaxAssessmentScreenState
                 _constructionYearController,
                 Icons.calendar_today_outlined,
                 keyboardType: TextInputType.number,
+                maxLength: 4,
+                showCounter: false,
                 helpTitle: PropertyTaxAssessmentHelp.constructionYearTitle,
                 helpMessage: PropertyTaxAssessmentHelp.constructionYearMessage,
               ),
@@ -1202,6 +1208,8 @@ class _PropertyTaxAssessmentScreenState
     TextEditingController controller,
     IconData icon, {
     TextInputType keyboardType = TextInputType.text,
+    int? maxLength,
+    bool showCounter = true,
     String? helpTitle,
     String? helpMessage,
   }) {
@@ -1215,6 +1223,16 @@ class _PropertyTaxAssessmentScreenState
         controller: controller,
         readOnly: _isTourActive,
         keyboardType: keyboardType,
+        maxLength: maxLength,
+        buildCounter: maxLength != null
+            ? (context, {required currentLength, required isFocused, maxLength}) =>
+                showCounter
+                    ? Text(
+                        '${maxLength! - currentLength} remaining',
+                        style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey.shade500),
+                      )
+                    : const SizedBox.shrink()
+            : null,
         onChanged: (_) => setState(() {}),
         style: GoogleFonts.poppins(fontSize: 14),
         decoration: InputDecoration(

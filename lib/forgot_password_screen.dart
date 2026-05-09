@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'services/api_service.dart';
 import 'widgets/info_label.dart';
@@ -190,12 +191,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       TextField(
                         controller: newPasswordController,
                         obscureText: obscureNew,
+                        maxLength: 25,
                         style: GoogleFonts.poppins(fontSize: 14),
                         decoration:
                             _sheetInputDecoration(
                               hint: 'Enter new password',
                               icon: Icons.lock_outlined,
                             ).copyWith(
+                              counterText: '',
                               suffixIcon: IconButton(
                                 icon: Icon(
                                   obscureNew
@@ -230,12 +233,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       TextField(
                         controller: confirmPasswordController,
                         obscureText: obscureConfirm,
+                        maxLength: 25,
                         style: GoogleFonts.poppins(fontSize: 14),
                         decoration:
                             _sheetInputDecoration(
                               hint: 'Re-enter new password',
                               icon: Icons.lock_outlined,
                             ).copyWith(
+                              counterText: '',
                               suffixIcon: IconButton(
                                 icon: Icon(
                                   obscureConfirm
@@ -576,9 +581,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                               TextField(
                                 controller: _usernameController,
                                 keyboardType: TextInputType.emailAddress,
+                                maxLength: 50,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.deny(RegExp(r'[<>"\\]')),
+                                ],
                                 style: GoogleFonts.poppins(fontSize: 14),
                                 decoration: InputDecoration(
                                   hintText: 'Enter your email',
+                                  counterText: '',
                                   hintStyle: GoogleFonts.poppins(
                                     fontSize: 13,
                                     color: Colors.grey.shade400,

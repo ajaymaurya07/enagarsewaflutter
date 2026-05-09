@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
@@ -596,6 +597,7 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
                     'Enter Landmark',
                     _landmarkController,
                     isRequired: true,
+                    maxLength: 200,
                     helpMessage: ApplyGrievanceHelp.landmarkMessage,
                     helpTitle: ApplyGrievanceHelp.landmarkTitle,
                   ),
@@ -658,6 +660,7 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
                     'Grievance Description',
                     _descriptionController,
                     maxLines: 4,
+                    maxLength: 500,
                     isRequired: true,
                     helpMessage: ApplyGrievanceHelp.descriptionMessage,
                     helpTitle: ApplyGrievanceHelp.descriptionTitle,
@@ -832,6 +835,7 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
     IconData? icon,
     TextInputType keyboardType = TextInputType.text,
     int maxLines = 1,
+    int? maxLength,
     bool enabled = true,
     bool isRequired = false,
     String? helpTitle,
@@ -843,6 +847,10 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
         controller: controller,
         keyboardType: keyboardType,
         maxLines: maxLines,
+        maxLength: maxLength,
+        inputFormatters: [
+          FilteringTextInputFormatter.deny(RegExp(r'[<>]')),
+        ],
         enabled: enabled,
         style: GoogleFonts.poppins(
           fontSize: 14,
@@ -1392,9 +1400,14 @@ class _SelectionSheetState extends State<SelectionSheet> {
             child: TextField(
               controller: _searchController,
               onChanged: _filterSearch,
+              maxLength: 100,
+              inputFormatters: [
+                FilteringTextInputFormatter.deny(RegExp(r'[<>]')),
+              ],
               style: GoogleFonts.poppins(fontSize: 14),
               decoration: InputDecoration(
                 hintText: 'Search...',
+                counterText: '',
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),

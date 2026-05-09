@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'services/api_service.dart';
 import 'services/database_service.dart';
@@ -250,6 +251,7 @@ class _PaymentGrievanceScreenState extends State<PaymentGrievanceScreen> {
                     'Describe your issue',
                     _descriptionController,
                     maxLines: 5,
+                    maxLength: 500,
                     isRequired: true,
                     helpTitle: PaymentGrievanceHelp.descriptionTitle,
                     helpMessage: PaymentGrievanceHelp.descriptionMessage,
@@ -341,6 +343,7 @@ class _PaymentGrievanceScreenState extends State<PaymentGrievanceScreen> {
     IconData? icon,
     TextInputType keyboardType = TextInputType.text,
     int maxLines = 1,
+    int? maxLength,
     bool enabled = true,
     bool isRequired = false,
     String? helpTitle,
@@ -352,6 +355,17 @@ class _PaymentGrievanceScreenState extends State<PaymentGrievanceScreen> {
         controller: controller,
         keyboardType: keyboardType,
         maxLines: maxLines,
+        maxLength: maxLength,
+        buildCounter: maxLength != null
+            ? (context, {required currentLength, required isFocused, maxLength}) =>
+                Text(
+                  '${maxLength! - currentLength} remaining',
+                  style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey.shade500),
+                )
+            : null,
+        inputFormatters: [
+          FilteringTextInputFormatter.deny(RegExp(r'[<>]')),
+        ],
         enabled: enabled,
         style: GoogleFonts.poppins(fontSize: 14, color: enabled ? Colors.black : Colors.grey),
         validator: isRequired

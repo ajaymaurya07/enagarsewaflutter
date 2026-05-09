@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'services/sim_service.dart';
@@ -714,9 +715,14 @@ class _SignUpScreenState extends State<SignUpScreen>
                   TextField(
                     controller: customEmailController,
                     keyboardType: TextInputType.emailAddress,
+                    maxLength: 50,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.deny(RegExp(r'[<>"\\]')),
+                    ],
                     autofocus: true,
                     decoration: InputDecoration(
                       hintText: 'Enter your email address',
+                      counterText: '',
                       prefixIcon: const Icon(Icons.email_outlined),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -1210,11 +1216,15 @@ class _SignUpScreenState extends State<SignUpScreen>
                             const SizedBox(height: 8),
                             TextField(
                               controller: _nameController,
+                              maxLength: 30,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.allow(RegExp(r"[a-zA-Z\s\.]"))  ,
+                              ],
                               style: GoogleFonts.poppins(fontSize: 14),
                               decoration: _inputDecoration(
                                 hint: 'Enter your full name',
                                 icon: Icons.person_outline,
-                              ),
+                              ).copyWith(counterText: ''),
                             ),
                             const SizedBox(height: 20),
 
@@ -1268,11 +1278,13 @@ class _SignUpScreenState extends State<SignUpScreen>
                             TextField(
                               controller: _passwordController,
                               obscureText: _obscurePassword,
+                              maxLength: 25,
                               style: GoogleFonts.poppins(fontSize: 14),
                               decoration: _inputDecoration(
                                 hint: 'Enter your password',
                                 icon: Icons.lock_outlined,
                               ).copyWith(
+                                counterText: '',
                                 suffixIcon: IconButton(
                                   icon: Icon(
                                     _obscurePassword
@@ -1298,11 +1310,13 @@ class _SignUpScreenState extends State<SignUpScreen>
                             TextField(
                               controller: _confirmPasswordController,
                               obscureText: _obscureConfirmPassword,
+                              maxLength: 25,
                               style: GoogleFonts.poppins(fontSize: 14),
                               decoration: _inputDecoration(
                                 hint: 'Re-enter your password',
                                 icon: Icons.lock_outlined,
                               ).copyWith(
+                                counterText: '',
                                 suffixIcon: IconButton(
                                   icon: Icon(
                                     _obscureConfirmPassword

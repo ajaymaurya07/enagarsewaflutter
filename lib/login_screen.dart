@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'signup_screen.dart';
 import 'forgot_password_screen.dart';
@@ -172,9 +173,14 @@ class _LoginScreenState extends State<LoginScreen> {
                         TextField(
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
+                          maxLength: 50,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.deny(RegExp(r'[<>"\\]')),
+                          ],
                           style: GoogleFonts.poppins(fontSize: 14),
                           decoration: InputDecoration(
                             hintText: 'Enter email',
+                            counterText: '',
                             hintStyle: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade400),
                             prefixIcon: const Icon(Icons.email_outlined, color: Color(0xFFE67514), size: 20),
                             filled: true,
@@ -206,9 +212,11 @@ class _LoginScreenState extends State<LoginScreen> {
                         TextField(
                           controller: _passwordController,
                           obscureText: _obscurePassword,
+                          maxLength: 25,
                           style: GoogleFonts.poppins(fontSize: 14),
                           decoration: InputDecoration(
                             hintText: 'Enter your password',
+                            counterText: '',
                             hintStyle: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade400),
                             prefixIcon: const Icon(Icons.lock_outlined, color: Color(0xFFE67514), size: 20),
                             suffixIcon: IconButton(
