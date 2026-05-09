@@ -586,6 +586,36 @@ class ApiService {
     }
   }
 
+  // Create SBI Transaction API
+  static Future<CreateSbiTransactionResponse> createSbiTransaction(
+    InitiateTransactionRequest request,
+  ) async {
+    try {
+      final response = await _makeAuthenticatedRequest(
+        (headers) => _post(
+              Uri.parse(
+                '${AppConstants.baseUrl}api/Payment/create_sbi_transaction',
+              ),
+              headers: headers,
+              body: jsonEncode(request.toJson()),
+            )
+            .timeout(Duration(seconds: AppConstants.networkTimeout)),
+      );
+
+      if (response.statusCode == 200) {
+        return CreateSbiTransactionResponse.fromJson(
+          jsonDecode(response.body),
+        );
+      } else {
+        throw Exception(
+          'SBI transaction creation failed: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      throw _userSafeException(e);
+    }
+  }
+
   // Generate hash for PayU (form-urlencoded)
   static Future<HashResponse> generateHash(
     String hashName,
@@ -1649,6 +1679,50 @@ class Transaction {
     key: json['key'],
     txnid: json['txnid']?.toString(),
   );
+}
+
+class CreateSbiTransactionResponse {
+  final bool? status;
+  final String? message;
+  final SbiTransactionData? data;
+
+  CreateSbiTransactionResponse({this.status, this.message, this.data});
+
+  factory CreateSbiTransactionResponse.fromJson(Map<String, dynamic> json) {
+    final dataJson = json['data'];
+    return CreateSbiTransactionResponse(
+      status: json['status'],
+      message: json['message'],
+      data: dataJson is Map<String, dynamic>
+          ? SbiTransactionData.fromJson(dataJson)
+          : null,
+    );
+  }
+}
+
+class SbiTransactionData {
+  final String? txnid;
+  final String? merchantId;
+  final String? encdata;
+  final String? sbiPostUrl;
+  final String? paymentPageHtml;
+
+  SbiTransactionData({
+    this.txnid,
+    this.merchantId,
+    this.encdata,
+    this.sbiPostUrl,
+    this.paymentPageHtml,
+  });
+
+  factory SbiTransactionData.fromJson(Map<String, dynamic> json) =>
+      SbiTransactionData(
+        txnid: json['txnid']?.toString(),
+        merchantId: json['merchant_id']?.toString(),
+        encdata: json['encdata']?.toString(),
+        sbiPostUrl: json['sbi_post_url']?.toString(),
+        paymentPageHtml: json['payment_page_html']?.toString(),
+      );
 }
 
 class HashResponse {

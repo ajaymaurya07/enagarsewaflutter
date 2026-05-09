@@ -16,6 +16,7 @@ import 'payment_result_screen.dart';
 import 'payment_grievance_screen.dart';
 import 'payment_history_screen.dart';
 import 'tour_guides/payment_details_tour.dart';
+import 'sbi_payment_screen.dart';
 
 class PaymentDetailsScreen extends StatefulWidget {
   final String propertyId;
@@ -510,7 +511,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
                         final res = await ApiService.verifyOtp(mobileNo, otpController.text);
                         if (res.success == true) {
                           sheetNavigator.pop();
-                          _handleCreateTransaction();
+                          _showPaymentMethodSelection();
                         } else {
                           setModalState(() => sheetError = res.message ?? 'Invalid OTP');
                         }
@@ -569,75 +570,70 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
     );
   }
 
-  Future<void> _handleCreateTransaction() async {
+  Future<InitiateTransactionRequest> _buildTransactionRequest() async {
+    final propertyEntity = await DatabaseService.getPropertyById(widget.propertyId);
+
+    final String ulbId = propertyEntity?.ulbId ?? "0";
+    final String totalArvValue = propertyEntity?.arvValue ?? "0.0";
+    final String userId = propertyEntity?.userId ?? "0";
+    final String? email = await StorageService.getEmailId();
+
+    final bill = _details?.billDetails;
+    final owner = _details?.ownerDetails;
+
+    final String mobileId = "MOBTXN${DateTime.now().millisecondsSinceEpoch}";
+    final String timestamp = _getCurrentTime();
+
+    return InitiateTransactionRequest(
+      mobileTransactionId: mobileId,
+      mobileTransactionTimestamp: timestamp,
+      billNo: bill?.billNo ?? "",
+      propertyId: widget.propertyId,
+      ulbId: ulbId,
+      financialYear: bill?.finYear ?? "",
+      ownerName: owner?.ownerName ?? "",
+      fatherName: owner?.fatherName ?? "",
+      mobileNo: owner?.mobileNo ?? "",
+      propertyTax: bill?.houseTaxNetAmount ?? "0",
+      waterTax: bill?.waterTaxNetAmount ?? "0",
+      sewerTax: bill?.sewerTaxNetAmount ?? "0",
+      otherTax: bill?.othertaxNetAmount ?? "0",
+      waterCharge: bill?.waterChargeNetAmount ?? "0",
+      // netDemand: bill?.netDemand ?? "0",
+      // netPayable: bill?.netPayble ?? "0",
+      netDemand: "10",
+      netPayable: "10",
+      totalArv: totalArvValue,
+      userId: userId,
+      emailId: email ?? "",
+    );
+  }
+
+  Future<void> _handlePayuTransaction() async {
     setState(() => _isLoading = true);
     try {
-      // 1. Get critical identifiers from Database for this property
-      final propertyEntity = await DatabaseService.getPropertyById(widget.propertyId);
-      
-      final String ulbId = propertyEntity?.ulbId ?? "0";
-      final String totalArvValue = propertyEntity?.arvValue ?? "0.0";
-      final String userId = propertyEntity?.userId ?? "0";
-
-      // 2. Get email from SharedPreferences
-      final String? email = await StorageService.getEmailId();
-      
-      final bill = _details?.billDetails;
-      final owner = _details?.ownerDetails;
-
-      // Formatting timestamp and ID as requested
-      final String mobileId = "MOBTXN${DateTime.now().millisecondsSinceEpoch}";
-      final String timestamp = _getCurrentTime();
-      
-      final request = InitiateTransactionRequest(
-        mobileTransactionId: mobileId,
-        mobileTransactionTimestamp: timestamp,
-        billNo: bill?.billNo ?? "",
-        propertyId: widget.propertyId,
-        ulbId: ulbId,
-        financialYear: bill?.finYear ?? "",
-        ownerName: owner?.ownerName ?? "",
-        fatherName: owner?.fatherName ?? "",
-        mobileNo: owner?.mobileNo ?? "",
-        propertyTax: bill?.houseTaxNetAmount ?? "0",
-        waterTax: bill?.waterTaxNetAmount ?? "0",
-        sewerTax: bill?.sewerTaxNetAmount ?? "0",
-        otherTax: bill?.othertaxNetAmount ?? "0",
-        waterCharge: bill?.waterChargeNetAmount ?? "0",
-        netDemand: bill?.netDemand ?? "0",
-        netPayable: bill?.netPayble ?? "0",
-        totalArv: totalArvValue,
-        userId: userId,
-        emailId: email ?? "",
-      );
-
+      final request = await _buildTransactionRequest();
       final response = await ApiService.initiateTransaction(request);
       if (!mounted) return;
 
       setState(() => _isLoading = false);
 
       if (response.status == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Transaction Initiated: ${response.data?.txnid}'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        _showPaymentOptions(response.data);
+        _startPayuFlow(response.data);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(response.message ?? 'Transaction failed')),
         );
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             ApiService.getUserFriendlyErrorMessage(
               e,
-              fallbackMessage:
-                  'Unable to create transaction right now. Please try again.',
+              fallbackMessage: 'Unable to create transaction right now. Please try again.',
             ),
           ),
         ),
@@ -645,7 +641,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
     }
   }
 
-  void _showPaymentOptions(Transaction? transactionData) {
+  void _showPaymentMethodSelection() {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -663,25 +659,59 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
               'Select Payment Gateway',
               style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Amount: ₹ ${transactionData?.amount ?? "0.0"}',
-              style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey.shade700),
-            ),
             const SizedBox(height: 24),
             _buildPaymentOptionCard('Pay with PayU', 'Safe & Secure', Icons.payment_rounded, () {
               Navigator.pop(context);
-              _startPayuFlow(transactionData);
+              _handlePayuTransaction();
             }),
             const SizedBox(height: 12),
             _buildPaymentOptionCard('Pay with SBI', 'Official SBI Gateway', Icons.account_balance_rounded, () {
               Navigator.pop(context);
+              _handleSbiTransaction();
             }),
             const SizedBox(height: 24),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _handleSbiTransaction() async {
+    setState(() => _isLoading = true);
+    try {
+      final request = await _buildTransactionRequest();
+      final response = await ApiService.createSbiTransaction(request);
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+
+      if (response.status == true && response.data != null) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SbiPaymentScreen(sbiData: response.data!),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(response.message ?? 'Failed to initiate SBI payment'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            ApiService.getUserFriendlyErrorMessage(
+              e,
+              fallbackMessage: 'Unable to start SBI payment right now. Please try again.',
+            ),
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _startPayuFlow(Transaction? txnData) async {

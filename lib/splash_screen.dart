@@ -45,16 +45,17 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     if (!mounted) return;
 
     // Block developer mode / USB debugging enabled devices
-    final bool devMode = await DeviceService.isDeveloperModeEnabled();
-    if (devMode) {
-      if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => const RootedDeviceScreen(reason: BlockReason.developerMode),
-        ),
-      );
-      return;
-    }
+    // TODO: Re-enable before production release
+    // final bool devMode = await DeviceService.isDeveloperModeEnabled();
+    // if (devMode) {
+    //   if (!mounted) return;
+    //   Navigator.of(context).pushReplacement(
+    //     MaterialPageRoute(
+    //       builder: (_) => const RootedDeviceScreen(reason: BlockReason.developerMode),
+    //     ),
+    //   );
+    //   return;
+    // }
 
     // Block rooted / jailbroken devices
     final bool rooted = await DeviceService.isDeviceRooted();
