@@ -10,7 +10,11 @@ import 'transaction_history_screen.dart';
 import 'account_screen.dart';
 import 'track_grievance_screen.dart';
 import 'property_tax_assessment_screen.dart';
+import 'unable_to_connect_screen.dart';
 import 'services/storage_service.dart';
+import 'services/api_service.dart';
+import 'services/database_service.dart';
+import 'services/notification_helper.dart';
 import 'tour_guides/dashboard_tour.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -21,6 +25,11 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  static const Color _sliderAccentColor = Color(0xFFE67514);
+  static const Color _sliderBgColor = Color(0xFFFFF4E5);
+  static const Color _sliderBorderColor = Color(0xFFFFE0B2);
+  static const Color _sliderBodyTextColor = Color(0xFF666666);
+
   final _keySearchProperty = GlobalKey();
   final _keyPropertyTax = GlobalKey();
   final _keyTrackGrievance = GlobalKey();
@@ -40,24 +49,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _currentPaymentPage = 0;
   TutorialCoachMark? _tutorialCoachMark;
 
-  final List<Map<String, dynamic>> _paymentCards = const [
-    {
-      'title': 'Fast Online Payment',
-      'subtitle': 'Make instant payments using UPI or Debit Card.',
-      'icon': Icons.notifications_active_outlined,
-    },
-    {
-      'title': 'Quick Tax Payment',
-      'subtitle': 'Pay property tax safely with net banking and cards.',
-      'icon': Icons.account_balance_wallet_outlined,
-    },
-  ];
+  // Payment Status Variables
+  PropertyDetailsData? _propertyDetails;
+  String _paymentStatus = "";
+  String _billDate = "";
+  String _paymentDate = "";
+  bool _isLoadingPaymentStatus = false;
+  bool _isConnectionScreenOpen = false;
+
+  static const int _sliderCardCount = 2;
 
   @override
   void initState() {
     super.initState();
     _loadUserInfo();
     _startPaymentAutoScroll();
+    _loadPropertyDetails();
   }
 
   @override
@@ -70,13 +77,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void _startPaymentAutoScroll() {
     _paymentAutoScrollTimer?.cancel();
     _paymentAutoScrollTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-      if (!mounted ||
-          !_paymentPageController.hasClients ||
-          _paymentCards.isEmpty) {
+      if (!mounted || !_paymentPageController.hasClients) {
         return;
       }
 
-      final nextPage = (_currentPaymentPage + 1) % _paymentCards.length;
+      final nextPage = (_currentPaymentPage + 1) % _sliderCardCount;
       _paymentPageController.animateToPage(
         nextPage,
         duration: const Duration(milliseconds: 450),
@@ -105,6 +110,160 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (!seen && mounted) {
       await prefs.setBool('tour_dashboard', true);
       await _startTour();
+    }
+  }
+
+  Future<void> _loadPropertyDetails() async {
+    try {
+      // Get first property from database
+      final properties = await DatabaseService.getAllProperties();
+      if (properties.isEmpty) {
+        return; // No properties saved yet
+      }
+
+      final firstProperty = properties.first;
+      final propertyId = firstProperty.propertyId;
+
+      if (!mounted) return;
+      setState(() => _isLoadingPaymentStatus = true);
+
+      // Fetch property details from API
+      final response = await ApiService.getPropertyDetails(propertyId);
+
+      if (!mounted) return;
+
+      if (response.success == true && response.data != null) {
+        setState(() {
+          _propertyDetails = response.data;
+          _calculatePaymentStatus();
+          _isLoadingPaymentStatus = false;
+        });
+      } else {
+        if (mounted) {
+          setState(() => _isLoadingPaymentStatus = false);
+        }
+      }
+    } catch (e) {
+      final message = ApiService.getUserFriendlyErrorMessage(e);
+
+      if (mounted) {
+        setState(() => _isLoadingPaymentStatus = false);
+      }
+
+      if (_shouldRedirectToConnectionScreen(message)) {
+        _redirectToConnectionScreen();
+      }
+
+      debugPrint('Error loading property details: $e');
+    }
+  }
+
+  bool _shouldRedirectToConnectionScreen(String message) {
+    final normalized = message.toLowerCase();
+    return normalized.contains('unable to connect right now') ||
+        normalized.contains('internet connection') ||
+        normalized.contains('timed out') ||
+        normalized.contains('failed host lookup') ||
+        normalized.contains('socketexception') ||
+        normalized.contains('clientexception');
+  }
+
+  void _redirectToConnectionScreen() {
+    if (!mounted || _isConnectionScreenOpen) {
+      return;
+    }
+
+    _isConnectionScreenOpen = true;
+
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (_) => UnableToConnectScreen(
+              onRetry: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ),
+        )
+        .then((_) {
+          if (!mounted) {
+            return;
+          }
+          _isConnectionScreenOpen = false;
+          _loadPropertyDetails();
+        });
+  }
+
+  void _calculatePaymentStatus() {
+    if (_propertyDetails == null) return;
+
+    final billDate = _propertyDetails?.billDetails?.billDate;
+    final paymentDate =
+        _propertyDetails?.currReceiptDetails?.isNotEmpty ?? false
+            ? _propertyDetails?.currReceiptDetails?.first.paymentDate
+            : null;
+
+    _billDate = billDate ?? "";
+    _paymentDate = paymentDate ?? "";
+
+    // Parse dates (format: dd-mm-yyyy)
+    try {
+      if (paymentDate != null && paymentDate.isNotEmpty && paymentDate != "-") {
+        // Payment already made
+        _paymentStatus = "Payment Done";
+      } else if (billDate != null && billDate.isNotEmpty) {
+        final today = DateTime.now();
+        final billDateTime = _parseDate(billDate);
+
+        if (billDateTime != null) {
+          if (billDateTime.isBefore(today)) {
+            // Overdue
+            _paymentStatus = "Overdue";
+          } else if (billDateTime.year == today.year &&
+              billDateTime.month == today.month &&
+              billDateTime.day == today.day) {
+            // Due today
+            _paymentStatus = "Due Today";
+          } else {
+            // Future due date
+            _paymentStatus = "Upcoming";
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error calculating payment status: $e');
+    }
+  }
+
+  DateTime? _parseDate(String dateStr) {
+    try {
+      // Expected format: dd-mm-yyyy
+      final parts = dateStr.split('-');
+      if (parts.length == 3) {
+        return DateTime(
+          int.parse(parts[2]), // year
+          int.parse(parts[1]), // month
+          int.parse(parts[0]), // day
+        );
+      }
+    } catch (e) {
+      debugPrint('Error parsing date: $e');
+    }
+    return null;
+  }
+
+  Color _getStatusColor() {
+    switch (_paymentStatus) {
+      case "Overdue":
+        return Colors.red; // Red for overdue
+      case "Due Today":
+        return Colors.orange; // Orange for due today
+      case "Upcoming":
+        return Colors.blue; // Blue for upcoming
+      case "Payment Done":
+        return Colors.green; // Green for paid
+      default:
+        return Colors.grey;
     }
   }
 
@@ -262,72 +421,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Auto-scrolling payment cards
                       SizedBox(
-                        height: 120,
+                        height: 150,
                         child: PageView.builder(
                           controller: _paymentPageController,
-                          itemCount: _paymentCards.length,
+                          itemCount: _sliderCardCount,
                           onPageChanged: (index) {
                             setState(() {
                               _currentPaymentPage = index;
                             });
                           },
                           itemBuilder: (context, index) {
-                            final card = _paymentCards[index];
-
-                            return Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 20,
-                                  vertical: 20,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFFFF4E5),
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: const Color(0xFFFFE0B2),
-                                    width: 1,
-                                  ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      card['icon'] as IconData,
-                                      color: const Color(0xFFE67514),
-                                      size: 36,
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            card['title'] as String,
-                                            style: GoogleFonts.poppins(
-                                              color: const Color(0xFFE67514),
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            card['subtitle'] as String,
-                                            style: GoogleFonts.poppins(
-                                              color: const Color(0xFF666666),
-                                              fontSize: 12,
-                                              height: 1.4,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
+                            if (index == 0) {
+                              return _buildFastPaymentSlide();
+                            }
+                            return _buildPaymentStatusSlide();
                           },
                         ),
                       ),
@@ -614,5 +722,213 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildFastPaymentSlide() {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+        decoration: _sliderCardDecoration(),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.notifications_active_outlined,
+              color: _sliderAccentColor,
+              size: 36,
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Fast Online Payment',
+                    style: GoogleFonts.poppins(
+                      color: _sliderAccentColor,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Make instant payments using UPI or Debit Card.',
+                    style: GoogleFonts.poppins(
+                      color: _sliderBodyTextColor,
+                      fontSize: 12,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPaymentStatusSlide() {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: _sliderCardDecoration(),
+        child: _isLoadingPaymentStatus
+            ? const Center(
+                child: CircularProgressIndicator(color: _sliderAccentColor),
+              )
+            : _propertyDetails == null
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Payment Status',
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: _sliderAccentColor,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'No property found. Add or verify a property to see due status.',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: _sliderBodyTextColor,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Payment Status',
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: _sliderAccentColor,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _getStatusMessage(),
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: _sliderBodyTextColor,
+                      height: 1.4,
+                    ),
+                  ),
+                  const Spacer(),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _getStatusColor().withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: _getStatusColor(), width: 1),
+                        ),
+                        child: Text(
+                          _paymentStatus,
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: _getStatusColor(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _billDate.isNotEmpty ? 'Due: $_billDate' : 'Due: N/A',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF444444),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_paymentDate.isNotEmpty && _paymentDate != "-") ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Last payment date: $_paymentDate',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: Colors.green.shade700,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+      ),
+    );
+  }
+
+  BoxDecoration _sliderCardDecoration() {
+    return BoxDecoration(
+      color: _sliderBgColor,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(
+        color: _sliderBorderColor,
+        width: 1,
+      ),
+    );
+  }
+
+  String _getStatusMessage() {
+    // If payment is done, show default message
+    if (_paymentStatus == "Payment Done") {
+      return 'Payment received successfully. Your account is up to date.';
+    }
+
+    // Only show alerts if payment is NOT done and billDate is valid
+    final billDate = _parseDate(_billDate);
+    if (billDate == null) {
+      return 'We are checking your latest payment details.';
+    }
+    final today = DateTime.now();
+    final daysDiff = billDate.difference(DateTime(today.year, today.month, today.day)).inDays;
+
+
+    // Only send notification, do not show alert in UI
+    String? notificationMsg;
+    if (daysDiff == 7) {
+      notificationMsg = 'Your payment is due in 7 days.';
+    } else if (daysDiff == 3) {
+      notificationMsg = 'Your payment is due in 3 days.';
+    } else if (daysDiff == 0) {
+      notificationMsg = 'Your payment is due today.';
+    } else if (daysDiff == -3) {
+      notificationMsg = 'Your payment is overdue by 3 days.';
+    } else if (daysDiff == -7) {
+      notificationMsg = 'Your payment is overdue by 7 days.';
+    }
+    if (notificationMsg != null) {
+      NotificationHelper.showSimpleNotification('Payment Alert', notificationMsg);
+      // Do not show alert in UI, fall through to default message
+    }
+
+    // Fallback to old logic for other cases
+    switch (_paymentStatus) {
+      case "Overdue":
+        return 'Your payment is overdue. Please clear dues to avoid penalties.';
+      case "Due Today":
+        return 'Your payment is due today. Complete payment to stay updated.';
+      case "Upcoming":
+        return 'Your payment is upcoming. You can pay early for convenience.';
+      default:
+        return 'We are checking your latest payment details.';
+    }
   }
 }
