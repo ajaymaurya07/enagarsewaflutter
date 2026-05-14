@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1064647816079",
+    "project_id": "enagarsewaflutter",
+    "storage_bucket": "enagarsewaflutter.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1064647816079:android:a788c961c618a00ab1d1fa",
+        "android_client_info": {
+          "package_name": "com.vdsai.enagaesewa"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCxCn1Lzag-muoLuOYdZxN-A0DHOpJaAPI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

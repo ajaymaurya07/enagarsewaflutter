@@ -6,7 +6,9 @@ import 'package:flutter/services.dart';
 
 class DeviceService {
   static final DeviceInfoPlugin _deviceInfo = DeviceInfoPlugin();
-  static const _securityChannel = MethodChannel('com.enagarsewa.app/device_security');
+  static const _securityChannel = MethodChannel(
+    'com.enagarsewa.app/device_security',
+  );
 
   /// Returns true if the device is rooted (Android) or jailbroken (iOS).
   static Future<bool> isDeviceRooted() async {
@@ -27,7 +29,9 @@ class DeviceService {
   /// Returns true if Developer Options (Android) or Developer Mode (iOS 16+) is enabled.
   static Future<bool> isDeveloperModeEnabled() async {
     try {
-      final result = await _securityChannel.invokeMethod<bool>('isDeveloperModeEnabled');
+      final result = await _securityChannel.invokeMethod<bool>(
+        'isDeveloperModeEnabled',
+      );
       return result == true;
     } catch (_) {
       return false;
@@ -75,7 +79,8 @@ class DeviceService {
       if (Platform.isAndroid) {
         AndroidDeviceInfo androidInfo = await _deviceInfo.androidInfo;
         // Combining multiple properties to ensure uniqueness and stability
-        rawId = '${androidInfo.brand}${androidInfo.model}${androidInfo.id}${androidInfo.hardware}';
+        rawId =
+            '${androidInfo.brand}${androidInfo.model}${androidInfo.id}${androidInfo.hardware}';
       } else if (Platform.isIOS) {
         IosDeviceInfo iosInfo = await _deviceInfo.iosInfo;
         rawId = iosInfo.identifierForVendor ?? 'ios_device';
@@ -85,7 +90,7 @@ class DeviceService {
 
       // Create a 16-character hex hash to ensure correct format
       var bytes = utf8.encode(rawId);
-      var digest = md5.convert(bytes);
+      var digest = sha256.convert(bytes);
       return digest.toString().substring(0, 16); // Returns a 16-char hex string
     } catch (e) {
       // Fallback to a random 16-char string if something fails
