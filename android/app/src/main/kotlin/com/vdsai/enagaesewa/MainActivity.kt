@@ -141,7 +141,7 @@ class MainActivity : FlutterActivity() {
         val integrityManager = IntegrityManagerFactory.create(applicationContext)
         val request = IntegrityTokenRequest.builder()
             .setNonce(nonce)
-            // TODO: .setCloudProjectNumber(YOUR_CLOUD_PROJECT_NUMBER)
+            .setCloudProjectNumber(777110300025L)
             .build()
 
         integrityManager.requestIntegrityToken(request)

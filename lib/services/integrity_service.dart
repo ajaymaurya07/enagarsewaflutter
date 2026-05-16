@@ -7,6 +7,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'device_service.dart';
+import 'pinned_http_client.dart';
 import '../constants/app_constants.dart';
 
 class IntegrityService {
@@ -15,9 +17,11 @@ class IntegrityService {
 
   static String get _verifyUrl =>
       '${AppConstants.baseUrl}api/house_tax/verify-integrity';
+  static String get _nonceUrl =>
+      '${AppConstants.baseUrl}api/Play_integrity/get_nonce';
 
   /// Set to false when the backend verify-integrity API goes live.
-  static const bool _devMode = true;
+  static const bool _devMode = false;
 
   // ─── Public API ────────────────────────────────────────────────────────────
 
@@ -37,7 +41,9 @@ class IntegrityService {
   /// server-side verification against the Google Play Integrity API.
   static Future<bool> _verifyAndroid() async {
     try {
-      final nonce = _generateNonce();
+      final nonce = await _fetchBackendNonce();
+      if (nonce == null) return false;
+
       final token = await _channel.invokeMethod<String>(
         'getIntegrityToken',
         {'nonce': nonce},
@@ -54,6 +60,48 @@ class IntegrityService {
     } catch (e) {
       debugPrint('[IntegrityService] Android unexpected error: $e');
       return false;
+    }
+  }
+
+  /// Fetches a server-generated nonce for Play Integrity.
+  /// API: POST api/Play_integrity/get_nonce (multipart/form-data)
+  static Future<String?> _fetchBackendNonce() async {
+    try {
+      final deviceId = await DeviceService.getDeviceId();
+      final request = http.MultipartRequest('POST', Uri.parse(_nonceUrl));
+      request.fields['device_id'] = deviceId;
+
+      final client = await PinnedHttpClient.getInstance();
+      final streamedResponse = await client
+          .send(request)
+          .timeout(const Duration(seconds: 10));
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode != 200) {
+        debugPrint(
+          '[IntegrityService] Nonce API HTTP ${response.statusCode}: ${response.body}',
+        );
+        return null;
+      }
+
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final statusCode = data['status_code']?.toString() ?? '';
+      final statusMessage = data['status_message'] as String? ?? '';
+      final nonce = data['nonce'] as String?;
+      final expiresIn = data['expires_in']?.toString() ?? '';
+
+      debugPrint(
+        '[IntegrityService] Nonce API $statusCode: $statusMessage (expires_in=$expiresIn)',
+      );
+
+      if (statusCode != '200' || nonce == null || nonce.isEmpty) {
+        return null;
+      }
+
+      return nonce;
+    } catch (e) {
+      debugPrint('[IntegrityService] Nonce API failed: $e');
+      return null;
     }
   }
 
@@ -130,7 +178,7 @@ class IntegrityService {
 
   /// POSTs the integrity payload to the backend.
   /// Expected response:
-  ///   { "platform": "android"|"ios", "status": "success"|"fail", "message": "..." }
+  ///   { "status_code": "200"|"422", "status_message": "..." }
   static Future<bool> _sendToBackend({
     required String platform,
     required Map<String, String> payload,
@@ -140,7 +188,8 @@ class IntegrityService {
       return true;
     }
     try {
-      final response = await http
+      final client = await PinnedHttpClient.getInstance();
+      final response = await client
           .post(
             Uri.parse(_verifyUrl),
             headers: {'Content-Type': 'application/json'},
@@ -150,10 +199,10 @@ class IntegrityService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final status = data['status'] as String? ?? '';
-        final message = data['message'] as String? ?? '';
-        debugPrint('[IntegrityService] $platform — $status: $message');
-        return status == 'success';
+        final statusCode = data['status_code']?.toString() ?? '';
+        final statusMessage = data['status_message'] as String? ?? '';
+        debugPrint('[IntegrityService] $platform — $statusCode: $statusMessage');
+        return statusCode == '200';
       }
       debugPrint(
         '[IntegrityService] Backend returned ${response.statusCode}: ${response.body}',
