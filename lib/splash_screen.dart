@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:in_app_update/in_app_update.dart';
 import 'login_screen.dart';
 import 'search_property_screen.dart';
 import 'dashboard_screen.dart';
@@ -39,8 +40,31 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     super.dispose();
   }
 
+  /// Checks Play Store for available updates.
+  /// If an immediate (critical) update is available, launches force update flow.
+  /// Returns true if update was triggered (app will restart), false to continue.
+  Future<bool> _checkForUpdate() async {
+    try {
+      final AppUpdateInfo info = await InAppUpdate.checkForUpdate();
+      if (info.updateAvailability == UpdateAvailability.updateAvailable &&
+          info.immediateUpdateAllowed) {
+        await InAppUpdate.performImmediateUpdate();
+        return true;
+      }
+    } catch (_) {
+      // Play Store not available or check failed — continue normally
+    }
+    return false;
+  }
+
   Future<void> _checkLoginStatus() async {
     await Future.delayed(const Duration(seconds: 3));
+
+    if (!mounted) return;
+
+    // Force update check — if update is triggered, flow stops here (app restarts)
+    final bool updateTriggered = await _checkForUpdate();
+    if (updateTriggered) return;
 
     if (!mounted) return;
 

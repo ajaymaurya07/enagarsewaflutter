@@ -1,3 +1,5 @@
+import 'package:package_info_plus/package_info_plus.dart';
+
 class AppConstants {
   // API Constants
   static const String _baseUrlFromEnv = String.fromEnvironment('BASE_URL');
@@ -6,12 +8,22 @@ class AppConstants {
   );
   static final String baseUrl = _resolveBaseUrl();
   static final String payuEnvironment = _resolvePayuEnvironment();
-  static const String apiVersion = '6'; // Used in X-App-Version header
   static const int networkTimeout = 30; // Seconds
-  
+
   // App Info
-  static const String appDisplayVersion = '1.0.0';
   static const String appName = 'e-Nagarseva';
+
+  // Loaded once at startup via AppConstants.init()
+  static String apiVersion = '6';       // versionCode from pubspec (e.g. 6)
+  static String appDisplayVersion = '1.0.3'; // versionName from pubspec (e.g. 1.0.3)
+
+  /// Call this once in main() before runApp().
+  /// Reads version info from pubspec.yaml automatically.
+  static Future<void> init() async {
+    final info = await PackageInfo.fromPlatform();
+    appDisplayVersion = info.version;       // e.g. "1.0.3"
+    apiVersion = info.buildNumber;          // e.g. "6"
+  }
 
   static String _resolveBaseUrl() {
     if (_baseUrlFromEnv.isEmpty) {

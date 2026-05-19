@@ -70,6 +70,13 @@ class IntegrityService {
       final deviceId = await DeviceService.getDeviceId();
       final request = http.MultipartRequest('POST', Uri.parse(_nonceUrl));
       request.fields['device_id'] = deviceId;
+      request.headers['X-App-Version'] = AppConstants.apiVersion;
+
+      // ── LOG: Nonce request ──
+      debugPrint('[IntegrityService] Nonce REQUEST →');
+      debugPrint('  URL    : $_nonceUrl');
+      debugPrint('  Headers: ${request.headers}');
+      debugPrint('  Fields : ${request.fields}');
 
       final client = await PinnedHttpClient.getInstance();
       final streamedResponse = await client
@@ -77,10 +84,12 @@ class IntegrityService {
           .timeout(const Duration(seconds: 10));
       final response = await http.Response.fromStream(streamedResponse);
 
+      // ── LOG: Nonce response ──
+      debugPrint('[IntegrityService] Nonce RESPONSE ←');
+      debugPrint('  HTTP  : ${response.statusCode}');
+      debugPrint('  Body  : ${response.body}');
+
       if (response.statusCode != 200) {
-        debugPrint(
-          '[IntegrityService] Nonce API HTTP ${response.statusCode}: ${response.body}',
-        );
         return null;
       }
 
@@ -90,9 +99,10 @@ class IntegrityService {
       final nonce = data['nonce'] as String?;
       final expiresIn = data['expires_in']?.toString() ?? '';
 
-      debugPrint(
-        '[IntegrityService] Nonce API $statusCode: $statusMessage (expires_in=$expiresIn)',
-      );
+      debugPrint('  status_code   : $statusCode');
+      debugPrint('  status_message: $statusMessage');
+      debugPrint('  nonce         : ${nonce != null ? '${nonce.substring(0, 8)}...(truncated)' : 'null'}');
+      debugPrint('  expires_in    : $expiresIn');
 
       if (statusCode != '200' || nonce == null || nonce.isEmpty) {
         return null;
@@ -188,14 +198,39 @@ class IntegrityService {
       return true;
     }
     try {
+      final deviceId = await DeviceService.getDeviceId();
+      final fields = {'platform': platform, ...payload};
+      final headers = {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'X-App-Version': AppConstants.apiVersion,
+        'X-Device-Id': deviceId,
+      };
+
+      // ── LOG: Verify request ──
+      debugPrint('[IntegrityService] Verify REQUEST →');
+      debugPrint('  URL    : $_verifyUrl');
+      debugPrint('  Headers: $headers');
+      // token is long JWS — log only first 40 chars
+      final logFields = {'platform': platform, ...payload};
+      if (logFields.containsKey('token')) {
+        final t = logFields['token'] as String;
+        logFields['token'] = '${t.substring(0, t.length > 40 ? 40 : t.length)}...(truncated)';
+      }
+      debugPrint('  Fields : $logFields');
+
       final client = await PinnedHttpClient.getInstance();
       final response = await client
           .post(
             Uri.parse(_verifyUrl),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({'platform': platform, ...payload}),
+            headers: headers,
+            body: fields,
           )
           .timeout(const Duration(seconds: 10));
+
+      // ── LOG: Verify response ──
+      debugPrint('[IntegrityService] Verify RESPONSE ←');
+      debugPrint('  HTTP: ${response.statusCode}');
+      debugPrint('  Body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
