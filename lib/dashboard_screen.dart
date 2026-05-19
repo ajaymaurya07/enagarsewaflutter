@@ -153,8 +153,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (_shouldRedirectToConnectionScreen(message)) {
         _redirectToConnectionScreen();
       }
-
-      debugPrint('Error loading property details: $e');
     }
   }
 
@@ -230,8 +228,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           }
         }
       }
-    } catch (e) {
-      debugPrint('Error calculating payment status: $e');
+    } catch (_) {
     }
   }
 
@@ -246,8 +243,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           int.parse(parts[0]), // day
         );
       }
-    } catch (e) {
-      debugPrint('Error parsing date: $e');
+    } catch (_) {
     }
     return null;
   }

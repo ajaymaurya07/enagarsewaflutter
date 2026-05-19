@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'storage_service.dart';
 import 'device_service.dart';
 import 'database_service.dart';
+import 'integrity_service.dart';
 import 'pinned_http_client.dart';
 import '../constants/app_constants.dart';
 import '../login_screen.dart';
@@ -96,6 +97,59 @@ class ApiService {
   }) =>
       PinnedHttpClient.getInstance()
           .then((c) => c.post(url, headers: headers, body: body, encoding: encoding));
+
+  // ─── Integrity-protected request helper ────────────────────────────────────────────
+
+  /// Executes [requestFn] with an X-Integrity-Token header.
+  /// On a 412 response (integrity token expired / invalid) it automatically
+  /// refreshes the token via IntegrityService and retries the request once.
+  static Future<http.Response> _makeIntegrityProtectedRequest(
+    Future<http.Response> Function(Map<String, String> headers) requestFn,
+  ) async {
+    String? integrityToken = await IntegrityService.getValidToken();
+
+    // Integrity check failed — do NOT proceed with the payment request.
+    if (integrityToken == null) {
+      throw Exception(
+        'Device integrity check failed. Payment cannot be processed on this device.',
+      );
+    }
+
+    Future<http.Response> execute(String token) {
+      return _makeAuthenticatedRequest((headers) {
+        headers['X-Integrity-Token'] = token;
+        return requestFn(headers);
+      });
+    }
+
+    var response = await execute(integrityToken);
+
+    if (_isIntegrityTokenExpired(response)) {
+      integrityToken = await IntegrityService.refreshIntegrityToken();
+
+      if (integrityToken == null) {
+        throw Exception(
+          'Device integrity check failed. Payment cannot be processed on this device.',
+        );
+      }
+
+      response = await execute(integrityToken);
+    }
+
+    return response;
+  }
+
+  /// Returns true if the response signals an expired / invalid integrity token
+  /// (HTTP 412, or HTTP 200 body with status_code 412).
+  static bool _isIntegrityTokenExpired(http.Response response) {
+    if (response.statusCode == 412) return true;
+    try {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return data['status_code']?.toString() == '412';
+    } catch (_) {
+      return false;
+    }
+  }
 
   // Save Grievance API (Multipart)
   static Future<SaveGrievanceResponse> saveGrievance({
@@ -563,7 +617,7 @@ class ApiService {
     InitiateTransactionRequest request,
   ) async {
     try {
-      final response = await _makeAuthenticatedRequest(
+      final response = await _makeIntegrityProtectedRequest(
         (headers) => _post(
               Uri.parse(
                 '${AppConstants.baseUrl}api/Payment/create_transaction',
@@ -591,7 +645,7 @@ class ApiService {
     InitiateTransactionRequest request,
   ) async {
     try {
-      final response = await _makeAuthenticatedRequest(
+      final response = await _makeIntegrityProtectedRequest(
         (headers) => _post(
               Uri.parse(
                 '${AppConstants.baseUrl}api/Payment/create_sbi_transaction',

@@ -1,6 +1,5 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 const AndroidNotificationChannel _androidChannel = AndroidNotificationChannel(
@@ -16,7 +15,6 @@ final FlutterLocalNotificationsPlugin _localNotifications =
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
-  debugPrint('FCM background message: ${message.messageId}');
 }
 
 class PushNotificationService {
@@ -40,12 +38,11 @@ class PushNotificationService {
       _handleMessageOpened(initialMessage);
     }
 
-    final token = await FirebaseMessaging.instance.getToken();
-    debugPrint('FCM token: $token');
+    await FirebaseMessaging.instance.getToken();
   }
 
   static Future<void> _requestNotificationPermission() async {
-    final settings = await FirebaseMessaging.instance.requestPermission(
+    await FirebaseMessaging.instance.requestPermission(
       alert: true,
       announcement: false,
       badge: true,
@@ -54,7 +51,6 @@ class PushNotificationService {
       provisional: false,
       sound: true,
     );
-    debugPrint('FCM permission status: ${settings.authorizationStatus}');
   }
 
   static Future<void> _initializeLocalNotifications() async {
@@ -100,6 +96,6 @@ class PushNotificationService {
   }
 
   static void _handleMessageOpened(RemoteMessage message) {
-    debugPrint('Notification tapped with data: ${message.data}');
+    // TODO: navigate to relevant screen based on message.data
   }
 }

@@ -3,12 +3,12 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:crypto/crypto.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'device_service.dart';
 import 'pinned_http_client.dart';
+import 'storage_service.dart';
 import '../constants/app_constants.dart';
 
 class IntegrityService {
@@ -25,11 +25,39 @@ class IntegrityService {
 
   // ─── Public API ────────────────────────────────────────────────────────────
 
-  /// Runs the platform-appropriate integrity check and returns true if the
-  /// device/app is verified as genuine.
-  /// Returns true on non-Android/iOS platforms (no-op).
+  /// Checks secure storage first; skips the full verify flow if a cached
+  /// integrity token already exists. Call this from the splash screen.
   static Future<bool> verify() async {
     if (_devMode) return true;
+    final cached = await StorageService.getIntegrityToken();
+    if (cached != null && cached.isNotEmpty) return true;
+    return _runFullPlatformVerify();
+  }
+
+  /// Returns a valid integrity token, using the secure-storage cache when
+  /// available. Runs the full verify flow only if no cached token exists.
+  /// Call this before making payment API requests.
+  static Future<String?> getValidToken() async {
+    if (_devMode) return 'dev-mode-token';
+    final cached = await StorageService.getIntegrityToken();
+    if (cached != null && cached.isNotEmpty) return cached;
+    final success = await _runFullPlatformVerify();
+    if (!success) return null;
+    return StorageService.getIntegrityToken();
+  }
+
+  /// Forces a full integrity re-verify, ignoring any cached token.
+  /// Call this when a payment API responds with status_code 412.
+  static Future<String?> refreshIntegrityToken() async {
+    if (_devMode) return 'dev-mode-token';
+    await StorageService.clearIntegrityToken();
+    final success = await _runFullPlatformVerify();
+    if (!success) return null;
+    return StorageService.getIntegrityToken();
+  }
+
+  /// Runs the platform verify flow unconditionally (no cache check).
+  static Future<bool> _runFullPlatformVerify() async {
     if (Platform.isAndroid) return _verifyAndroid();
     if (Platform.isIOS) return _verifyIos();
     return true;
@@ -50,15 +78,16 @@ class IntegrityService {
       );
       if (token == null) return false;
 
-      return _sendToBackend(
+      final integrityToken = await _sendToBackend(
         platform: 'android',
         payload: {'token': token, 'nonce': nonce},
       );
-    } on PlatformException catch (e) {
-      debugPrint('[IntegrityService] Android error: ${e.code} — ${e.message}');
+      if (integrityToken == null) return false;
+      await StorageService.saveIntegrityToken(integrityToken);
+      return true;
+    } on PlatformException catch (_) {
       return false;
-    } catch (e) {
-      debugPrint('[IntegrityService] Android unexpected error: $e');
+    } catch (_) {
       return false;
     }
   }
@@ -72,45 +101,22 @@ class IntegrityService {
       request.fields['device_id'] = deviceId;
       request.headers['X-App-Version'] = AppConstants.apiVersion;
 
-      // ── LOG: Nonce request ──
-      debugPrint('[IntegrityService] Nonce REQUEST →');
-      debugPrint('  URL    : $_nonceUrl');
-      debugPrint('  Headers: ${request.headers}');
-      debugPrint('  Fields : ${request.fields}');
-
       final client = await PinnedHttpClient.getInstance();
       final streamedResponse = await client
           .send(request)
           .timeout(const Duration(seconds: 10));
       final response = await http.Response.fromStream(streamedResponse);
 
-      // ── LOG: Nonce response ──
-      debugPrint('[IntegrityService] Nonce RESPONSE ←');
-      debugPrint('  HTTP  : ${response.statusCode}');
-      debugPrint('  Body  : ${response.body}');
-
-      if (response.statusCode != 200) {
-        return null;
-      }
+      if (response.statusCode != 200) return null;
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final statusCode = data['status_code']?.toString() ?? '';
-      final statusMessage = data['status_message'] as String? ?? '';
       final nonce = data['nonce'] as String?;
-      final expiresIn = data['expires_in']?.toString() ?? '';
 
-      debugPrint('  status_code   : $statusCode');
-      debugPrint('  status_message: $statusMessage');
-      debugPrint('  nonce         : ${nonce != null ? '${nonce.substring(0, 8)}...(truncated)' : 'null'}');
-      debugPrint('  expires_in    : $expiresIn');
-
-      if (statusCode != '200' || nonce == null || nonce.isEmpty) {
-        return null;
-      }
+      if (statusCode != '200' || nonce == null || nonce.isEmpty) return null;
 
       return nonce;
-    } catch (e) {
-      debugPrint('[IntegrityService] Nonce API failed: $e');
+    } catch (_) {
       return null;
     }
   }
@@ -139,16 +145,17 @@ class IntegrityService {
         );
         if (attestation == null) return false;
 
-        final verified = await _sendToBackend(
+        final integrityToken = await _sendToBackend(
           platform: 'ios',
           payload: {'keyId': keyId, 'attestation': attestation, 'nonce': nonce},
         );
 
         // Persist keyId only after successful backend attestation
-        if (verified) {
+        if (integrityToken != null) {
           await _storage.write(key: 'app_attest_key_id', value: keyId);
+          await StorageService.saveIntegrityToken(integrityToken);
         }
-        return verified;
+        return integrityToken != null;
       } else {
         // ── Subsequent runs: generate assertion ──
         final nonce = _generateNonce();
@@ -160,43 +167,39 @@ class IntegrityService {
         );
         if (assertion == null) return false;
 
-        return _sendToBackend(
+        final integrityToken = await _sendToBackend(
           platform: 'ios',
           payload: {'keyId': keyId, 'assertion': assertion, 'nonce': nonce},
         );
+        if (integrityToken != null) {
+          await StorageService.saveIntegrityToken(integrityToken);
+        }
+        return integrityToken != null;
       }
     } on PlatformException catch (e) {
       if (e.code == 'NOT_SUPPORTED') {
         // Device doesn't support App Attest (simulator or older iOS)
-        debugPrint('[IntegrityService] App Attest not supported: ${e.message}');
         return true;
       }
-      // Attestation failed — treat as invalid device
-      debugPrint('[IntegrityService] iOS error: ${e.code} — ${e.message}');
       // If attestation failed, clear stored key so next launch retries fresh
       if (e.code == 'ATTEST_ERROR') {
         await _storage.delete(key: 'app_attest_key_id');
       }
       return false;
-    } catch (e) {
-      debugPrint('[IntegrityService] iOS unexpected error: $e');
+    } catch (_) {
       return false;
     }
   }
 
   // ─── Backend communication ─────────────────────────────────────────────────
 
-  /// POSTs the integrity payload to the backend.
-  /// Expected response:
-  ///   { "status_code": "200"|"422", "status_message": "..." }
-  static Future<bool> _sendToBackend({
+  /// POSTs the integrity payload to the backend and returns the
+  /// backend-issued integrity_token on success, or null on failure.
+  static Future<String?> _sendToBackend({
     required String platform,
     required Map<String, String> payload,
   }) async {
-    if (_devMode) {
-      debugPrint('[IntegrityService] Dev mode — skipping backend verification.');
-      return true;
-    }
+    if (_devMode) return 'dev-mode-token';
     try {
       final deviceId = await DeviceService.getDeviceId();
       final fields = {'platform': platform, ...payload};
@@ -205,18 +208,6 @@ class IntegrityService {
         'X-App-Version': AppConstants.apiVersion,
         'X-Device-Id': deviceId,
       };
-
-      // ── LOG: Verify request ──
-      debugPrint('[IntegrityService] Verify REQUEST →');
-      debugPrint('  URL    : $_verifyUrl');
-      debugPrint('  Headers: $headers');
-      // token is long JWS — log only first 40 chars
-      final logFields = {'platform': platform, ...payload};
-      if (logFields.containsKey('token')) {
-        final t = logFields['token'] as String;
-        logFields['token'] = '${t.substring(0, t.length > 40 ? 40 : t.length)}...(truncated)';
-      }
-      debugPrint('  Fields : $logFields');
 
       final client = await PinnedHttpClient.getInstance();
       final response = await client
@@ -227,25 +218,15 @@ class IntegrityService {
           )
           .timeout(const Duration(seconds: 10));
 
-      // ── LOG: Verify response ──
-      debugPrint('[IntegrityService] Verify RESPONSE ←');
-      debugPrint('  HTTP: ${response.statusCode}');
-      debugPrint('  Body: ${response.body}');
-
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         final statusCode = data['status_code']?.toString() ?? '';
-        final statusMessage = data['status_message'] as String? ?? '';
-        debugPrint('[IntegrityService] $platform — $statusCode: $statusMessage');
-        return statusCode == '200';
+        if (statusCode != '200') return null;
+        return data['integrity_token'] as String?;
       }
-      debugPrint(
-        '[IntegrityService] Backend returned ${response.statusCode}: ${response.body}',
-      );
-      return false;
-    } catch (e) {
-      debugPrint('[IntegrityService] Backend request failed: $e');
-      return false;
+      return null;
+    } catch (_) {
+      return null;
     }
   }
 

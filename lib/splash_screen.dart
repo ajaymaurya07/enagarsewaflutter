@@ -40,21 +40,123 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     super.dispose();
   }
 
-  /// Checks Play Store for available updates.
-  /// If an immediate (critical) update is available, launches force update flow.
-  /// Returns true if update was triggered (app will restart), false to continue.
-  Future<bool> _checkForUpdate() async {
+  /// Checks Play Store for a pending update.
+  /// Returns [AppUpdateInfo] if an immediate update is available, null otherwise.
+  Future<AppUpdateInfo?> _checkForUpdate() async {
     try {
       final AppUpdateInfo info = await InAppUpdate.checkForUpdate();
       if (info.updateAvailability == UpdateAvailability.updateAvailable &&
           info.immediateUpdateAllowed) {
-        await InAppUpdate.performImmediateUpdate();
-        return true;
+        return info;
       }
     } catch (_) {
       // Play Store not available or check failed — continue normally
     }
-    return false;
+    return null;
+  }
+
+  /// Shows a non-dismissible bottom sheet informing the user about the update.
+  /// The sheet can only be closed by tapping "Update Now".
+  Future<void> _showUpdateSheet() async {
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      isDismissible: false,
+      enableDrag: false,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => PopScope(
+        canPop: false,
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          padding: const EdgeInsets.fromLTRB(28, 12, 28, 36),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Handle bar
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 28),
+
+              // Update icon
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE67514).withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.system_update_rounded,
+                  size: 36,
+                  color: Color(0xFFE67514),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Title
+              Text(
+                'Update Available',
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF1A1A2E),
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // Subtitle
+              Text(
+                'A new version of ${AppConstants.appName} is available with improvements and important security updates. Please update to continue.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  color: Colors.grey.shade600,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 32),
+
+              // Update button
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    Navigator.of(ctx).pop();
+                    await InAppUpdate.performImmediateUpdate();
+                  },
+                  icon: const Icon(Icons.download_rounded, color: Colors.white),
+                  label: Text(
+                    'Update Now',
+                    style: GoogleFonts.poppins(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFE67514),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    elevation: 0,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _checkLoginStatus() async {
@@ -62,9 +164,12 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     if (!mounted) return;
 
-    // Force update check — if update is triggered, flow stops here (app restarts)
-    final bool updateTriggered = await _checkForUpdate();
-    if (updateTriggered) return;
+    // Force update check — show UI sheet, user must tap "Update Now" to proceed
+    final AppUpdateInfo? updateInfo = await _checkForUpdate();
+    if (updateInfo != null) {
+      await _showUpdateSheet();
+      return;
+    }
 
     if (!mounted) return;
 

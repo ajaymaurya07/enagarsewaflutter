@@ -5,6 +5,7 @@ import 'api_service.dart';
 class StorageService {
   static const String _accessTokenKey = 'access_token';
   static const String _refreshTokenKey = 'refresh_token';
+  static const String _integrityTokenKey = 'integrity_token';
   static const AndroidOptions _androidOptions = AndroidOptions(
     encryptedSharedPreferences: true,
   );
@@ -96,11 +97,26 @@ class StorageService {
     await prefs.remove('is_property_verified');
     await prefs.remove('selected_ulb_id');
     await prefs.remove('selected_property_total_arv');
+    await clearIntegrityToken();
   }
 
   static Future<bool> isLoggedIn() async {
     final token = await getAccessToken();
     return token != null && token.isNotEmpty;
+  }
+
+  // ── Integrity token (Play Integrity / App Attest) ──────────────────────────
+
+  static Future<void> saveIntegrityToken(String token) async {
+    await _secureStorage.write(key: _integrityTokenKey, value: token);
+  }
+
+  static Future<String?> getIntegrityToken() async {
+    return _secureStorage.read(key: _integrityTokenKey);
+  }
+
+  static Future<void> clearIntegrityToken() async {
+    await _secureStorage.delete(key: _integrityTokenKey);
   }
 
   static Future<void> _writeSecureToken(String key, String value) async {

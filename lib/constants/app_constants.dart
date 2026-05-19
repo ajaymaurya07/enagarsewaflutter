@@ -13,16 +13,17 @@ class AppConstants {
   // App Info
   static const String appName = 'e-Nagarseva';
 
-  // Loaded once at startup via AppConstants.init()
-  static String apiVersion = '6';       // versionCode from pubspec (e.g. 6)
-  static String appDisplayVersion = '1.0.3'; // versionName from pubspec (e.g. 1.0.3)
+  // Populated once at startup via AppConstants.init().
+  // Accessing these before init() throws a LateInitializationError — by design.
+  static late String apiVersion;        // versionCode  from pubspec (e.g. "7")
+  static late String appDisplayVersion; // versionName  from pubspec (e.g. "1.0.3")
 
   /// Call this once in main() before runApp().
   /// Reads version info from pubspec.yaml automatically.
   static Future<void> init() async {
     final info = await PackageInfo.fromPlatform();
-    appDisplayVersion = info.version;       // e.g. "1.0.3"
-    apiVersion = info.buildNumber;          // e.g. "6"
+    appDisplayVersion = info.version;       
+    apiVersion = info.buildNumber;        
   }
 
   static String _resolveBaseUrl() {
