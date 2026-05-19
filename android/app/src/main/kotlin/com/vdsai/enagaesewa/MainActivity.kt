@@ -9,6 +9,8 @@ import android.content.Context
 import android.provider.ContactsContract
 import android.accounts.AccountManager
 import java.io.File
+import android.os.Bundle
+import android.view.WindowManager
 import com.google.android.play.core.integrity.IntegrityManagerFactory
 import com.google.android.play.core.integrity.IntegrityTokenRequest
 
@@ -16,6 +18,12 @@ class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.enagarsewa.app/sim"
     private val SECURITY_CHANNEL = "com.enagarsewa.app/device_security"
     private val INTEGRITY_CHANNEL = "com.enagarsewa.app/integrity"
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // Prevent screenshots and screen recording across all screens.
+        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)

@@ -93,8 +93,9 @@ class DeviceService {
       var digest = sha256.convert(bytes);
       return digest.toString().substring(0, 16); // Returns a 16-char hex string
     } catch (e) {
-      // Fallback to a random 16-char string if something fails
-      return 'a1b2c3d4e5f6g7h8';
+      // Re-throw — a static fallback would give every device the same ID,
+      // allowing attackers to spoof device identity.
+      rethrow;
     }
   }
 }

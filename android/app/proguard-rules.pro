@@ -26,13 +26,20 @@
 -keep class org.sqlite.** { *; }
 -keep class org.sqlite.database.** { *; }
 
-# Keep only MainActivity — Android instantiates it by name.
-# All private helper methods are obfuscated by R8.
--keep class com.vdsai.enagaesewa.MainActivity { *; }
+# Keep only MainActivity class name — Android needs it to instantiate by name.
+# R8 obfuscates all internal methods (isDeviceRooted, checkEmulator, getPlayIntegrityToken, etc.)
+-keep class com.vdsai.enagaesewa.MainActivity
+-keepclassmembers class com.vdsai.enagaesewa.MainActivity {
+    public void configureFlutterEngine(io.flutter.embedding.engine.FlutterEngine);
+}
 
-# Remove logging in release
+# Remove ALL Android logging in release builds
 -assumenosideeffects class android.util.Log {
     public static int d(...);
     public static int v(...);
     public static int i(...);
+    public static int w(...);
+    public static int e(...);
+    public static int wtf(...);
+    public static boolean isLoggable(...);
 }

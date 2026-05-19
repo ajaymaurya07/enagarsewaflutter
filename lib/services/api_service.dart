@@ -890,7 +890,6 @@ class ApiService {
         throw Exception('Sign up failed: \${response.statusCode}');
       }
     } catch (e) {
-      if (e is Exception) rethrow;
       throw _userSafeException(e);
     }
   }
