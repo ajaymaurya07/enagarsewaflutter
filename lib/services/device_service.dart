@@ -38,6 +38,20 @@ class DeviceService {
     }
   }
 
+  /// Returns true if Frida, Xposed, or APK signature tampering is detected.
+  /// Android only — returns false on other platforms.
+  static Future<bool> isTamperingDetected() async {
+    if (!Platform.isAndroid) return false;
+    try {
+      final result = await _securityChannel.invokeMethod<bool>(
+        'isTamperingDetected',
+      );
+      return result == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// iOS jailbreak detection via file system and sandbox escape checks.
   static bool _isIosJailbroken() {
     // Common jailbreak file paths

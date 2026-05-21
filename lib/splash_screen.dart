@@ -185,6 +185,20 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       return;
     }
 
+    if (!mounted) return;
+
+    // Block Frida / Xposed instrumentation and APK signature tampering
+    final bool tampered = await DeviceService.isTamperingDetected();
+    if (tampered) {
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => const RootedDeviceScreen(reason: BlockReason.tampered),
+        ),
+      );
+      return;
+    }
+
     // Block rooted / jailbroken devices
     final bool rooted = await DeviceService.isDeviceRooted();
     if (rooted) {

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-enum BlockReason { rooted, developerMode }
+enum BlockReason { rooted, developerMode, tampered }
 
 class RootedDeviceScreen extends StatelessWidget {
   final BlockReason reason;
@@ -135,6 +135,15 @@ class _Config {
           title: 'Device Not Supported',
           message:
               'This app cannot run on a rooted or modified device. Please use a standard device to continue.',
+        );
+      case BlockReason.tampered:
+        return const _Config(
+          icon: Icons.gpp_bad_rounded,
+          iconBg: Color(0xFFFFEBEE),
+          iconColor: Color(0xFFB71C1C),
+          title: 'App Integrity Violated',
+          message:
+              'A security threat was detected on this device. This app cannot run in an instrumented or tampered environment.',
         );
     }
   }

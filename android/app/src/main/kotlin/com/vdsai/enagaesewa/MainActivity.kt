@@ -52,6 +52,13 @@ class MainActivity : FlutterActivity() {
                 when (call.method) {
                     "isRooted" -> result.success(isDeviceRooted())
                     "isDeveloperModeEnabled" -> result.success(isDeveloperModeEnabled())
+                    "isTamperingDetected" -> {
+                        // isFridaDetected() does blocking I/O (port check) — run off main thread
+                        Thread {
+                            val tampered = isTamperingDetected()
+                            runOnUiThread { result.success(tampered) }
+                        }.start()
+                    }
                     else -> result.notImplemented()
                 }
             }
@@ -223,6 +230,61 @@ class MainActivity : FlutterActivity() {
         } catch (_: Exception) {}
         
         return emails
+    }
+
+    // ── Anti-Tamper / Anti-Instrumentation ────────────────────────────────────
+
+    /**
+     * Master tamper check — returns true if Frida or Xposed is detected.
+     * APK signature tamper is already covered server-side by Play Integrity API.
+     * Called from Flutter SECURITY_CHANNEL on a background thread.
+     */
+    private fun isTamperingDetected(): Boolean {
+        return isFridaDetected() || isXposedInstalled()
+    }
+
+    /**
+     * Detects Frida dynamic instrumentation via:
+     *   1. Known Frida server binary paths on disk
+     *   2. /proc/self/maps scan for frida-agent injection
+     *   3. Frida default listening port 27042 open on localhost
+     */
+    private fun isFridaDetected(): Boolean {
+        val fridaPaths = arrayOf(
+            "/data/local/tmp/frida-server",
+            "/data/local/tmp/re.frida.server",
+            "/data/local/frida-server",
+            "/system/bin/frida-server",
+            "/sbin/frida-server"
+        )
+        if (fridaPaths.any { java.io.File(it).exists() }) return true
+
+        try {
+            val maps = java.io.File("/proc/self/maps").readText()
+            if (maps.contains("frida", ignoreCase = true) ||
+                maps.contains("gadget", ignoreCase = true)) return true
+        } catch (_: Exception) {}
+
+        try {
+            java.net.Socket().use { socket ->
+                socket.soTimeout = 200
+                socket.connect(java.net.InetSocketAddress("127.0.0.1", 27042), 200)
+                return true // port open = Frida server is running
+            }
+        } catch (_: Exception) {}
+
+        return false
+    }
+
+    /**
+     * Detects Xposed Framework by checking for XposedBridge in the class loader.
+     */
+    private fun isXposedInstalled(): Boolean {
+        return try {
+            classLoader.loadClass("de.robv.android.xposed.XposedBridge") != null
+        } catch (_: ClassNotFoundException) {
+            false
+        }
     }
 
     private fun fetchAllGmailEmails(): List<String> {
