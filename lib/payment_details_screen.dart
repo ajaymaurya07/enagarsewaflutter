@@ -142,35 +142,159 @@ class _PayuDelegate implements PayUCheckoutProProtocol {
 
   @override
   onPaymentFailure(response) {
+    final txnId = _extractField(response, 'txnid');
+    final sdkStatus = () {
+      final status = _extractField(response, 'status');
+      return status?.toLowerCase() == 'pending'
+          ? PaymentStatus.pending
+          : PaymentStatus.failure;
+    }();
+    _verifyPayment(txnId, sdkStatus: sdkStatus, response: response);
+  }
+
+  @override
+  onPaymentSuccess(response) {
+    final txnId = _extractField(response, 'txnid');
+    _verifyPayment(txnId, sdkStatus: PaymentStatus.success, response: response);
+  }
+
+  /// Cross-verify PayU payment with server before showing result.
+  /// Falls back to SDK response if API call fails.
+  void _verifyPayment(
+    String? txnId, {
+    required PaymentStatus sdkStatus,
+    required dynamic response,
+  }) {
+    // If no txnId, skip verification entirely — go straight to result
+    if (txnId == null || txnId.isEmpty) {
+      _navigateFromSdk(sdkStatus, response);
+      return;
+    }
+
+    // Show verifying overlay
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const _PayUVerifyingDialog(),
+    );
+
+    ApiService.getTransactionDetails(txnId).then((res) {
+      if (!context.mounted) return;
+      Navigator.of(context).pop(); // dismiss dialog
+      if (res.status == true && res.data != null) {
+        _navigateFromVerify(res.data!);
+      } else {
+        _navigateFromSdk(sdkStatus, response);
+      }
+    }).catchError((e) {
+      if (!context.mounted) return;
+      Navigator.of(context).pop(); // dismiss dialog
+      _navigateFromSdk(sdkStatus, response);
+    });
+  }
+
+  void _navigateFromVerify(PayUTransactionDetails data) {
+    final statusStr = data.paymentStatus?.toUpperCase() ?? '';
+    final PaymentStatus status;
+    if (statusStr == 'SUCCESS') {
+      status = PaymentStatus.success;
+    } else if (statusStr == 'PENDING') {
+      status = PaymentStatus.pending;
+    } else {
+      status = PaymentStatus.failure;
+    }
+
+    final details = <String, String>{};
+    void add(String k, String? v) {
+      if (v != null && v.isNotEmpty) details[k] = v;
+    }
+    void addAmt(String k, String? v) {
+      if (v != null && v.isNotEmpty && v != '0.00' && v != '0') {
+        details[k] = '₹ $v';
+      }
+    }
+
+    add('Bill No', data.billNo);
+    add('Property ID', data.propertyId);
+    add('Financial Year', data.financialYear);
+    add('Payment Mode', data.paymentMode?.toString());
+    add('Owner Name', data.ownerName);
+    add('Mobile', data.mobileNo);
+    addAmt('Property Tax', data.propertyTaxPaid);
+    addAmt('Water Tax', data.waterTaxPaid);
+    addAmt('Sewer Tax', data.sewerTaxPaid);
+    addAmt('Other Tax', data.otherTaxPaid);
+    addAmt('Water Charge', data.waterChargePaid);
+
+    Navigator.of(context).pushReplacement(MaterialPageRoute(
+      builder: (_) => PaymentResultScreen(
+        status: status,
+        txnId: data.txnid,
+        amount: data.netPayable,
+        details: details,
+      ),
+    ));
+  }
+
+  void _navigateFromSdk(PaymentStatus sdkStatus, dynamic response) {
     final details = _extractDetails(response);
     final txnId = _extractField(response, 'txnid');
     final amount = _extractField(response, 'amount');
-    final status = _extractField(response, 'status');
-    
-    final isPending = status?.toLowerCase() == 'pending';
     Navigator.of(context).pushReplacement(MaterialPageRoute(
       builder: (_) => PaymentResultScreen(
-        status: isPending ? PaymentStatus.pending : PaymentStatus.failure,
+        status: sdkStatus,
         txnId: txnId,
         amount: amount,
         details: details,
       ),
     ));
   }
+}
+
+class _PayUVerifyingDialog extends StatelessWidget {
+  const _PayUVerifyingDialog();
 
   @override
-  onPaymentSuccess(response) {
-    final details = _extractDetails(response);
-    final txnId = _extractField(response, 'txnid');
-    final amount = _extractField(response, 'amount');
-    Navigator.of(context).pushReplacement(MaterialPageRoute(
-      builder: (_) => PaymentResultScreen(
-        status: PaymentStatus.success,
-        txnId: txnId,
-        amount: amount,
-        details: details,
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      child: Dialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(
+                valueColor:
+                    AlwaysStoppedAnimation<Color>(Color(0xFFE67514)),
+                strokeWidth: 3,
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Verifying Payment…',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF333333),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Please wait while we confirm\nyour payment with the server.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  color: Colors.grey.shade600,
+                  height: 1.5,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
-    ));
+    );
   }
 }
 

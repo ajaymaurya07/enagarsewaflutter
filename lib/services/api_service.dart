@@ -670,6 +670,66 @@ class ApiService {
     }
   }
 
+  // Get PayU Transaction Details API (cross-verify after SDK callback)
+  static Future<PayUTransactionDetailsResponse> getTransactionDetails(
+    String mobileTransactionId,
+  ) async {
+    try {
+      final response = await _makeAuthenticatedRequest(
+        (headers) => _post(
+              Uri.parse(
+                '${AppConstants.baseUrl}api/payment/getTransactionDetails',
+              ),
+              headers: headers,
+              body: jsonEncode({'mobile_transaction_id': mobileTransactionId}),
+            )
+            .timeout(Duration(seconds: AppConstants.networkTimeout)),
+      );
+
+      if (response.statusCode == 200) {
+        return PayUTransactionDetailsResponse.fromJson(
+          jsonDecode(response.body),
+        );
+      } else {
+        throw Exception(
+          'Failed to fetch transaction details: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      throw _userSafeException(e);
+    }
+  }
+
+  // Get SBI Transaction Details API
+  static Future<SbiTransactionDetailsResponse> getSbiTransactionDetails(
+    String mobileTransactionId,
+  ) async {
+    try {
+      final response = await _makeAuthenticatedRequest(
+        (headers) => _post(
+              Uri.parse(
+                '${AppConstants.baseUrl}api/Payment/getSbiTransactionDetails',
+              ),
+              headers: headers,
+              body: jsonEncode({'mobile_transaction_id': mobileTransactionId}),
+            )
+            .timeout(Duration(seconds: AppConstants.networkTimeout)),
+      );
+
+      if (response.statusCode == 200) {
+        return SbiTransactionDetailsResponse.fromJson(
+          jsonDecode(response.body),
+        );
+      } else {
+        throw Exception(
+          'Failed to fetch SBI transaction details: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      throw _userSafeException(e);
+    }
+  }
+
   // Generate hash for PayU (form-urlencoded)
   static Future<HashResponse> generateHash(
     String hashName,
@@ -1775,6 +1835,158 @@ class SbiTransactionData {
         encdata: json['encdata']?.toString(),
         sbiPostUrl: json['sbi_post_url']?.toString(),
         paymentPageHtml: json['payment_page_html']?.toString(),
+      );
+}
+
+class SbiTransactionDetailsResponse {
+  final bool? status;
+  final String? message;
+  final SbiPaymentDetails? data;
+
+  SbiTransactionDetailsResponse({this.status, this.message, this.data});
+
+  factory SbiTransactionDetailsResponse.fromJson(Map<String, dynamic> json) {
+    final dataJson = json['data'];
+    return SbiTransactionDetailsResponse(
+      status: json['status'],
+      message: json['message'],
+      data: dataJson is Map<String, dynamic>
+          ? SbiPaymentDetails.fromJson(dataJson)
+          : null,
+    );
+  }
+}
+
+class SbiPaymentDetails {
+  final String? paymentStatus;
+  final String? txnid;
+  final String? paymentMode;
+  final String? netPayable;
+  final String? ownerName;
+  final String? mobileNo;
+  final String? billNo;
+  final String? propertyId;
+  final String? financialYear;
+  final String? propertyTaxPaid;
+  final String? waterTaxPaid;
+  final String? sewerTaxPaid;
+  final String? otherTaxPaid;
+  final String? waterChargePaid;
+  final String? sbiPaymentTime;
+  final String? transactionCreatedAt;
+
+  SbiPaymentDetails({
+    this.paymentStatus,
+    this.txnid,
+    this.paymentMode,
+    this.netPayable,
+    this.ownerName,
+    this.mobileNo,
+    this.billNo,
+    this.propertyId,
+    this.financialYear,
+    this.propertyTaxPaid,
+    this.waterTaxPaid,
+    this.sewerTaxPaid,
+    this.otherTaxPaid,
+    this.waterChargePaid,
+    this.sbiPaymentTime,
+    this.transactionCreatedAt,
+  });
+
+  factory SbiPaymentDetails.fromJson(Map<String, dynamic> json) =>
+      SbiPaymentDetails(
+        paymentStatus: json['payment_status']?.toString(),
+        txnid: json['txnid']?.toString(),
+        paymentMode: json['payment_mode']?.toString(),
+        netPayable: json['net_payable']?.toString(),
+        ownerName: json['owner_name']?.toString(),
+        mobileNo: json['mobile_no']?.toString(),
+        billNo: json['billNo']?.toString(),
+        propertyId: json['propertyId']?.toString(),
+        financialYear: json['financialYear']?.toString(),
+        propertyTaxPaid: json['propertyTaxPaid']?.toString(),
+        waterTaxPaid: json['waterTaxPaid']?.toString(),
+        sewerTaxPaid: json['sewerTaxPaid']?.toString(),
+        otherTaxPaid: json['otherTaxPaid']?.toString(),
+        waterChargePaid: json['waterChargePaid']?.toString(),
+        sbiPaymentTime: json['sbi_payment_time']?.toString(),
+        transactionCreatedAt: json['transaction_created_at']?.toString(),
+      );
+}
+
+class PayUTransactionDetailsResponse {
+  final bool? status;
+  final String? message;
+  final PayUTransactionDetails? data;
+
+  PayUTransactionDetailsResponse({this.status, this.message, this.data});
+
+  factory PayUTransactionDetailsResponse.fromJson(Map<String, dynamic> json) {
+    final dataJson = json['data'];
+    return PayUTransactionDetailsResponse(
+      status: json['status'],
+      message: json['message'],
+      data: dataJson is Map<String, dynamic>
+          ? PayUTransactionDetails.fromJson(dataJson)
+          : null,
+    );
+  }
+}
+
+class PayUTransactionDetails {
+  final String? paymentStatus;
+  final String? txnid;
+  final dynamic paymentMode;
+  final String? netPayable;
+  final String? ownerName;
+  final String? mobileNo;
+  final String? billNo;
+  final String? propertyId;
+  final String? financialYear;
+  final String? propertyTaxPaid;
+  final String? waterTaxPaid;
+  final String? sewerTaxPaid;
+  final String? otherTaxPaid;
+  final String? waterChargePaid;
+  final String? mobileTransactionTimestamp;
+
+  PayUTransactionDetails({
+    this.paymentStatus,
+    this.txnid,
+    this.paymentMode,
+    this.netPayable,
+    this.ownerName,
+    this.mobileNo,
+    this.billNo,
+    this.propertyId,
+    this.financialYear,
+    this.propertyTaxPaid,
+    this.waterTaxPaid,
+    this.sewerTaxPaid,
+    this.otherTaxPaid,
+    this.waterChargePaid,
+    this.mobileTransactionTimestamp,
+  });
+
+  factory PayUTransactionDetails.fromJson(Map<String, dynamic> json) =>
+      PayUTransactionDetails(
+        paymentStatus: json['payment_status']?.toString(),
+        txnid: json['txnid']?.toString(),
+        paymentMode: json['payment_mode'],
+        netPayable: json['net_payable']?.toString(),
+        ownerName: json['owner_name']?.toString(),
+        mobileNo: json['mobile_no']?.toString(),
+        billNo: json['billNo']?.toString(),
+        propertyId: json['propertyId']?.toString(),
+        financialYear: json['financialYear']?.toString(),
+        propertyTaxPaid: json['propertyTaxPaid']?.toString(),
+        waterTaxPaid: json['waterTaxPaid']?.toString(),
+        sewerTaxPaid: json['sewerTaxPaid']?.toString(),
+        otherTaxPaid: json['otherTaxPaid']?.toString(),
+        waterChargePaid: json['waterChargePaid']?.toString(),
+        mobileTransactionTimestamp:
+            json['mobile_transaction_timestamp']?.toString(),
       );
 }
 
