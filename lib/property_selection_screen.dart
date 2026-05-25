@@ -99,7 +99,16 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
       }
 
       // 2a. OTP bypass (flag: _kRequireOtp = false)
+      // sendOtp call hoti h (backend me OTP register ho), dialog nahi dikhta,
+      // aur verifyOtp '123456' se auto call hoti h
       if (!_kRequireOtp) {
+        final otpRes = await ApiService.sendOtp(mobileNo, propertyId);
+        if (!mounted) return;
+        if (otpRes.success != true) {
+          setState(() => _isLoading = false);
+          _showSnackBar(otpRes.message ?? 'Failed to send OTP');
+          return;
+        }
         final res = await ApiService.verifyOtp(mobileNo, '123456');
         if (!mounted) return;
         setState(() => _isLoading = false);

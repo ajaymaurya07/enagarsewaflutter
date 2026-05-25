@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'signup_screen.dart';
+import 'widgets/property_registration_webview.dart';
 import 'forgot_password_screen.dart';
 import 'search_property_screen.dart';
 import 'services/api_service.dart';
@@ -329,6 +330,48 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 16),
+
+                  // Register Property Link
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Text.rich(
+                          TextSpan(
+                            text: 'If your mobile number is not registered on the eNagar Sewa portal, please ',
+                            style: GoogleFonts.poppins(color: Colors.grey.shade600, fontSize: 14),
+                            children: [
+                              WidgetSpan(
+                                alignment: PlaceholderAlignment.middle,
+                                child: GestureDetector(
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => const PropertyRegistrationWebView(),
+                                      ),
+                                    );
+                                  },
+                                  child: Text(
+                                    'register first.',
+                                    style: GoogleFonts.poppins(
+                                      color: const Color(0xFFE67514),
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
+                  ),
+
                   const SizedBox(height: 32),
                 ],
               ),
@@ -339,3 +382,5 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
+
+

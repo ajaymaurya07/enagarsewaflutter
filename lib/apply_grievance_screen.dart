@@ -27,6 +27,9 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
   static const Color _textPrimaryColor = Color(0xFF111827);
   static const Color _hintColor = Color(0xFF6B7280);
 
+  // TODO: set true before production release
+  static const bool _kRequireOtp = false;
+
   final _formKey = GlobalKey<FormState>();
   final ImagePicker _picker = ImagePicker();
 
@@ -1067,11 +1070,49 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
       if (mounted) {
         setState(() => _isSubmitting = false);
         if (response.success && response.data?.grievanceId != null) {
-          // Open OTP Bottom Sheet on Success
-          _showOtpVerificationSheet(
-            _mobileController.text.trim(),
-            response.data!.grievanceId!,
-          );
+          final mobileNo = _mobileController.text.trim();
+          final grievanceId = response.data!.grievanceId!;
+
+          if (!_kRequireOtp) {
+            // OTP bypass: sendOtp already happened on server, auto-verify with 123456
+            try {
+              final otpRes = await ApiService.registerGrievanceVerifyOtp(
+                mobileNo: mobileNo,
+                otp: '123456',
+                grievanceId: grievanceId,
+              );
+              if (mounted) {
+                if (otpRes.success == true) {
+                  _showSuccessDialog(
+                    otpRes.message ?? 'Grievance Registered Successfully!',
+                    otpRes.data ?? grievanceId,
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(otpRes.message ?? 'OTP verification failed'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(ApiService.getUserFriendlyErrorMessage(
+                      e,
+                      fallbackMessage: 'Unable to verify OTP right now. Please try again.',
+                    )),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            }
+          } else {
+            // Normal OTP flow: open bottom sheet
+            _showOtpVerificationSheet(mobileNo, grievanceId);
+          }
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(

@@ -6,6 +6,7 @@ import 'services/sim_service.dart';
 import 'services/email_service.dart';
 import 'services/api_service.dart';
 import 'widgets/info_label.dart';
+import 'widgets/property_registration_webview.dart';
 import 'help/signup_help.dart';
 
 class SignUpScreen extends StatefulWidget {
@@ -497,6 +498,7 @@ class _SignUpScreenState extends State<SignUpScreen>
                                         ? const Color(0xFFE67514)
                                         : Colors.black87,
                                   ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                               if (_selectedPhone == phone)
@@ -868,40 +870,76 @@ class _SignUpScreenState extends State<SignUpScreen>
       if (!mounted) return;
       await showDialog(
         context: context,
-        barrierDismissible: false,
+        barrierDismissible: true,
         builder: (ctx) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Row(
             children: [
               const Icon(Icons.check_circle_rounded, color: Color(0xFF4CAF50), size: 28),
               const SizedBox(width: 10),
-              Text(
-                'Success',
-                style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16),
+              Expanded(
+                child: Text(
+                  'Success',
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+              ),
+              IconButton(
+                onPressed: () => Navigator.pop(ctx),
+                icon: const Icon(Icons.close_rounded, color: Colors.grey, size: 20),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
               ),
             ],
           ),
-          content: Text(
-            verifyResult.message ?? 'Account created successfully!',
-            style: GoogleFonts.poppins(fontSize: 14, height: 1.5),
-          ),
-          actions: [
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(ctx),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFE67514),
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                child: Text('OK', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                verifyResult.message ?? 'Account created successfully!',
+                style: GoogleFonts.poppins(fontSize: 14, height: 1.5),
               ),
-            ),
-          ],
+              const SizedBox(height: 16),
+              Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: 'Note: ',
+                      style: GoogleFonts.poppins(fontSize: 13, height: 1.5, fontWeight: FontWeight.bold, color: const Color(0xFFE67514)),
+                    ),
+                    TextSpan(
+                      text: 'If your mobile number is not registered on the eNagar Sewa portal, please ',
+                      style: GoogleFonts.poppins(fontSize: 13, height: 1.5, color: Colors.grey.shade700),
+                    ),
+                    WidgetSpan(
+                      alignment: PlaceholderAlignment.middle,
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const PropertyRegistrationWebView(),
+                            ),
+                          );
+                        },
+                        child: Text(
+                          'register first.',
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            color: const Color(0xFFE67514),
+                            fontWeight: FontWeight.bold,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [],
         ),
       );
 
@@ -927,7 +965,7 @@ class _SignUpScreenState extends State<SignUpScreen>
 
     return showModalBottomSheet<VerifyOtpMailResponse>(
       context: context,
-      isDismissible: false,
+      isDismissible: false, // Only close with X button
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -1086,7 +1124,9 @@ class _SignUpScreenState extends State<SignUpScreen>
                               height: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2.5,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
                               ),
                             )
                           : Text(

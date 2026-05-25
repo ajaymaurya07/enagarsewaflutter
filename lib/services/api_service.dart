@@ -1768,6 +1768,8 @@ class Transaction {
   final String? email;
   final String? key;
   final String? txnid;
+  /// Raw value from API: 'p' = production, 't' = testing
+  final String? payuEnv;
 
   Transaction({
     this.amount,
@@ -1779,7 +1781,11 @@ class Transaction {
     this.email,
     this.key,
     this.txnid,
+    this.payuEnv,
   });
+
+  /// Returns the PayU SDK environment value: '0' for production, '1' for test.
+  String get resolvedPayuEnvironment => payuEnv == 't' ? '1' : '0';
 
   factory Transaction.fromJson(Map<String, dynamic> json) => Transaction(
     amount: json['amount']?.toString(),
@@ -1791,6 +1797,7 @@ class Transaction {
     email: json['email'],
     key: json['key'],
     txnid: json['txnid']?.toString(),
+    payuEnv: json['payu_env']?.toString(),
   );
 }
 

@@ -198,6 +198,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     if (!mounted) return;
 
     // Block developer mode / USB debugging enabled devices
+    // TEMPORARILY DISABLED
     final bool devMode = await DeviceService.isDeveloperModeEnabled();
     if (devMode) {
       if (!mounted) return;

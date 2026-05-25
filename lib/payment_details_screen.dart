@@ -470,7 +470,18 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
     setState(() => _isLoading = true);
     try {
       // OTP bypass (flag: _kRequireOtp = false)
+      // sendOtp call hoti h (backend me OTP register ho), dialog nahi dikhta,
+      // aur verifyOtp '123456' se auto call hoti h
       if (!_kRequireOtp) {
+        final otpRes = await ApiService.sendOtp(mobileNo, widget.propertyId);
+        if (!mounted) return;
+        if (otpRes.success != true) {
+          setState(() => _isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(otpRes.message ?? 'Failed to send OTP')),
+          );
+          return;
+        }
         final res = await ApiService.verifyOtp(mobileNo, '123456');
         if (!mounted) return;
         setState(() => _isLoading = false);
@@ -887,7 +898,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
           PayUPaymentParamKey.android_furl: furl,
           PayUPaymentParamKey.ios_surl: surl,
           PayUPaymentParamKey.ios_furl: furl,
-          PayUPaymentParamKey.environment: AppConstants.payuEnvironment,
+          PayUPaymentParamKey.environment: txnData.resolvedPayuEnvironment,
           PayUPaymentParamKey.userCredential: '$key:$email',
         };
 
