@@ -42,6 +42,11 @@ class _SbiPaymentScreenState extends State<SbiPaymentScreen> {
     'sbiuat.bank.in',
   ];
 
+  /// The exact server-side callback path SBI redirects the browser to after
+  /// payment.  Intercepting this URL is the standard/correct way to detect
+  /// SBI ePAY payment completion.
+  static const _sbiCallbackFragment = '/api/Payu_redirect/sbi_redirect';
+
   // ── Lifecycle ──────────────────────────────────────────────────────────────
 
   @override
@@ -58,6 +63,10 @@ class _SbiPaymentScreenState extends State<SbiPaymentScreen> {
           onPageStarted: _onPageStarted,
           onPageFinished: _onPageFinished,
           onNavigationRequest: _onNavigationRequest,
+          // onUrlChange fires for ALL URL transitions including server-side
+          // 302 redirects. This is the single interception point for the
+          // SBI payment callback (sbi_redirect).
+          onUrlChange: _onUrlChange,
           onWebResourceError: _onWebResourceError,
         ),
       );
@@ -89,13 +98,28 @@ class _SbiPaymentScreenState extends State<SbiPaymentScreen> {
     }
   }
 
+  /// Fired for ALL URL transitions including server-side 302 redirects.
+  /// This is the single interception point: when SBI redirects to
+  /// [_sbiCallbackFragment] after payment, we stop WebView and cross-verify.
+  void _onUrlChange(UrlChange change) {
+    final url = change.url;
+    if (url == null || !mounted || _callbackHandled) return;
+    if (url.contains(_sbiCallbackFragment)) {
+      _callbackHandled = true;
+      final prelim = _extractStatusFromUrl(url);
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _verifySbiPayment(preliminaryStatus: prelim),
+      );
+    }
+  }
+
   NavigationDecision _onNavigationRequest(NavigationRequest request) {
     final url = request.url;
 
-    // Always let about:/data:/blob: through (HTML load, inline assets, etc.)
+    // Let passive URLs through (initial HTML load, inline assets).
     if (_isPassiveUrl(url)) return NavigationDecision.navigate;
 
-    // Always let SBI gateway domains through
+    // Let all SBI gateway pages through.
     if (_isSbiGatewayUrl(url)) {
       if (_phase == _PaymentPhase.loading) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -105,14 +129,13 @@ class _SbiPaymentScreenState extends State<SbiPaymentScreen> {
       return NavigationDecision.navigate;
     }
 
-    // Any other domain = server callback (surl / furl) → intercept & verify
-    if (!_callbackHandled) {
-      _callbackHandled = true;
-      final prelim = _extractStatusFromUrl(url);
-      WidgetsBinding.instance.addPostFrameCallback(
-        (_) => _verifySbiPayment(preliminaryStatus: prelim),
-      );
+    // Allow the known SBI callback URL to navigate so that onUrlChange fires.
+    // The verifying overlay hides the WebView before the page becomes visible.
+    if (url.contains(_sbiCallbackFragment)) {
+      return NavigationDecision.navigate;
     }
+
+    // Block any other unexpected non-SBI URL.
     return NavigationDecision.prevent;
   }
 
