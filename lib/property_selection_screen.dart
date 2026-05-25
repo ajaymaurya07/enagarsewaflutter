@@ -24,6 +24,9 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
   final _keyFirstPropertyCard = GlobalKey();
   final _keyFirstSelectButton = GlobalKey();
 
+  // TODO: set true before production release
+  static const _kRequireOtp = false;
+
   bool _isLoading = false;
   PropertyDetailsData? _currentPropertyDetails;
   PropertyData? _selectedProperty;
@@ -95,7 +98,20 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
         throw Exception('Mobile number not found for this property');
       }
 
-      // 2. Send OTP
+      // 2a. OTP bypass (flag: _kRequireOtp = false)
+      if (!_kRequireOtp) {
+        final res = await ApiService.verifyOtp(mobileNo, '123456');
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        if (res.success == true) {
+          await _finalizePropertySelection(mobileNo, propertyId, res);
+        } else {
+          _showSnackBar(res.message ?? 'OTP verification failed');
+        }
+        return;
+      }
+
+      // 2b. Normal OTP flow
       final otpRes = await ApiService.sendOtp(mobileNo, propertyId);
       
       if (!mounted) return;
@@ -116,6 +132,46 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
         ),
       );
     }
+  }
+
+  Future<void> _finalizePropertySelection(
+    String mobileNo,
+    String propertyId,
+    dynamic res,
+  ) async {
+    final ulbId = await StorageService.getUlbId();
+    final totalArv = _selectedProperty?.totalArv?.toString() ?? "0.0";
+    final userId = res.userId?.toString() ?? "0";
+
+    await StorageService.saveTotalArv(totalArv);
+
+    final email = await StorageService.getEmailId();
+    final userType = await StorageService.getUserType();
+
+    await DatabaseService.insertProperty(
+      PropertyEntity(
+        propertyId: propertyId,
+        ownerName: _currentPropertyDetails?.ownerDetails?.ownerName ?? "N/A",
+        ward: _currentPropertyDetails?.propertyDetailsInfo?.wardName ?? "N/A",
+        mohalla: _currentPropertyDetails?.propertyDetailsInfo?.mohallaName ?? "N/A",
+        phoneNumber: mobileNo,
+        email: email,
+        userType: userType,
+        ulbId: ulbId,
+        arvValue: totalArv,
+        userId: userId,
+        fatherName: _selectedProperty?.fatherHusbandName ?? "N/A",
+        address: _selectedProperty?.address ?? "N/A",
+      ),
+    );
+
+    await StorageService.setPropertyVerified(true);
+
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const DashboardScreen()),
+      (route) => false,
+    );
   }
 
   void _showOtpBottomSheet(String mobileNo, String propertyId) {

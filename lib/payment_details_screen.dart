@@ -305,6 +305,9 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
   final _keyArvHistoryButton = GlobalKey();
   final _keyPaymentHistoryButton = GlobalKey();
 
+  // TODO: set true before production release
+  static const _kRequireOtp = false;
+
   bool _isLoading = true;
   PropertyDetailsData? _details;
   String? _errorMessage;
@@ -466,6 +469,22 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
 
     setState(() => _isLoading = true);
     try {
+      // OTP bypass (flag: _kRequireOtp = false)
+      if (!_kRequireOtp) {
+        final res = await ApiService.verifyOtp(mobileNo, '123456');
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        if (res.success == true) {
+          _showPaymentMethodSelection();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(res.message ?? 'OTP verification failed')),
+          );
+        }
+        return;
+      }
+
+      // Normal OTP flow
       final otpRes = await ApiService.sendOtp(mobileNo, widget.propertyId);
       if (!mounted) return;
 
@@ -786,11 +805,12 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
               Navigator.pop(context);
               _handlePayuTransaction();
             }),
-            const SizedBox(height: 12),
-            _buildPaymentOptionCard('Pay with SBI', 'Official SBI Gateway', Icons.account_balance_rounded, () {
-              Navigator.pop(context);
-              _handleSbiTransaction();
-            }),
+            // TODO: re-enable SBI option before production release
+            // const SizedBox(height: 12),
+            // _buildPaymentOptionCard('Pay with SBI', 'Official SBI Gateway', Icons.account_balance_rounded, () {
+            //   Navigator.pop(context);
+            //   _handleSbiTransaction();
+            // }),
             const SizedBox(height: 24),
           ],
         ),

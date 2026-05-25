@@ -1,3 +1,5 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:in_app_update/in_app_update.dart';
@@ -7,6 +9,7 @@ import 'dashboard_screen.dart';
 import 'services/storage_service.dart';
 import 'services/device_service.dart';
 import 'services/integrity_service.dart';
+import 'services/push_notification_service.dart';
 import 'rooted_device_screen.dart';
 import 'constants/app_constants.dart';
 
@@ -159,8 +162,29 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     );
   }
 
+  /// Initializes Firebase and push notifications in the background.
+  /// Never throws — notifications are non-critical.
+  Future<void> _initFirebase() async {
+    try {
+      await Firebase.initializeApp()
+          .timeout(const Duration(seconds: 10));
+      FirebaseMessaging.onBackgroundMessage(
+        firebaseMessagingBackgroundHandler,
+      );
+      await PushNotificationService.initialize()
+          .timeout(const Duration(seconds: 10));
+    } catch (_) {
+      // Push notifications unavailable on this device — app continues normally.
+    }
+  }
+
   Future<void> _checkLoginStatus() async {
-    await Future.delayed(const Duration(seconds: 3));
+    // Initialize Firebase concurrently with the 3-second splash delay.
+    // UI renders immediately; Firebase never blocks runApp().
+    await Future.wait([
+      Future.delayed(const Duration(seconds: 3)),
+      _initFirebase(),
+    ]);
 
     if (!mounted) return;
 
