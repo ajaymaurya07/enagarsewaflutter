@@ -138,6 +138,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _calculatePaymentStatus();
           _isLoadingPaymentStatus = false;
         });
+        _sendPaymentNotificationIfNeeded();
       } else {
         if (mounted) {
           setState(() => _isLoadingPaymentStatus = false);
@@ -882,6 +883,46 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  // ── Payment due notification (fires once per day per alert type) ──────────
+
+  Future<void> _sendPaymentNotificationIfNeeded() async {
+    if (_paymentStatus == 'Payment Done') return;
+
+    final billDate = _parseDate(_billDate);
+    if (billDate == null) return;
+
+    final today = DateTime.now();
+    final daysDiff = billDate
+        .difference(DateTime(today.year, today.month, today.day))
+        .inDays;
+
+    String? notificationMsg;
+    if (daysDiff == 7) {
+      notificationMsg = 'Your payment is due in 7 days.';
+    } else if (daysDiff == 3) {
+      notificationMsg = 'Your payment is due in 3 days.';
+    } else if (daysDiff == 1) {
+      notificationMsg = 'Your payment is due tomorrow.';
+    } else if (daysDiff == 0) {
+      notificationMsg = 'Your payment is due today.';
+    } else if (daysDiff == -3) {
+      notificationMsg = 'Your payment is overdue by 3 days.';
+    } else if (daysDiff == -7) {
+      notificationMsg = 'Your payment is overdue by 7 days.';
+    }
+
+    if (notificationMsg == null) return;
+
+    // Guard: send this specific alert only once per calendar day
+    final prefs = await SharedPreferences.getInstance();
+    final key =
+        'payment_notif_${today.year}_${today.month}_${today.day}_$daysDiff';
+    if (prefs.getBool(key) == true) return;
+
+    await prefs.setBool(key, true);
+    NotificationHelper.showSimpleNotification('Payment Alert', notificationMsg);
+  }
+
   String _getStatusMessage() {
     // If payment is done, show default message
     if (_paymentStatus == "Payment Done") {
@@ -892,27 +933,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final billDate = _parseDate(_billDate);
     if (billDate == null) {
       return 'We are checking your latest payment details.';
-    }
-    final today = DateTime.now();
-    final daysDiff = billDate.difference(DateTime(today.year, today.month, today.day)).inDays;
-
-
-    // Only send notification, do not show alert in UI
-    String? notificationMsg;
-    if (daysDiff == 7) {
-      notificationMsg = 'Your payment is due in 7 days.';
-    } else if (daysDiff == 3) {
-      notificationMsg = 'Your payment is due in 3 days.';
-    } else if (daysDiff == 0) {
-      notificationMsg = 'Your payment is due today.';
-    } else if (daysDiff == -3) {
-      notificationMsg = 'Your payment is overdue by 3 days.';
-    } else if (daysDiff == -7) {
-      notificationMsg = 'Your payment is overdue by 7 days.';
-    }
-    if (notificationMsg != null) {
-      NotificationHelper.showSimpleNotification('Payment Alert', notificationMsg);
-      // Do not show alert in UI, fall through to default message
     }
 
     // Fallback to old logic for other cases

@@ -105,6 +105,30 @@ class StorageService {
     return token != null && token.isNotEmpty;
   }
 
+  // ── Remember Me credentials ────────────────────────────────────────────────
+
+  static const String _rememberMeEmailKey = 'remember_me_email';
+  static const String _rememberMePasswordKey = 'remember_me_password';
+
+  static Future<void> saveRememberMeCredentials(String email, String password) async {
+    await _secureStorage.write(key: _rememberMeEmailKey, value: email);
+    await _secureStorage.write(key: _rememberMePasswordKey, value: password);
+  }
+
+  static Future<Map<String, String>?> getRememberMeCredentials() async {
+    final email = await _secureStorage.read(key: _rememberMeEmailKey);
+    final password = await _secureStorage.read(key: _rememberMePasswordKey);
+    if (email != null && email.isNotEmpty && password != null && password.isNotEmpty) {
+      return {'email': email, 'password': password};
+    }
+    return null;
+  }
+
+  static Future<void> clearRememberMeCredentials() async {
+    await _secureStorage.delete(key: _rememberMeEmailKey);
+    await _secureStorage.delete(key: _rememberMePasswordKey);
+  }
+
   // ── Integrity token (Play Integrity / App Attest) ──────────────────────────
 
   static Future<void> saveIntegrityToken(String token) async {

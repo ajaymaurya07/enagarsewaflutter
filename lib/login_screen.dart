@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'signup_screen.dart';
-import 'widgets/property_registration_webview.dart';
+// import 'widgets/property_registration_webview.dart';
 import 'forgot_password_screen.dart';
 import 'search_property_screen.dart';
 import 'services/api_service.dart';
@@ -23,6 +23,24 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
+  bool _rememberMe = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRememberedCredentials();
+  }
+
+  Future<void> _loadRememberedCredentials() async {
+    final saved = await StorageService.getRememberMeCredentials();
+    if (saved != null && mounted) {
+      setState(() {
+        _emailController.text = saved['email']!;
+        _passwordController.text = saved['password']!;
+        _rememberMe = true;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -53,6 +71,12 @@ class _LoginScreenState extends State<LoginScreen> {
       if (response.success) {
         setState(() => _isLoading = false);
         _showSuccess('Login successful!');
+
+        if (_rememberMe) {
+          await StorageService.saveRememberMeCredentials(email, password);
+        } else {
+          await StorageService.clearRememberMeCredentials();
+        }
 
         final emailToSave = response.data?.emailId ?? email;
         await StorageService.saveEmailId(emailToSave);
@@ -247,6 +271,36 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: 8),
 
+                        // Remember Me
+                        Row(
+                          children: [
+                            SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: Checkbox(
+                                value: _rememberMe,
+                                onChanged: (val) => setState(() => _rememberMe = val ?? false),
+                                activeColor: const Color(0xFFE67514),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                                side: BorderSide(color: Colors.grey.shade400),
+                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            GestureDetector(
+                              onTap: () => setState(() => _rememberMe = !_rememberMe),
+                              child: Text(
+                                'Remember me',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 13,
+                                  color: Colors.grey.shade700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+
                         // Forgot Password
                         Align(
                           alignment: Alignment.centerRight,
@@ -330,48 +384,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-
-                  // Register Property Link
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Expanded(
-                        child: Text.rich(
-                          TextSpan(
-                            text: 'If your mobile number is not registered on the eNagar Sewa portal, please ',
-                            style: GoogleFonts.poppins(color: Colors.grey.shade600, fontSize: 14),
-                            children: [
-                              WidgetSpan(
-                                alignment: PlaceholderAlignment.middle,
-                                child: GestureDetector(
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => const PropertyRegistrationWebView(),
-                                      ),
-                                    );
-                                  },
-                                  child: Text(
-                                    'register first.',
-                                    style: GoogleFonts.poppins(
-                                      color: const Color(0xFFE67514),
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      decoration: TextDecoration.underline,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ],
-                  ),
-
                   const SizedBox(height: 32),
                 ],
               ),

@@ -891,55 +891,25 @@ class _SignUpScreenState extends State<SignUpScreen>
               ),
             ],
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                verifyResult.message ?? 'Account created successfully!',
-                style: GoogleFonts.poppins(fontSize: 14, height: 1.5),
-              ),
-              const SizedBox(height: 16),
-              Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(
-                      text: 'Note: ',
-                      style: GoogleFonts.poppins(fontSize: 13, height: 1.5, fontWeight: FontWeight.bold, color: const Color(0xFFE67514)),
-                    ),
-                    TextSpan(
-                      text: 'If your mobile number is not registered on the eNagar Sewa portal, please ',
-                      style: GoogleFonts.poppins(fontSize: 13, height: 1.5, color: Colors.grey.shade700),
-                    ),
-                    WidgetSpan(
-                      alignment: PlaceholderAlignment.middle,
-                      child: GestureDetector(
-                        onTap: () {
-                          Navigator.pop(ctx);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const PropertyRegistrationWebView(),
-                            ),
-                          );
-                        },
-                        child: Text(
-                          'register first.',
-                          style: GoogleFonts.poppins(
-                            fontSize: 13,
-                            color: const Color(0xFFE67514),
-                            fontWeight: FontWeight.bold,
-                            decoration: TextDecoration.underline,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+          content: Text(
+            verifyResult.message ?? 'Account created successfully!',
+            style: GoogleFonts.poppins(fontSize: 14, height: 1.5),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                Navigator.pop(context);
+              },
+              child: Text(
+                'OK',
+                style: GoogleFonts.poppins(
+                  color: const Color(0xFFE67514),
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-            ],
-          ),
-          actions: [],
+            ),
+          ],
         ),
       );
 
