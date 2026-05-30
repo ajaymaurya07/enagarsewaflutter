@@ -28,7 +28,7 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
   static const Color _hintColor = Color(0xFF6B7280);
 
   // TODO: set true before production release
-  static const bool _kRequireOtp = false;
+  static const bool _kRequireOtp = true;
 
   final _formKey = GlobalKey<FormState>();
   final ImagePicker _picker = ImagePicker();

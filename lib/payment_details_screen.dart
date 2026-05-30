@@ -313,7 +313,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
   final _keyPaymentHistoryButton = GlobalKey();
 
   // TODO: set true before production release
-  static const _kRequireOtp = false;
+  static const _kRequireOtp = true;
 
   bool _isLoading = true;
   PropertyDetailsData? _details;

@@ -25,7 +25,7 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
   final _keyFirstSelectButton = GlobalKey();
 
   // TODO: set true before production release
-  static const _kRequireOtp = false;
+  static const _kRequireOtp = true;
 
   bool _isLoading = false;
   PropertyDetailsData? _currentPropertyDetails;
