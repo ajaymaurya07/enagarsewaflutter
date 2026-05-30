@@ -165,12 +165,6 @@ class _PayuDelegate implements PayUCheckoutProProtocol {
     required PaymentStatus sdkStatus,
     required dynamic response,
   }) {
-    // If no txnId, skip verification entirely — go straight to result
-    if (txnId == null || txnId.isEmpty) {
-      _navigateFromSdk(sdkStatus, response);
-      return;
-    }
-
     // Show verifying overlay
     showDialog(
       context: context,
@@ -178,17 +172,30 @@ class _PayuDelegate implements PayUCheckoutProProtocol {
       builder: (_) => const _PayUVerifyingDialog(),
     );
 
-    ApiService.getTransactionDetails(txnId).then((res) {
-      if (!context.mounted) return;
-      Navigator.of(context).pop(); // dismiss dialog
-      if (res.status == true && res.data != null) {
-        _navigateFromVerify(res.data!);
-      } else {
+    StorageService.getPayuMobileTransactionId().then((mobileTxnId) {
+      if (mobileTxnId == null || mobileTxnId.isEmpty) {
+        if (!context.mounted) return;
+        Navigator.of(context).pop();
         _navigateFromSdk(sdkStatus, response);
+        return;
       }
+      ApiService.getTransactionDetails(mobileTxnId).then((res) {
+        if (!context.mounted) return;
+        Navigator.of(context).pop(); // dismiss dialog
+        if (res.status == true && res.data != null) {
+          StorageService.clearPayuMobileTransactionId();
+          _navigateFromVerify(res.data!);
+        } else {
+          _navigateFromSdk(sdkStatus, response);
+        }
+      }).catchError((e) {
+        if (!context.mounted) return;
+        Navigator.of(context).pop(); // dismiss dialog
+        _navigateFromSdk(sdkStatus, response);
+      });
     }).catchError((e) {
       if (!context.mounted) return;
-      Navigator.of(context).pop(); // dismiss dialog
+      Navigator.of(context).pop();
       _navigateFromSdk(sdkStatus, response);
     });
   }
@@ -771,6 +778,9 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
       setState(() => _isLoading = false);
 
       if (response.status == true) {
+        await StorageService.savePayuMobileTransactionId(
+          request.mobileTransactionId,
+        );
         _startPayuFlow(response.data);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -816,12 +826,11 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
               Navigator.pop(context);
               _handlePayuTransaction();
             }),
-            // TODO: re-enable SBI option before production release
-            // const SizedBox(height: 12),
-            // _buildPaymentOptionCard('Pay with SBI', 'Official SBI Gateway', Icons.account_balance_rounded, () {
-            //   Navigator.pop(context);
-            //   _handleSbiTransaction();
-            // }),
+            const SizedBox(height: 12),
+            _buildPaymentOptionCard('Pay with SBI', 'Official SBI Gateway', Icons.account_balance_rounded, () {
+              Navigator.pop(context);
+              _handleSbiTransaction();
+            }),
             const SizedBox(height: 24),
           ],
         ),
@@ -838,6 +847,9 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
       setState(() => _isLoading = false);
 
       if (response.status == true && response.data != null) {
+        await StorageService.saveSbiMobileTransactionId(
+          request.mobileTransactionId,
+        );
         Navigator.push(
           context,
           MaterialPageRoute(

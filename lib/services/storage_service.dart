@@ -119,6 +119,38 @@ class StorageService {
     await _secureStorage.delete(key: _integrityTokenKey);
   }
 
+  // ── SBI mobile transaction ID ──────────────────────────────────────────────
+
+  static const String _sbiMobileTxnIdKey = 'sbi_mobile_transaction_id';
+
+  static Future<void> saveSbiMobileTransactionId(String id) async {
+    await _secureStorage.write(key: _sbiMobileTxnIdKey, value: id);
+  }
+
+  static Future<String?> getSbiMobileTransactionId() async {
+    return _secureStorage.read(key: _sbiMobileTxnIdKey);
+  }
+
+  static Future<void> clearSbiMobileTransactionId() async {
+    await _secureStorage.delete(key: _sbiMobileTxnIdKey);
+  }
+
+  // ── PayU mobile transaction ID ─────────────────────────────────────────────
+
+  static const String _payuMobileTxnIdKey = 'payu_mobile_transaction_id';
+
+  static Future<void> savePayuMobileTransactionId(String id) async {
+    await _secureStorage.write(key: _payuMobileTxnIdKey, value: id);
+  }
+
+  static Future<String?> getPayuMobileTransactionId() async {
+    return _secureStorage.read(key: _payuMobileTxnIdKey);
+  }
+
+  static Future<void> clearPayuMobileTransactionId() async {
+    await _secureStorage.delete(key: _payuMobileTxnIdKey);
+  }
+
   static Future<void> _writeSecureToken(String key, String value) async {
     await _secureStorage.write(key: key, value: value);
   }

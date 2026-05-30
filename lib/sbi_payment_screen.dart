@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'services/api_service.dart';
+import 'services/storage_service.dart';
 import 'payment_result_screen.dart';
 
 /// SBI ePay payment screen.
@@ -203,17 +204,18 @@ class _SbiPaymentScreenState extends State<SbiPaymentScreen> {
       _verifyError = null;
     });
 
-    final txnid = widget.sbiData.txnid;
-    if (txnid == null || txnid.isEmpty) {
+    final mobileTxnId = await StorageService.getSbiMobileTransactionId();
+    if (mobileTxnId == null || mobileTxnId.isEmpty) {
       _navigateFromPrelim(preliminaryStatus);
       return;
     }
 
     try {
-      final response = await ApiService.getSbiTransactionDetails(txnid);
+      final response = await ApiService.getSbiTransactionDetails(mobileTxnId);
       if (!mounted) return;
 
       if (response.status == true && response.data != null) {
+        await StorageService.clearSbiMobileTransactionId();
         _navigateToResult(response.data!);
       } else {
         setState(() {
