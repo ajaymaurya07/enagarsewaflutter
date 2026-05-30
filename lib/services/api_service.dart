@@ -705,16 +705,25 @@ class ApiService {
     String mobileTransactionId,
   ) async {
     try {
-      final response = await _makeAuthenticatedRequest(
-        (headers) => _post(
-              Uri.parse(
-                '${AppConstants.baseUrl}api/Payment/getSbiTransactionDetails',
-              ),
-              headers: headers,
-              body: jsonEncode({'mobile_transaction_id': mobileTransactionId}),
-            )
-            .timeout(Duration(seconds: AppConstants.networkTimeout)),
-      );
+      final authHeaders = await _getHeaders();
+      final deviceId = await DeviceService.getDeviceId();
+      // Server expects multipart/form-data (as confirmed via Postman)
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('${AppConstants.baseUrl}api/Payment/getSbiTransactionDetails'),
+      )
+        ..fields['mobile_transaction_id'] = mobileTransactionId
+        ..headers.addAll({
+          'Authorization': authHeaders['Authorization'] ?? '',
+          'X-App-Version': authHeaders['X-App-Version'] ?? '',
+          'X-Device-Id': deviceId,
+        });
+
+      final client = await PinnedHttpClient.getInstance();
+      final streamed = await client
+          .send(request)
+          .timeout(Duration(seconds: AppConstants.networkTimeout));
+      final response = await http.Response.fromStream(streamed);
 
       if (response.statusCode == 200) {
         return SbiTransactionDetailsResponse.fromJson(
@@ -1880,6 +1889,8 @@ class SbiPaymentDetails {
   final String? otherTaxPaid;
   final String? waterChargePaid;
   final String? sbiPaymentTime;
+  final String? payuPaymentTime;
+  final String? mobileTransactionTimestamp;
   final String? transactionCreatedAt;
 
   SbiPaymentDetails({
@@ -1898,6 +1909,8 @@ class SbiPaymentDetails {
     this.otherTaxPaid,
     this.waterChargePaid,
     this.sbiPaymentTime,
+    this.payuPaymentTime,
+    this.mobileTransactionTimestamp,
     this.transactionCreatedAt,
   });
 
@@ -1918,6 +1931,8 @@ class SbiPaymentDetails {
         otherTaxPaid: json['otherTaxPaid']?.toString(),
         waterChargePaid: json['waterChargePaid']?.toString(),
         sbiPaymentTime: json['sbi_payment_time']?.toString(),
+        payuPaymentTime: json['payu_payment_time']?.toString(),
+        mobileTransactionTimestamp: json['mobile_transaction_timestamp']?.toString(),
         transactionCreatedAt: json['transaction_created_at']?.toString(),
       );
 }
