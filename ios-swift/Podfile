@@ -1,0 +1,22 @@
+platform :ios, '16.0'
+use_frameworks!
+
+target 'eNagarsewa' do
+
+  # Firebase (push notifications only — no Firestore)
+  pod 'FirebaseCore'
+  pod 'FirebaseMessaging'
+
+  # PayU iOS SDK — verify exact pod name from PayU iOS SDK docs
+  # pod 'PayUbiz', '~> 7.0'   # update when confirmed
+
+end
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    target.build_configurations.each do |config|
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
+      config.build_settings['SWIFT_VERSION'] = '5.9'
+    end
+  end
+end
