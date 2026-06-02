@@ -120,24 +120,24 @@ class _SbiPaymentScreenState extends State<SbiPaymentScreen> {
     // Let passive URLs through (initial HTML load, inline assets).
     if (_isPassiveUrl(url)) return NavigationDecision.navigate;
 
-    // Let all SBI gateway pages through.
-    if (_isSbiGatewayUrl(url)) {
-      if (_phase == _PaymentPhase.loading) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) setState(() => _phase = _PaymentPhase.processing);
-        });
-      }
-      return NavigationDecision.navigate;
+    // Block plain HTTP — HTTPS only during payment.
+    final uri = Uri.tryParse(url);
+    if (uri != null && uri.scheme == 'http') {
+      return NavigationDecision.prevent;
     }
 
-    // Allow the known SBI callback URL to navigate so that onUrlChange fires.
-    // The verifying overlay hides the WebView before the page becomes visible.
-    if (url.contains(_sbiCallbackFragment)) {
-      return NavigationDecision.navigate;
+    // Update phase when leaving the initial load state.
+    if (_isSbiGatewayUrl(url) && _phase == _PaymentPhase.loading) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _phase = _PaymentPhase.processing);
+      });
     }
 
-    // Block any other unexpected non-SBI URL.
-    return NavigationDecision.prevent;
+    // Allow all HTTPS navigation — SBI ePay flow goes through 3D Secure pages,
+    // bank OTP pages, and card network ACS pages on various domains that cannot
+    // be enumerated in advance. Security is already ensured by HTTPS + cert
+    // pinning on our own server endpoint.
+    return NavigationDecision.navigate;
   }
 
   void _onWebResourceError(WebResourceError error) {

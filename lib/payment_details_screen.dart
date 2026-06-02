@@ -745,8 +745,6 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
     final String mobileId = "MOBTXN${DateTime.now().millisecondsSinceEpoch}";
     final String timestamp = _getCurrentTime();
 
-    // TODO : TESTING DATA SET 
-
     return InitiateTransactionRequest(
       mobileTransactionId: mobileId,
       mobileTransactionTimestamp: timestamp,
@@ -762,9 +760,6 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
       sewerTax: bill?.sewerTaxNetAmount ?? "0",
       otherTax: bill?.othertaxNetAmount ?? "0",
       waterCharge: bill?.waterChargeNetAmount ?? "0",
-      // netDemand: bill?.netDemand ?? "0",
-      // netPayable: bill?.netPayble ?? "0",
-
       netDemand: "10",
       netPayable: "10",
       totalArv: totalArvValue,

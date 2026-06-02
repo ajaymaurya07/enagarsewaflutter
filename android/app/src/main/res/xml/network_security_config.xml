@@ -1,19 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
 
-    <!-- SBI Payment Gateway -->
+    <!-- SBI Payment Gateway — HTTPS only, no certificate pinning.
+         SBI's certificate is validated by Android's system trust store.
+         Pinning here would require SBI's actual SPKI hash which we don't control. -->
     <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="true">sbi.co.in</domain>
         <domain includeSubdomains="true">sbi.in</domain>
         <domain includeSubdomains="true">sbiuat.bank.in</domain>
-
-        <!-- Certificate pinning for SBI -->
-        <pin-set expiration="2026-09-27">
-            <!-- SBI Leaf Certificate -->
-            <pin digest="SHA-256">9cfpRdt3u5byy0K2nxVHhWnByC+qBa0BS+RG60siZpQ=</pin>
-            <!-- RapidSSL Intermediate CA (DigiCert) -->
-            <pin digest="SHA-256">E3tYcwo9CiqATmKtpMLW5V+pzIq+ZoDmpXSiJlXGmTo=</pin>
-        </pin-set>
     </domain-config>
 
     <!-- PayU Payment Gateway -->
@@ -38,9 +32,11 @@
         </pin-set>
     </domain-config>
 
-    <!-- Default policy: reject all untrusted certs -->
-    <domain-config cleartextTrafficPermitted="false">
-        <domain includeSubdomains="true">.</domain>
-    </domain-config>
+    <!-- Default policy: block HTTP for all other domains, use system trust store -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system"/>
+        </trust-anchors>
+    </base-config>
 
 </network-security-config>

@@ -47,3 +47,8 @@ app.*.map.json
 # Firebase config — contains API key; restrict the key in Firebase Console instead of committing
 /android/app/google-services.json
 /ios/Runner/GoogleService-Info.plist
+
+# Internal security audit documents — not for version control
+*.docx
+*.pdf
+Security_Audit_Fix_Report.*
