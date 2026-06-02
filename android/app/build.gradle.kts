@@ -35,12 +35,16 @@ android {
             keyPassword = keyProperties["keyPassword"] as String
             storeFile = keyProperties["storeFile"]?.let { file(it) }
             storePassword = keyProperties["storePassword"] as String
+            enableV1Signing = false  // v1 (JAR signing) not needed for minSdk >= 24
+            enableV2Signing = true   // v2 required for Android 7+
+            enableV3Signing = true   // v3 for Android 9+
+            enableV4Signing = true   // v4 for incremental installs (Android 11+)
         }
     }
 
     defaultConfig {
         applicationId = "com.vdsai.enagaesewa"
-        minSdk = 28
+        minSdk = 29
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

@@ -6,12 +6,8 @@ class StorageService {
   static const String _accessTokenKey = 'access_token';
   static const String _refreshTokenKey = 'refresh_token';
   static const String _integrityTokenKey = 'integrity_token';
-  static const AndroidOptions _androidOptions = AndroidOptions(
-    encryptedSharedPreferences: true,
-  );
-  static final FlutterSecureStorage _secureStorage = FlutterSecureStorage(
-    aOptions: _androidOptions,
-  );
+  // v10+ uses custom AES-256 ciphers automatically; no options needed
+  static final FlutterSecureStorage _secureStorage = FlutterSecureStorage();
 
   static Future<void> saveLoginData(SignIn data) async {
     final prefs = await SharedPreferences.getInstance();

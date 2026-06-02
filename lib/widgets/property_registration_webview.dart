@@ -15,6 +15,8 @@ class _PropertyRegistrationWebViewState
   late final WebViewController _controller;
   bool _isLoading = true;
 
+  static const _allowedHost = 'e-nagarsewaup.gov.in';
+
   @override
   void initState() {
     super.initState();
@@ -24,6 +26,20 @@ class _PropertyRegistrationWebViewState
         NavigationDelegate(
           onPageStarted: (_) => setState(() => _isLoading = true),
           onPageFinished: (_) => setState(() => _isLoading = false),
+          onNavigationRequest: (NavigationRequest request) {
+            final uri = Uri.tryParse(request.url);
+            // Only HTTPS to the trusted government domain is permitted
+            if (uri != null &&
+                uri.scheme == 'https' &&
+                (uri.host == _allowedHost ||
+                    uri.host.endsWith('.$_allowedHost'))) {
+              return NavigationDecision.navigate;
+            }
+            return NavigationDecision.prevent;
+          },
+          onWebResourceError: (WebResourceError error) {
+            // SSL / network errors are surfaced; no silent proceed
+          },
         ),
       )
       ..loadRequest(
