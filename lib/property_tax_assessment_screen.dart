@@ -455,13 +455,20 @@ class _PropertyTaxAssessmentScreenState
     );
     await file.writeAsBytes(await pdf.save());
 
-    if (!mounted) return;
+    if (!mounted) {
+      try { await file.delete(); } catch (_) {}
+      return;
+    }
     _showToast('PDF Generated Successfully');
 
-    await Printing.sharePdf(
-      bytes: await pdf.save(),
-      filename: 'Property_Tax_Comparison.pdf',
-    );
+    try {
+      await Printing.sharePdf(
+        bytes: await pdf.save(),
+        filename: 'Property_Tax_Comparison.pdf',
+      );
+    } finally {
+      try { await file.delete(); } catch (_) {}
+    }
   }
 
   pw.Widget _pdfRow(String label, String value) {

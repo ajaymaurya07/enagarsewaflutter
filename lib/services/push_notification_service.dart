@@ -96,6 +96,6 @@ class PushNotificationService {
   }
 
   static void _handleMessageOpened(RemoteMessage message) {
-    // TODO: navigate to relevant screen based on message.data
+    
   }
 }

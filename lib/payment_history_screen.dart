@@ -327,10 +327,14 @@ class _ReceiptCard extends StatelessWidget {
       final dir = await getTemporaryDirectory();
       final file = File('${dir.path}/receipt_${receipt.receiptNo ?? 'payment'}.pdf');
       await file.writeAsBytes(bytes);
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        text: 'Payment Receipt - Property ID: $propertyId',
-      );
+      try {
+        await Share.shareXFiles(
+          [XFile(file.path)],
+          text: 'Payment Receipt - Property ID: $propertyId',
+        );
+      } finally {
+        try { await file.delete(); } catch (_) {}
+      }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

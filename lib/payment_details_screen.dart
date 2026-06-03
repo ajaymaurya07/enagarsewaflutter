@@ -5,7 +5,6 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'constants/app_constants.dart';
 import 'services/api_service.dart';
 import 'services/storage_service.dart';
 import 'services/database_service.dart';
@@ -312,9 +311,6 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
   final _keyArvHistoryButton = GlobalKey();
   final _keyPaymentHistoryButton = GlobalKey();
 
-  // TODO: set true before production release
-  static const _kRequireOtp = true;
-
   bool _isLoading = true;
   PropertyDetailsData? _details;
   String? _errorMessage;
@@ -476,33 +472,6 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
 
     setState(() => _isLoading = true);
     try {
-      // OTP bypass (flag: _kRequireOtp = false)
-      // sendOtp call hoti h (backend me OTP register ho), dialog nahi dikhta,
-      // aur verifyOtp '123456' se auto call hoti h
-      if (!_kRequireOtp) {
-        final otpRes = await ApiService.sendOtp(mobileNo, widget.propertyId);
-        if (!mounted) return;
-        if (otpRes.success != true) {
-          setState(() => _isLoading = false);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(otpRes.message ?? 'Failed to send OTP')),
-          );
-          return;
-        }
-        final res = await ApiService.verifyOtp(mobileNo, '123456');
-        if (!mounted) return;
-        setState(() => _isLoading = false);
-        if (res.success == true) {
-          _showPaymentMethodSelection();
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(res.message ?? 'OTP verification failed')),
-          );
-        }
-        return;
-      }
-
-      // Normal OTP flow
       final otpRes = await ApiService.sendOtp(mobileNo, widget.propertyId);
       if (!mounted) return;
 
@@ -745,6 +714,9 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
     final String mobileId = "MOBTXN${DateTime.now().millisecondsSinceEpoch}";
     final String timestamp = _getCurrentTime();
 
+
+    //  TODO : handle test case for payable and netAmoun
+
     return InitiateTransactionRequest(
       mobileTransactionId: mobileId,
       mobileTransactionTimestamp: timestamp,
@@ -760,8 +732,8 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
       sewerTax: bill?.sewerTaxNetAmount ?? "0",
       otherTax: bill?.othertaxNetAmount ?? "0",
       waterCharge: bill?.waterChargeNetAmount ?? "0",
-      netDemand: "10",
-      netPayable: "10",
+      netDemand: bill?.netDemand ?? "0",
+      netPayable: bill?.netPayble ?? "0",
       totalArv: totalArvValue,
       userId: userId,
       emailId: email ?? "",

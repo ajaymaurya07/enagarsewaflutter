@@ -143,10 +143,13 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
           '${directory.path}/receipt_${widget.transaction.txnId}.png',
         ).create();
         await imagePath.writeAsBytes(image);
-
-        await Share.shareXFiles([
-          XFile(imagePath.path),
-        ], text: 'Transaction Receipt: ${widget.transaction.txnId}');
+        try {
+          await Share.shareXFiles([
+            XFile(imagePath.path),
+          ], text: 'Transaction Receipt: ${widget.transaction.txnId}');
+        } finally {
+          try { await imagePath.delete(); } catch (_) {}
+        }
       }
     } catch (e) {
       if (!mounted) {

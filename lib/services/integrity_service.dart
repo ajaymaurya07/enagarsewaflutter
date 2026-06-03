@@ -20,9 +20,8 @@ class IntegrityService {
   static String get _nonceUrl =>
       '${AppConstants.baseUrl}api/Play_integrity/get_nonce';
 
-// TODO: navigate to relevant screen based on message.data
-  /// Set to false when the backend verify-integrity API goes live.
-  static const bool _devMode = true; // TEMPORARILY BYPASSED
+// TODO: Set to false when the backend verify-integrity API goes live.
+  static const bool _devMode = false; // TEMPORARILY BYPASSED
 
   // ─── Public API ────────────────────────────────────────────────────────────
 

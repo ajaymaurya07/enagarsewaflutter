@@ -2,16 +2,16 @@
     <!-- SECURITY FIX: Minimize dangerous permissions - remove unused ones -->
     <!-- READ_PHONE_STATE only if property identification requires it -->
     <uses-permission android:name="android.permission.READ_PHONE_STATE"
-        tools:node="remove" />
+         />
     <!-- READ_PHONE_NUMBERS - HIGH RISK, removed unless absolutely necessary -->
     <uses-permission android:name="android.permission.READ_PHONE_NUMBERS"
-        tools:node="remove" />
+         />
     <!-- READ_CONTACTS - Only if user references contacts for grievance -->
     <uses-permission android:name="android.permission.READ_CONTACTS"
-        tools:node="remove" />
+        />
     <!-- GET_ACCOUNTS - Remove, not needed for current functionality -->
     <uses-permission android:name="android.permission.GET_ACCOUNTS"
-        tools:node="remove" />
+        />
 
     <!-- Required essential permissions only -->
     <uses-permission android:name="android.permission.INTERNET" />

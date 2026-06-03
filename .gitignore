@@ -52,3 +52,5 @@ app.*.map.json
 *.docx
 *.pdf
 Security_Audit_Fix_Report.*
+security_audit_fix_report.*
+generate_report.py
