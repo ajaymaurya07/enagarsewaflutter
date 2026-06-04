@@ -1,5 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:in_app_update/in_app_update.dart';
@@ -168,6 +170,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     try {
       await Firebase.initializeApp()
           .timeout(const Duration(seconds: 10));
+
+      // Crashlytics handlers are already wired in main() — skip here.
+
       FirebaseMessaging.onBackgroundMessage(
         firebaseMessagingBackgroundHandler,
       );
@@ -199,16 +204,16 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     // TODO :developer mode / USB debugging enabled device
     
-    final bool devMode = await DeviceService.isDeveloperModeEnabled();
-    if (devMode) {
-      if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => const RootedDeviceScreen(reason: BlockReason.developerMode),
-        ),
-      );
-      return;
-    }
+    // final bool devMode = await DeviceService.isDeveloperModeEnabled();
+    // if (devMode) {
+    //   if (!mounted) return;
+    //   Navigator.of(context).pushReplacement(
+    //     MaterialPageRoute(
+    //       builder: (_) => const RootedDeviceScreen(reason: BlockReason.developerMode),
+    //     ),
+    //   );
+    //   return;
+    // }
 
     if (!mounted) return;
 

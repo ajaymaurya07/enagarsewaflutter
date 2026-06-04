@@ -798,12 +798,12 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
               Navigator.pop(context);
               _handlePayuTransaction();
             }),
-            const SizedBox(height: 12),
-            _buildPaymentOptionCard('Pay with SBI', 'Official SBI Gateway', Icons.account_balance_rounded, () {
-              Navigator.pop(context);
-              _handleSbiTransaction();
-            }),
-            const SizedBox(height: 24),
+            // const SizedBox(height: 12),
+            // _buildPaymentOptionCard('Pay with SBI', 'Official SBI Gateway', Icons.account_balance_rounded, () {
+            //   Navigator.pop(context);
+            //   _handleSbiTransaction();
+            // }),
+            // const SizedBox(height: 24),
           ],
         ),
       ),
