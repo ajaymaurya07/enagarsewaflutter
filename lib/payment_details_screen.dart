@@ -1312,38 +1312,25 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildSecondaryButton(
-                      'Add Grievance',
-                      Icons.add_comment_outlined,
-                      () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => PaymentGrievanceScreen(
-                              propertyId: widget.propertyId,
-                              propertyDetails: _details,
-                            ),
-                          ),
-                        );
-                      },
-                      key: _keyAddGrievanceButton,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildSecondaryButton(
-                      'ARV History',
-                      Icons.history_rounded,
-                      () {},
-                      key: _keyArvHistoryButton,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
+                  // Add Grievance button commented out
+                  // Expanded(
+                  //   child: _buildSecondaryButton(
+                  //     'Add Grievance',
+                  //     Icons.add_comment_outlined,
+                  //     () {
+                  //       Navigator.push(
+                  //         context,
+                  //         MaterialPageRoute(
+                  //           builder: (_) => PaymentGrievanceScreen(
+                  //             propertyId: widget.propertyId,
+                  //             propertyDetails: _details,
+                  //           ),
+                  //         ),
+                  //       );
+                  //     },
+                  //     key: _keyAddGrievanceButton,
+                  //   ),
+                  // ),
                   Expanded(
                     child: _buildSecondaryButton(
                       'Payment History',
@@ -1354,6 +1341,29 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
                   ),
                 ],
               ),
+              // ARV History commented out
+              // const SizedBox(height: 12),
+              // Row(
+              //   children: [
+              //     Expanded(
+              //       child: _buildSecondaryButton(
+              //         'ARV History',
+              //         Icons.history_rounded,
+              //         () {},
+              //         key: _keyArvHistoryButton,
+              //       ),
+              //     ),
+              //     const SizedBox(width: 12),
+              //     Expanded(
+              //       child: _buildSecondaryButton(
+              //         'Payment History',
+              //         Icons.payment_rounded,
+              //         _showPaymentHistory,
+              //         key: _keyPaymentHistoryButton,
+              //       ),
+              //     ),
+              //   ],
+              // ),
             ],
           ),
 

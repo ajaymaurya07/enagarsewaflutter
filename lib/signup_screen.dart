@@ -8,6 +8,7 @@ import 'services/api_service.dart';
 import 'widgets/info_label.dart';
 import 'widgets/property_registration_webview.dart';
 import 'help/signup_help.dart';
+import 'login_screen.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -898,8 +899,11 @@ class _SignUpScreenState extends State<SignUpScreen>
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(ctx);
-                Navigator.pop(context);
+                Navigator.pop(ctx); // close dialog
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                );
               },
               child: Text(
                 'OK',
@@ -913,8 +917,7 @@ class _SignUpScreenState extends State<SignUpScreen>
         ),
       );
 
-      if (!mounted) return;
-      Navigator.pop(context);
+      // Dialog handles navigation to LoginScreen on OK tap.
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
