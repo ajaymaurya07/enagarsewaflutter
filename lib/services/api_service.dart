@@ -680,8 +680,11 @@ class ApiService {
               Uri.parse(
                 '${AppConstants.baseUrl}api/payment/getTransactionDetails',
               ),
-              headers: headers,
-              body: jsonEncode({'mobile_transaction_id': mobileTransactionId}),
+              headers: {
+                ...headers,
+                'Content-Type': 'application/x-www-form-urlencoded',
+              },
+              body: {'mobile_transaction_id': mobileTransactionId},
             )
             .timeout(Duration(seconds: AppConstants.networkTimeout)),
       );
@@ -1779,6 +1782,7 @@ class Transaction {
   final String? txnid;
   /// Raw value from API: 'p' = production, 't' = testing
   final String? payuEnv;
+  final String? merchantName;
 
   Transaction({
     this.amount,
@@ -1791,6 +1795,7 @@ class Transaction {
     this.key,
     this.txnid,
     this.payuEnv,
+    this.merchantName,
   });
 
   /// Returns the PayU SDK environment value: '0' for production, '1' for test.
@@ -1807,6 +1812,7 @@ class Transaction {
     key: json['key'],
     txnid: json['txnid']?.toString(),
     payuEnv: json['payu_env']?.toString(),
+    merchantName: json['merchantName']?.toString(),
   );
 }
 

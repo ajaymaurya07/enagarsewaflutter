@@ -887,7 +887,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
         };
 
         final payUCheckoutProConfig = <String, dynamic>{
-          PayUCheckoutProConfigKeys.merchantName: 'eNagarSewa',
+          PayUCheckoutProConfigKeys.merchantName: txnData.merchantName ?? '',
         };
 
         await payu.openCheckoutScreen(
