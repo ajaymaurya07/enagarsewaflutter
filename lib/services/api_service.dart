@@ -675,30 +675,44 @@ class ApiService {
     String mobileTransactionId,
   ) async {
     try {
-      final response = await _makeAuthenticatedRequest(
-        (headers) => _post(
-              Uri.parse(
-                '${AppConstants.baseUrl}api/payment/getTransactionDetails',
-              ),
-              headers: {
-                ...headers,
-                'Content-Type': 'application/x-www-form-urlencoded',
-              },
-              body: {'mobile_transaction_id': mobileTransactionId},
-            )
-            .timeout(Duration(seconds: AppConstants.networkTimeout)),
-      );
+      final authHeaders = await _getHeaders();
+      final deviceId = await DeviceService.getDeviceId();
+
+      debugPrint('[PayU] getTransactionDetails → Authorization: ${authHeaders['Authorization']}');
+
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('${AppConstants.baseUrl}api/payment/getTransactionDetails'),
+      )
+        ..fields['mobile_transaction_id'] = mobileTransactionId
+        ..headers.addAll({
+          'Authorization': authHeaders['Authorization'] ?? '',
+          'X-App-Version': authHeaders['X-App-Version'] ?? '',
+          'X-Device-Id': deviceId,
+        });
+
+      final client = await PinnedHttpClient.getInstance();
+      final streamed = await client
+          .send(request)
+          .timeout(Duration(seconds: AppConstants.networkTimeout));
+      final response = await http.Response.fromStream(streamed);
+
+      debugPrint('[PayU] getTransactionDetails → HTTP ${response.statusCode}');
+      debugPrint('[PayU] getTransactionDetails → RAW BODY: ${response.body}');
 
       if (response.statusCode == 200) {
-        return PayUTransactionDetailsResponse.fromJson(
-          jsonDecode(response.body),
-        );
+        final body = response.body.trim();
+        if (body.isEmpty) {
+          throw Exception('Empty response from server');
+        }
+        return PayUTransactionDetailsResponse.fromJson(jsonDecode(body));
       } else {
         throw Exception(
           'Failed to fetch transaction details: ${response.statusCode}',
         );
       }
     } catch (e) {
+      debugPrint('[PayU] getTransactionDetails → EXCEPTION: $e');
       throw _userSafeException(e);
     }
   }
@@ -1978,6 +1992,8 @@ class PayUTransactionDetails {
   final String? otherTaxPaid;
   final String? waterChargePaid;
   final String? mobileTransactionTimestamp;
+  final String? payuPaymentTime;
+  final String? transactionCreatedAt;
 
   PayUTransactionDetails({
     this.paymentStatus,
@@ -1995,6 +2011,8 @@ class PayUTransactionDetails {
     this.otherTaxPaid,
     this.waterChargePaid,
     this.mobileTransactionTimestamp,
+    this.payuPaymentTime,
+    this.transactionCreatedAt,
   });
 
   factory PayUTransactionDetails.fromJson(Map<String, dynamic> json) =>
@@ -2015,6 +2033,8 @@ class PayUTransactionDetails {
         waterChargePaid: json['waterChargePaid']?.toString(),
         mobileTransactionTimestamp:
             json['mobile_transaction_timestamp']?.toString(),
+        payuPaymentTime: json['payu_payment_time']?.toString(),
+        transactionCreatedAt: json['transaction_created_at']?.toString(),
       );
 }
 

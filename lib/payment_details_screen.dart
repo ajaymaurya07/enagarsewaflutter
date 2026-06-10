@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pdf/pdf.dart';
@@ -70,50 +69,6 @@ class _PayuDelegate implements PayUCheckoutProProtocol {
     } catch (_) {}
   }
 
-  Map<String, String> _extractDetails(dynamic response) {
-    final details = <String, String>{};
-    try {
-      Map? payuResp;
-      if (response is Map) {
-        final raw = response['payuResponse'];
-        if (raw is Map) {
-          payuResp = raw;
-        } else if (raw is String && raw.isNotEmpty) {
-          payuResp = jsonDecode(raw) as Map?;
-        }
-      }
-      if (payuResp != null) {
-        if (payuResp['txnid'] != null) details['Transaction ID'] = payuResp['txnid'].toString();
-        if (payuResp['amount'] != null) details['Amount'] = '₹ ${payuResp['amount']}';
-        if (payuResp['mode'] != null) details['Payment Mode'] = payuResp['mode'].toString();
-        if (payuResp['status'] != null) details['Status'] = payuResp['status'].toString();
-        if (payuResp['bank_ref_num'] != null && payuResp['bank_ref_num'].toString().isNotEmpty) {
-          details['Bank Ref No'] = payuResp['bank_ref_num'].toString();
-        }
-        if (payuResp['mihpayid'] != null && payuResp['mihpayid'].toString().isNotEmpty) {
-          details['PayU ID'] = payuResp['mihpayid'].toString();
-        }
-        if (payuResp['addedon'] != null) details['Date'] = payuResp['addedon'].toString();
-      }
-    } catch (_) {}
-    return details;
-  }
-
-  String? _extractField(dynamic response, String field) {
-    try {
-      if (response is Map) {
-        final raw = response['payuResponse'];
-        Map? payuResp;
-        if (raw is Map) {
-          payuResp = raw;
-        } else if (raw is String && raw.isNotEmpty) {
-          payuResp = jsonDecode(raw) as Map?;
-        }
-        return payuResp?[field]?.toString();
-      }
-    } catch (_) {}
-    return null;
-  }
 
   @override
   onError(Map? response) {
@@ -128,43 +83,21 @@ class _PayuDelegate implements PayUCheckoutProProtocol {
 
   @override
   onPaymentCancel(Map? response) {
-    final isTxnInitiated = response?['isTxnInitiated'] == true;
-    Navigator.of(context).pushReplacement(MaterialPageRoute(
-      builder: (_) => PaymentResultScreen(
-        status: isTxnInitiated ? PaymentStatus.pending : PaymentStatus.failure,
-        message: isTxnInitiated
-            ? 'Payment was initiated but cancelled. It may still be processing.'
-            : 'Payment was cancelled.',
-      ),
-    ));
+    _verifyPayment();
   }
 
   @override
   onPaymentFailure(response) {
-    final txnId = _extractField(response, 'txnid');
-    final sdkStatus = () {
-      final status = _extractField(response, 'status');
-      return status?.toLowerCase() == 'pending'
-          ? PaymentStatus.pending
-          : PaymentStatus.failure;
-    }();
-    _verifyPayment(txnId, sdkStatus: sdkStatus, response: response);
+    _verifyPayment();
   }
 
   @override
   onPaymentSuccess(response) {
-    final txnId = _extractField(response, 'txnid');
-    _verifyPayment(txnId, sdkStatus: PaymentStatus.success, response: response);
+    _verifyPayment();
   }
 
-  /// Cross-verify PayU payment with server before showing result.
-  /// Falls back to SDK response if API call fails.
-  void _verifyPayment(
-    String? txnId, {
-    required PaymentStatus sdkStatus,
-    required dynamic response,
-  }) {
-    // Show verifying overlay
+  /// Cross-verify PayU payment with server and navigate based ONLY on API response.
+  void _verifyPayment() {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -175,28 +108,37 @@ class _PayuDelegate implements PayUCheckoutProProtocol {
       if (mobileTxnId == null || mobileTxnId.isEmpty) {
         if (!context.mounted) return;
         Navigator.of(context).pop();
-        _navigateFromSdk(sdkStatus, response);
+        _navigateUnableToVerify();
         return;
       }
       ApiService.getTransactionDetails(mobileTxnId).then((res) {
         if (!context.mounted) return;
-        Navigator.of(context).pop(); // dismiss dialog
+        Navigator.of(context).pop();
         if (res.status == true && res.data != null) {
           StorageService.clearPayuMobileTransactionId();
           _navigateFromVerify(res.data!);
         } else {
-          _navigateFromSdk(sdkStatus, response);
+          _navigateUnableToVerify();
         }
       }).catchError((e) {
         if (!context.mounted) return;
-        Navigator.of(context).pop(); // dismiss dialog
-        _navigateFromSdk(sdkStatus, response);
+        Navigator.of(context).pop();
+        _navigateUnableToVerify();
       });
     }).catchError((e) {
       if (!context.mounted) return;
       Navigator.of(context).pop();
-      _navigateFromSdk(sdkStatus, response);
+      _navigateUnableToVerify();
     });
+  }
+
+  void _navigateUnableToVerify() {
+    Navigator.of(context).pushReplacement(MaterialPageRoute(
+      builder: (_) => const PaymentResultScreen(
+        status: PaymentStatus.pending,
+        message: 'Payment verification could not be completed. Please check your Payment History to confirm the status.',
+      ),
+    ));
   }
 
   void _navigateFromVerify(PayUTransactionDetails data) {
@@ -242,19 +184,6 @@ class _PayuDelegate implements PayUCheckoutProProtocol {
     ));
   }
 
-  void _navigateFromSdk(PaymentStatus sdkStatus, dynamic response) {
-    final details = _extractDetails(response);
-    final txnId = _extractField(response, 'txnid');
-    final amount = _extractField(response, 'amount');
-    Navigator.of(context).pushReplacement(MaterialPageRoute(
-      builder: (_) => PaymentResultScreen(
-        status: sdkStatus,
-        txnId: txnId,
-        amount: amount,
-        details: details,
-      ),
-    ));
-  }
 }
 
 class _PayUVerifyingDialog extends StatelessWidget {
