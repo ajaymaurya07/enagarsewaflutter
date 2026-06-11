@@ -40,9 +40,9 @@ final class APIService {
 
     // MARK: - OTP
 
-    func sendOtp(phoneNumber: String) async throws -> SendOtpResponse {
+    func sendOtp(phoneNumber: String, propertyId: String? = nil) async throws -> SendOtpResponse {
         try await perform(.sendOtp, method: .POST,
-                          body: SendOtpRequest(phoneNumber: phoneNumber))
+                          body: SendOtpRequest(phoneNumber: phoneNumber, propertyId: propertyId))
     }
 
     func verifyOtp(_ request: VerifyOtpRequest) async throws -> VerifyOtpResponse {

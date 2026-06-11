@@ -50,7 +50,10 @@ final class AppCoordinator: Coordinator {
 
     func showSearchProperty() {
         childCoordinators.removeAll()
-        let coordinator = PropertyCoordinator(navigationController: navigationController)
+        let coordinator = PropertyCoordinator(
+            navigationController: navigationController,
+            onPropertySelected: { [weak self] in self?.showMain() }
+        )
         addChild(coordinator)
     }
 

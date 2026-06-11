@@ -51,6 +51,7 @@ struct SignUpResponse: Decodable {
 
 struct SendOtpRequest: Encodable {
     let phoneNumber: String
+    let propertyId: String?
 }
 
 struct SendOtpResponse: Decodable {
@@ -66,6 +67,7 @@ struct VerifyOtpRequest: Encodable {
 struct VerifyOtpResponse: Decodable {
     let success: Bool
     let message: String
+    let userId: Int?
 }
 
 struct VerifyOtpMailRequest: Encodable {

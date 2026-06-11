@@ -53,6 +53,7 @@ struct MohallaDataResponse: Decodable {
 
 struct PropertySearchRequest: Encodable {
     let ulbId: String
+    let searchType: String?
     let zoneId: String?
     let wardId: String?
     let mohallaId: String?
@@ -80,6 +81,7 @@ struct PropertyData: Decodable, Identifiable {
     let billNo: String?
     let totalArea: String?
     let finYear: String?
+    let fatherHusbandName: String?
     var id: String { propertyId }
 }
 
@@ -154,6 +156,8 @@ struct PropertyInfo: Decodable {
     let constructionYear: String?
     let plotArea: String?
     let builtUpArea: String?
+    let wardName: String?
+    let mohallaName: String?
 }
 
 struct ReceiptItem: Decodable, Identifiable {
