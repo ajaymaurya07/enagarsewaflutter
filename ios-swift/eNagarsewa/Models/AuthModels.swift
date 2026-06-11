@@ -98,6 +98,8 @@ struct VerifyForgotPasswordOtpRequest: Encodable {
 struct VerifyForgotPasswordOtpResponse: Decodable {
     let success: Bool
     let message: String
+    /// Number of remaining OTP attempts — matches Flutter attemptsLeft field
+    let attemptsLeft: Int?
 }
 
 // MARK: - Token Refresh

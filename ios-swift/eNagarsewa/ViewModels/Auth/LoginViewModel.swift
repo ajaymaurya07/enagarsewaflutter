@@ -10,6 +10,7 @@ final class LoginViewModel: ObservableObject {
     @Published var rememberMe: Bool = false
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
+    @Published var successMessage: String?
 
     private let api      = APIService.shared
     private let auth     = AuthManager.shared
@@ -55,7 +56,13 @@ final class LoginViewModel: ObservableObject {
                 }
                 if rememberMe {
                     keychain.saveRememberMe(email: email, password: password)
+                } else {
+                    keychain.clearRememberMe()
                 }
+                successMessage = "Login successful!"
+                // Clear fields after login (matches Flutter)
+                email = ""
+                password = ""
                 auth.handleLoginSuccess(data)
                 onLoginSuccess()
             } catch {

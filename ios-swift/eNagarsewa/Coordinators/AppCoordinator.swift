@@ -25,17 +25,33 @@ final class AppCoordinator: Coordinator {
     // MARK: - Entry points
 
     func showSplash() {
-        let vm = SplashViewModel(onSecurityFailed: { [weak self] in
-            self?.showJailbroken()
-        }, onNoConnection: { [weak self] in
-            self?.showNoConnection()
-        }, onAuthRequired: { [weak self] in
-            self?.showAuth()
-        }, onAuthenticated: { [weak self] in
-            self?.showMain()
-        })
+        let vm = SplashViewModel(
+            onSecurityFailed: { [weak self] in
+                self?.showJailbroken()
+            },
+            onNoConnection: { [weak self] in
+                self?.showNoConnection()
+            },
+            onAuthRequired: { [weak self] in
+                self?.showAuth()
+            },
+            // Logged-in + property verified → Dashboard
+            onAuthenticatedWithProperty: { [weak self] in
+                self?.showMain()
+            },
+            // Logged-in but property not verified → SearchProperty
+            onAuthenticatedNoProperty: { [weak self] in
+                self?.showSearchProperty()
+            }
+        )
         let vc = SplashViewController(viewModel: vm)
         navigationController.setViewControllers([vc], animated: false)
+    }
+
+    func showSearchProperty() {
+        childCoordinators.removeAll()
+        let coordinator = PropertyCoordinator(navigationController: navigationController)
+        addChild(coordinator)
     }
 
     func showAuth() {

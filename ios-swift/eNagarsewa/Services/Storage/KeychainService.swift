@@ -31,6 +31,12 @@ final class KeychainService {
     func savePayuTxnId(_ value: String)      { save(key: .payuTxnId, value: value) }
     func saveAppAttestKeyId(_ value: String) { save(key: .appAttestKeyId, value: value) }
 
+    /// Clears remembered credentials when "Remember me" is unchecked — matches Flutter clearRememberMeCredentials().
+    func clearRememberMe() {
+        delete(key: .rememberMeEmail)
+        delete(key: .rememberMePass)
+    }
+
     func clearAuthTokens() {
         delete(key: .accessToken)
         delete(key: .refreshToken)
