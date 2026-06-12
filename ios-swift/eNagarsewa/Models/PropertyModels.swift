@@ -125,6 +125,7 @@ struct BillDetails: Decodable {
     let netPayable: String?
     let advance: String?
     let netDemand: String?
+    let billDate: String?
     // Additional fields from Flutter's 40+ field BillDetails
     let wardName: String?
     let mohallaName: String?
@@ -138,6 +139,18 @@ struct BillDetails: Decodable {
     let floorCount: String?
     let totalArea: String?
     let arvPerSqFt: String?
+    // Flutter-matching net-amount fields (API returns these keys)
+    let houseTaxNetAmount: String?
+    let waterTaxNetAmount: String?
+    let sewerTaxNetAmount: String?
+    let othertaxNetAmount: String?
+    let waterChargeNetAmount: String?
+    let houseTaxAdvance: String?
+    let waterTaxAdvance: String?
+    let sewerTaxAdvance: String?
+    let otherTaxAdvance: String?
+    let waterChargeAdvance: String?
+    let netPayble: String?  // API returns this typo; use over netPayable when present
 }
 
 struct OwnerDetails: Decodable {
@@ -158,6 +171,8 @@ struct PropertyInfo: Decodable {
     let builtUpArea: String?
     let wardName: String?
     let mohallaName: String?
+    let zoneName: String?
+    let address: String?
 }
 
 struct ReceiptItem: Decodable, Identifiable {
@@ -166,6 +181,7 @@ struct ReceiptItem: Decodable, Identifiable {
     let date: String?
     let mode: String?
     let amount: String?
+    let paymentDate: String?
     var id: String { receiptNo ?? UUID().uuidString }
 }
 

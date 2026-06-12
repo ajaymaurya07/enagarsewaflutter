@@ -9,7 +9,7 @@ final class PaymentHistoryViewController: UIViewController, UITableViewDataSourc
     private let tableView = UITableView(frame: .zero, style: .insetGrouped)
     private let activityIndicator = UIActivityIndicatorView(style: .large)
 
-    init(viewModel: PaymentHistoryViewModel, coordinator: MainCoordinator) {
+    init(viewModel: PaymentHistoryViewModel, coordinator: MainCoordinator? = nil) {
         self.viewModel   = viewModel
         self.coordinator = coordinator
         super.init(nibName: nil, bundle: nil)

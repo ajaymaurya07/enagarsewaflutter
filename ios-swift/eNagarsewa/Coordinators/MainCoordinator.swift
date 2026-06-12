@@ -32,6 +32,26 @@ final class MainCoordinator: Coordinator {
         addChild(coordinator)
     }
 
+    func showPropertyTaxList() {
+        let vm = PropertyTaxViewModel()
+        vm.onNavigateToPaymentDetails = { [weak self] property in
+            self?.showPaymentDetails(for: property)
+        }
+        let vc = PropertyTaxViewController(viewModel: vm)
+        navigationController.pushViewController(vc, animated: true)
+    }
+
+    func showPaymentDetails(for property: PropertyEntity) {
+        let vm = PropertyTaxDetailViewModel(property: property)
+        vm.onShowPaymentHistory = { [weak self] in self?.showPaymentHistory() }
+        vm.onPayTax = { [weak self, weak vm] in
+            guard let self, let vm, let bill = vm.propertyDetails?.billDetails else { return }
+            self.showPaymentFlow(for: property, billDetails: bill)
+        }
+        let vc = PropertyBillDetailsViewController(viewModel: vm)
+        navigationController.pushViewController(vc, animated: true)
+    }
+
     // MARK: - Payment flow
 
     func showPaymentFlow(for property: PropertyEntity, billDetails: BillDetails) {

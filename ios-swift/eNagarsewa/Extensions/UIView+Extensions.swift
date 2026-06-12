@@ -126,6 +126,27 @@ extension UIButton {
     }
 }
 
+// MARK: - UITextField factory
+
+extension UITextField {
+    static func styledTextField(placeholder: String) -> UITextField {
+        let tf = UITextField()
+        tf.placeholder = placeholder
+        tf.font = UIFont(name: "Poppins-Regular", size: 14) ?? .systemFont(ofSize: 14)
+        tf.backgroundColor = UIColor(hex: "#F8F9FB")
+        tf.layer.cornerRadius = 12
+        tf.layer.borderWidth = 1
+        tf.layer.borderColor = UIColor(hex: "#EEEEEE").cgColor
+        tf.leftView = UIView(frame: CGRect(x: 0, y: 0, width: 16, height: 1))
+        tf.leftViewMode = .always
+        tf.rightView = UIView(frame: CGRect(x: 0, y: 0, width: 16, height: 1))
+        tf.rightViewMode = .always
+        tf.translatesAutoresizingMaskIntoConstraints = false
+        tf.heightAnchor.constraint(equalToConstant: 48).isActive = true
+        return tf
+    }
+}
+
 // MARK: - ENSInputField  (matches Flutter's InputDecoration style)
 /// Container view: fill #F8F9FB, radius-12, border grey/orange on focus, prefix SF-symbol icon.
 final class ENSInputField: UIView {
