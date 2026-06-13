@@ -279,32 +279,32 @@ class PaymentResultScreen extends StatelessWidget {
       case PaymentStatus.success:
         return _StatusConfig(
           icon: Icons.check_rounded,
-          color: const Color(0xFF2ECC71),
-          bgColor: const Color(0xFFE8F8F0),
+          color: const Color(0xFF16A34A),
+          bgColor: const Color(0xFFECFDF3),
           title: 'Payment Successful!',
           defaultMessage: 'Your property tax payment has been processed successfully.',
           buttonText: 'Done',
-          buttonColor: const Color(0xFF2ECC71),
+          buttonColor: const Color(0xFF16A34A),
         );
       case PaymentStatus.failure:
         return _StatusConfig(
           icon: Icons.close_rounded,
-          color: const Color(0xFFE74C3C),
-          bgColor: const Color(0xFFFDE8E8),
+          color: const Color(0xFFDC2626),
+          bgColor: const Color(0xFFFEF2F2),
           title: 'Payment Failed',
           defaultMessage: 'Your payment could not be processed. Please try again.',
           buttonText: 'Go Back',
-          buttonColor: const Color(0xFFE74C3C),
+          buttonColor: const Color(0xFFDC2626),
         );
       case PaymentStatus.pending:
         return _StatusConfig(
           icon: Icons.schedule_rounded,
-          color: const Color(0xFFF39C12),
-          bgColor: const Color(0xFFFFF5E6),
+          color: const Color(0xFFD97706),
+          bgColor: const Color(0xFFFFFBEB),
           title: 'Payment Pending',
           defaultMessage: 'Your payment is being processed. Please check back later.',
           buttonText: 'Go Back',
-          buttonColor: const Color(0xFFF39C12),
+          buttonColor: const Color(0xFFD97706),
         );
     }
   }

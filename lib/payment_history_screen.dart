@@ -251,7 +251,9 @@ class _ReceiptCard extends StatelessWidget {
     );
   }
 
-  pw.Document _buildPdf() {
+  Future<pw.Document> _buildPdf() async {
+    final regularFont = await PdfGoogleFonts.notoSansRegular();
+    final boldFont = await PdfGoogleFonts.notoSansBold();
     final pdf = pw.Document();
     final rows = <List<String>>[];
 
@@ -272,19 +274,30 @@ class _ReceiptCard extends StatelessWidget {
     pdf.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4,
+        theme: pw.ThemeData.withFont(
+          base: regularFont,
+          bold: boldFont,
+        ),
         build: (pw.Context context) {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              pw.Text('Payment Receipt', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
+              pw.Text(
+                'Payment Receipt',
+                style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold),
+              ),
               pw.SizedBox(height: 8),
               pw.Text('Property ID: $propertyId', style: const pw.TextStyle(fontSize: 14)),
               if (receipt.receiptNo != null)
                 pw.Text('Receipt No: ${receipt.receiptNo}', style: const pw.TextStyle(fontSize: 14)),
               pw.SizedBox(height: 20),
               pw.TableHelper.fromTextArray(
-                headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 13),
-                cellStyle: const pw.TextStyle(fontSize: 12),
+                headerStyle: pw.TextStyle(
+                  fontWeight: pw.FontWeight.bold,
+                  fontSize: 13,
+                  font: boldFont,
+                ),
+                cellStyle: pw.TextStyle(fontSize: 12, font: regularFont),
                 headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
                 cellPadding: const pw.EdgeInsets.all(8),
                 headers: ['Description', 'Value'],
@@ -300,7 +313,7 @@ class _ReceiptCard extends StatelessWidget {
 
   Future<void> _downloadReceipt(BuildContext context) async {
     try {
-      final pdf = _buildPdf();
+      final pdf = await _buildPdf();
       await Printing.layoutPdf(onLayout: (PdfPageFormat format) async => pdf.save());
     } catch (e) {
       if (context.mounted) {
@@ -322,7 +335,7 @@ class _ReceiptCard extends StatelessWidget {
 
   Future<void> _shareReceipt(BuildContext context) async {
     try {
-      final pdf = _buildPdf();
+      final pdf = await _buildPdf();
       final bytes = await pdf.save();
       final dir = await getTemporaryDirectory();
       final file = File('${dir.path}/receipt_${receipt.receiptNo ?? 'payment'}.pdf');

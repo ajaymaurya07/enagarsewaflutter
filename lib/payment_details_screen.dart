@@ -72,13 +72,7 @@ class _PayuDelegate implements PayUCheckoutProProtocol {
 
   @override
   onError(Map? response) {
-    final errorMsg = response?['errorMsg']?.toString() ?? 'Something went wrong';
-    Navigator.of(context).pushReplacement(MaterialPageRoute(
-      builder: (_) => PaymentResultScreen(
-        status: PaymentStatus.failure,
-        message: errorMsg,
-      ),
-    ));
+    _verifyPayment();
   }
 
   @override
@@ -148,8 +142,10 @@ class _PayuDelegate implements PayUCheckoutProProtocol {
       status = PaymentStatus.success;
     } else if (statusStr == 'PENDING') {
       status = PaymentStatus.pending;
-    } else {
+    } else if (statusStr == 'FAILED') {
       status = PaymentStatus.failure;
+    } else {
+      status = PaymentStatus.pending;
     }
 
     final details = <String, String>{};

@@ -300,13 +300,15 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     Key? cardKey,
     Key? statusBadgeKey,
   }) {
-    final status = txn.transactionStatus?.toLowerCase() ?? '';
-    final bool isSuccess = status == 'success' || status == 'captured';
-    final bool isPending = status == 'pending';
+    final status = txn.transactionStatus?.toUpperCase() ?? '';
+    final bool isSuccess = status == 'SUCCESS';
+    final bool isPending = status == 'PENDING';
+    final bool isFailed = status == 'FAILED';
+    final bool isExpired = status == 'EXPIRED';
 
-    Color statusColor = Colors.red;
-    Color bgColor = const Color(0xFFFFEBEE);
-    IconData statusIcon = Icons.error_outline_rounded;
+    Color statusColor = const Color(0xFF64748B);
+    Color bgColor = const Color(0xFFF8FAFC);
+    IconData statusIcon = Icons.help_outline_rounded;
 
     if (isSuccess) {
       statusColor = Colors.green;
@@ -316,6 +318,14 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       statusColor = const Color(0xFFE6A23C); // Amber/Yellow-ish
       bgColor = const Color(0xFFFFF7E6);
       statusIcon = Icons.access_time_rounded;
+    } else if (isFailed) {
+      statusColor = Colors.red;
+      bgColor = const Color(0xFFFFEBEE);
+      statusIcon = Icons.error_outline_rounded;
+    } else if (isExpired) {
+      statusColor = const Color(0xFF64748B);
+      bgColor = const Color(0xFFF8FAFC);
+      statusIcon = Icons.timer_off_outlined;
     }
 
     return GestureDetector(
@@ -378,7 +388,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
-                            txn.transactionStatus ?? 'Unknown',
+                            status.isNotEmpty ? status : 'UNKNOWN',
                             style: GoogleFonts.poppins(
                               fontSize: 10,
                               fontWeight: FontWeight.bold,

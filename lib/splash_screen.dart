@@ -206,16 +206,16 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
 
     
-    final bool devMode = await DeviceService.isDeveloperModeEnabled();
-    if (devMode) {
-      if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => const RootedDeviceScreen(reason: BlockReason.developerMode),
-        ),
-      );
-      return;
-    }
+    // final bool devMode = await DeviceService.isDeveloperModeEnabled();
+    // if (devMode) {
+    //   if (!mounted) return;
+    //   Navigator.of(context).pushReplacement(
+    //     MaterialPageRoute(
+    //       builder: (_) => const RootedDeviceScreen(reason: BlockReason.developerMode),
+    //     ),
+    //   );
+    //   return;
+    // }
 
     if (!mounted) return;
 

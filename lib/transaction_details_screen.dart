@@ -220,17 +220,21 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bool isSuccess =
-        widget.transaction.transactionStatus?.toLowerCase() == 'success' ||
-        widget.transaction.transactionStatus?.toLowerCase() == 'captured';
-    final bool isPending =
-        widget.transaction.transactionStatus?.toLowerCase() == 'pending';
+    final status = widget.transaction.transactionStatus?.toUpperCase() ?? '';
+    final bool isSuccess = status == 'SUCCESS';
+    final bool isPending = status == 'PENDING';
+    final bool isFailed = status == 'FAILED';
+    final bool isExpired = status == 'EXPIRED';
 
-    Color statusColor = Colors.red;
+    Color statusColor = const Color(0xFF64748B);
     if (isSuccess) {
       statusColor = Colors.green;
     } else if (isPending) {
       statusColor = const Color(0xFFE6A23C);
+    } else if (isFailed) {
+      statusColor = Colors.red;
+    } else if (isExpired) {
+      statusColor = const Color(0xFF64748B);
     }
 
     return Scaffold(
@@ -295,9 +299,13 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
                         child: Icon(
                           isSuccess
                               ? Icons.check_rounded
-                              : (isPending
+                          : (isPending
                                     ? Icons.access_time_rounded
-                                    : Icons.close_rounded),
+                            : (isFailed
+                              ? Icons.close_rounded
+                            : (isExpired
+                              ? Icons.timer_off_outlined
+                              : Icons.help_outline_rounded))),
                           color: statusColor,
                           size: 48,
                         ),
@@ -308,7 +316,11 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
                             ? 'Payment Successful'
                             : (isPending
                                   ? 'Payment Pending'
-                                  : 'Payment Failed'),
+                              : (isFailed
+                                ? 'Payment Failed'
+                              : (isExpired
+                                ? 'Payment Expired'
+                                : 'Payment Status Unknown'))),
                         style: GoogleFonts.poppins(
                           fontSize: 20,
                           fontWeight: FontWeight.w700,
