@@ -566,7 +566,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
                         final res = await ApiService.verifyOtp(mobileNo, otpController.text);
                         if (res.success == true) {
                           sheetNavigator.pop();
-                          _showPaymentMethodSelection();
+                          _showAmountSelectionSheet();
                         } else {
                           setModalState(() => sheetError = res.message ?? 'Invalid OTP');
                         }
@@ -625,7 +625,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
     );
   }
 
-  Future<InitiateTransactionRequest> _buildTransactionRequest() async {
+  Future<InitiateTransactionRequest> _buildTransactionRequest({String? customAmount}) async {
     final propertyEntity = await DatabaseService.getPropertyById(widget.propertyId);
 
     final String ulbId = propertyEntity?.ulbId ?? "0";
@@ -638,9 +638,6 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
 
     final String mobileId = "MOBTXN${DateTime.now().millisecondsSinceEpoch}";
     final String timestamp = _getCurrentTime();
-
-
-    //  TODO : handle test case for payable and netAmoun
 
     return InitiateTransactionRequest(
       mobileTransactionId: mobileId,
@@ -658,17 +655,17 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
       otherTax: bill?.othertaxNetAmount ?? "0",
       waterCharge: bill?.waterChargeNetAmount ?? "0",
       netDemand: bill?.netDemand ?? "0",
-      netPayable: bill?.netPayble ?? "0",
+      netPayable: customAmount ?? bill?.netPayble ?? "0",
       totalArv: totalArvValue,
       userId: userId,
       emailId: email ?? "",
     );
   }
 
-  Future<void> _handlePayuTransaction() async {
+  Future<void> _handlePayuTransaction({String? customAmount}) async {
     setState(() => _isLoading = true);
     try {
-      final request = await _buildTransactionRequest();
+      final request = await _buildTransactionRequest(customAmount: customAmount);
       final response = await ApiService.initiateTransaction(request);
       if (!mounted) return;
 
@@ -700,7 +697,275 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
     }
   }
 
-  void _showPaymentMethodSelection() {
+  void _showAmountSelectionSheet() {
+    final bill = _details?.billDetails;
+    final fullAmount = double.tryParse(bill?.netPayble ?? '0') ?? 0.0;
+    final fullAmountStr = bill?.netPayble ?? '0';
+
+    bool isPartial = false;
+    final amountController = TextEditingController();
+    String? amountError;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheetState) => Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Select Payment Amount',
+                    style: GoogleFonts.poppins(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF333333),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Pay the full amount or choose a partial payment.',
+                    style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade500),
+                  ),
+                  const SizedBox(height: 20),
+                  // Full payment option
+                  GestureDetector(
+                    onTap: () => setSheetState(() {
+                      isPartial = false;
+                      amountError = null;
+                    }),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: !isPartial ? const Color(0xFFFFF4E5) : Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: !isPartial ? const Color(0xFFE67514) : Colors.grey.shade200,
+                          width: !isPartial ? 2 : 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            !isPartial ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
+                            color: const Color(0xFFE67514),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Full Payment',
+                                  style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600),
+                                ),
+                                Text(
+                                  'Pay the complete due amount',
+                                  style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey.shade500),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Text(
+                            '₹ $fullAmountStr',
+                            style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: const Color(0xFFE67514),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // Partial payment option
+                  GestureDetector(
+                    onTap: () => setSheetState(() {
+                      isPartial = true;
+                      amountError = null;
+                    }),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: isPartial ? const Color(0xFFFFF4E5) : Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isPartial ? const Color(0xFFE67514) : Colors.grey.shade200,
+                          width: isPartial ? 2 : 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            isPartial ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
+                            color: const Color(0xFFE67514),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Partial Payment',
+                                  style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600),
+                                ),
+                                Text(
+                                  'Pay a custom amount (min ₹1)',
+                                  style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey.shade500),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (isPartial) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      'Enter Amount',
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: amountController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600),
+                      onChanged: (_) => setSheetState(() => amountError = null),
+                      decoration: InputDecoration(
+                        hintText: 'Enter amount',
+                        hintStyle: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade400),
+                        prefixIcon: Padding(
+                          padding: const EdgeInsets.only(left: 14, right: 8, top: 14, bottom: 14),
+                          child: Text(
+                            '₹',
+                            style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFFE67514),
+                            ),
+                          ),
+                        ),
+                        prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+                        suffixText: '/ ₹$fullAmountStr',
+                        suffixStyle: GoogleFonts.poppins(fontSize: 12, color: Colors.grey.shade400),
+                        errorText: amountError,
+                        filled: true,
+                        fillColor: const Color(0xFFF8F9FB),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade200),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Color(0xFFE67514), width: 1.5),
+                        ),
+                        errorBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Colors.red, width: 1.5),
+                        ),
+                        focusedErrorBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Colors.red, width: 1.5),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        String chosenAmount;
+                        if (isPartial) {
+                          final input = amountController.text.trim();
+                          final parsed = double.tryParse(input);
+                          if (input.isEmpty || parsed == null) {
+                            setSheetState(() => amountError = 'Please enter a valid amount');
+                            return;
+                          }
+                          if (parsed <= 0) {
+                            setSheetState(() => amountError = 'Amount must be greater than ₹0');
+                            return;
+                          }
+                          if (parsed > fullAmount) {
+                            setSheetState(() => amountError = 'Amount cannot exceed ₹$fullAmountStr');
+                            return;
+                          }
+                          chosenAmount = parsed.toStringAsFixed(2);
+                        } else {
+                          chosenAmount = fullAmountStr;
+                        }
+                        Navigator.pop(context);
+                        _showPaymentMethodSelection(chosenAmount);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFE67514),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      child: Text(
+                        'Proceed to Payment',
+                        style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(
+                        'Cancel',
+                        style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey.shade600),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showPaymentMethodSelection(String amount) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -718,15 +983,24 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
               'Select Payment Gateway',
               style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 4),
+            Text(
+              'Paying: ₹$amount',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFFE67514),
+              ),
+            ),
+            const SizedBox(height: 20),
             _buildPaymentOptionCard('Pay with PayU', 'Safe & Secure', Icons.payment_rounded, () {
               Navigator.pop(context);
-              _handlePayuTransaction();
+              _handlePayuTransaction(customAmount: amount);
             }),
             // const SizedBox(height: 12),
             // _buildPaymentOptionCard('Pay with SBI', 'Official SBI Gateway', Icons.account_balance_rounded, () {
             //   Navigator.pop(context);
-            //   _handleSbiTransaction();
+            //   _handleSbiTransaction(customAmount: amount);
             // }),
             // const SizedBox(height: 24),
           ],
@@ -735,10 +1009,10 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
     );
   }
 
-  Future<void> _handleSbiTransaction() async {
+  Future<void> _handleSbiTransaction({String? customAmount}) async {
     setState(() => _isLoading = true);
     try {
-      final request = await _buildTransactionRequest();
+      final request = await _buildTransactionRequest(customAmount: customAmount);
       final response = await ApiService.createSbiTransaction(request);
       if (!mounted) return;
       setState(() => _isLoading = false);
