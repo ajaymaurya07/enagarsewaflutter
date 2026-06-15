@@ -12,7 +12,9 @@ import 'tour_guides/apply_grievance_tour.dart';
 import 'help/apply_grievance_help.dart';
 
 class ApplyGrievanceScreen extends StatefulWidget {
-  const ApplyGrievanceScreen({super.key});
+  final String? preselectedPropertyId;
+
+  const ApplyGrievanceScreen({super.key, this.preselectedPropertyId});
 
   @override
   State<ApplyGrievanceScreen> createState() => _ApplyGrievanceScreenState();
@@ -164,6 +166,15 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
     setState(() {
       _savedProperties = properties;
     });
+
+    if (widget.preselectedPropertyId != null) {
+      final match = properties.where(
+        (p) => p.propertyId == widget.preselectedPropertyId,
+      );
+      if (match.isNotEmpty) _onPropertySelected(match.first);
+    } else if (properties.length == 1) {
+      _onPropertySelected(properties.first);
+    }
   }
 
   Future<void> _fetchUlbs() async {

@@ -13,6 +13,7 @@ import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 import 'payment_result_screen.dart';
 import 'payment_grievance_screen.dart';
 import 'payment_history_screen.dart';
+import 'apply_grievance_screen.dart';
 import 'tour_guides/payment_details_tour.dart';
 import 'sbi_payment_screen.dart';
 
@@ -1511,25 +1512,24 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  // Add Grievance button commented out
-                  // Expanded(
-                  //   child: _buildSecondaryButton(
-                  //     'Add Grievance',
-                  //     Icons.add_comment_outlined,
-                  //     () {
-                  //       Navigator.push(
-                  //         context,
-                  //         MaterialPageRoute(
-                  //           builder: (_) => PaymentGrievanceScreen(
-                  //             propertyId: widget.propertyId,
-                  //             propertyDetails: _details,
-                  //           ),
-                  //         ),
-                  //       );
-                  //     },
-                  //     key: _keyAddGrievanceButton,
-                  //   ),
-                  // ),
+                  Expanded(
+                    child: _buildSecondaryButton(
+                      'Apply Grievance',
+                      Icons.add_comment_outlined,
+                      () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ApplyGrievanceScreen(
+                              preselectedPropertyId: widget.propertyId,
+                            ),
+                          ),
+                        );
+                      },
+                      key: _keyAddGrievanceButton,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: _buildSecondaryButton(
                       'Payment History',
