@@ -78,7 +78,7 @@ class _PayuDelegate implements PayUCheckoutProProtocol {
 
   @override
   onPaymentCancel(Map? response) {
-    _verifyPayment();
+    _verifyPaymentCancelled();
   }
 
   @override
@@ -91,8 +91,15 @@ class _PayuDelegate implements PayUCheckoutProProtocol {
     _verifyPayment();
   }
 
-  /// Cross-verify PayU payment with server and navigate based ONLY on API response.
-  void _verifyPayment() {
+  void _verifyPayment() => _verify(
+        'Payment verification could not be completed. Please check your Payment History to confirm the status.',
+      );
+
+  void _verifyPaymentCancelled() => _verify(
+        'Payment Cancelled. Verification could not be completed. Please check your Payment History to confirm the status.',
+      );
+
+  void _verify(String unableToVerifyMessage) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -103,7 +110,7 @@ class _PayuDelegate implements PayUCheckoutProProtocol {
       if (mobileTxnId == null || mobileTxnId.isEmpty) {
         if (!context.mounted) return;
         Navigator.of(context).pop();
-        _navigateUnableToVerify();
+        _navigateUnableToVerify(unableToVerifyMessage);
         return;
       }
       ApiService.getTransactionDetails(mobileTxnId).then((res) {
@@ -113,25 +120,25 @@ class _PayuDelegate implements PayUCheckoutProProtocol {
           StorageService.clearPayuMobileTransactionId();
           _navigateFromVerify(res.data!);
         } else {
-          _navigateUnableToVerify();
+          _navigateUnableToVerify(unableToVerifyMessage);
         }
       }).catchError((e) {
         if (!context.mounted) return;
         Navigator.of(context).pop();
-        _navigateUnableToVerify();
+        _navigateUnableToVerify(unableToVerifyMessage);
       });
     }).catchError((e) {
       if (!context.mounted) return;
       Navigator.of(context).pop();
-      _navigateUnableToVerify();
+      _navigateUnableToVerify(unableToVerifyMessage);
     });
   }
 
-  void _navigateUnableToVerify() {
+  void _navigateUnableToVerify(String message) {
     Navigator.of(context).pushReplacement(MaterialPageRoute(
-      builder: (_) => const PaymentResultScreen(
+      builder: (_) => PaymentResultScreen(
         status: PaymentStatus.pending,
-        message: 'Payment verification could not be completed. Please check your Payment History to confirm the status.',
+        message: message,
       ),
     ));
   }
@@ -656,7 +663,8 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
       otherTax: bill?.othertaxNetAmount ?? "0",
       waterCharge: bill?.waterChargeNetAmount ?? "0",
       netDemand: bill?.netDemand ?? "0",
-      netPayable: customAmount ?? bill?.netPayble ?? "0",
+      // netPayable: customAmount ?? bill?.netPayble ?? "0",
+      netPayable:"10",
       totalArv: totalArvValue,
       userId: userId,
       emailId: email ?? "",

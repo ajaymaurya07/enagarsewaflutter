@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -65,6 +66,8 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
   GrievanceCategory? _selectedCategory;
   GrievanceSubCategory? _selectedSubCategory;
   final TextEditingController _descriptionController = TextEditingController();
+
+  final Completer<List<UlbData>> _ulbsCompleter = Completer();
 
   List<UlbData> _ulbList = [];
   List<ZoneData> _zoneList = [];
@@ -184,8 +187,10 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
         _ulbList = ulbs;
         _isLoadingUlbs = false;
       });
+      if (!_ulbsCompleter.isCompleted) _ulbsCompleter.complete(ulbs);
     } catch (e) {
       setState(() => _isLoadingUlbs = false);
+      if (!_ulbsCompleter.isCompleted) _ulbsCompleter.complete([]);
     }
   }
 
@@ -252,6 +257,86 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
       _emailController.text = property.email ?? "";
       _fatherNameController.text = property.fatherName ?? "N/A";
       _addressController.text = property.address ?? "N/A";
+    });
+    _autoFillLocation(property);
+  }
+
+  Future<void> _autoFillLocation(PropertyEntity property) async {
+    final ulbId = property.ulbId;
+    if (ulbId == null || ulbId.isEmpty) return;
+
+    // ULB list load hone ka wait karo (agar abhi load ho rhi ho)
+    final ulbs = await _ulbsCompleter.future;
+    if (!mounted) return;
+
+    // 1. ULB match karo ulbId se
+    final matchedUlb = ulbs.where((u) => u.ulbId == ulbId).firstOrNull;
+    if (matchedUlb == null) return;
+
+    // 2. Zones fetch karo
+    setState(() => _isLoadingZones = true);
+    final List<ZoneData> zones;
+    try {
+      zones = await ApiService.getZoneData(ulbId);
+    } catch (_) {
+      setState(() => _isLoadingZones = false);
+      return;
+    }
+    if (!mounted) return;
+
+    // 3. Zone match karo name se (DB me zone name save h)
+    final matchedZone = zones.where((z) => z.zoneName == property.zone).firstOrNull;
+    setState(() {
+      _selectedUlb = matchedUlb;
+      _zoneList = zones;
+      _isLoadingZones = false;
+      _selectedZone = matchedZone;
+      _selectedWard = null;
+      _selectedMohalla = null;
+      _wardList = [];
+      _mohallaList = [];
+    });
+    if (matchedZone == null) return;
+
+    // 4. Wards fetch karo
+    setState(() => _isLoadingWards = true);
+    final List<WardData> wards;
+    try {
+      wards = await ApiService.getWardData(ulbId, matchedZone.zoneId);
+    } catch (_) {
+      setState(() => _isLoadingWards = false);
+      return;
+    }
+    if (!mounted) return;
+
+    // 5. Ward match karo name se
+    final matchedWard = wards.where((w) => w.wardName == property.ward).firstOrNull;
+    setState(() {
+      _wardList = wards;
+      _isLoadingWards = false;
+      _selectedWard = matchedWard;
+      _selectedMohalla = null;
+      _mohallaList = [];
+    });
+    if (matchedWard == null) return;
+
+    // 6. Mohallas fetch karo
+    setState(() => _isLoadingMohallas = true);
+    final List<MohallaData> mohallas;
+    try {
+      mohallas = await ApiService.getMohallaData(ulbId, matchedZone.zoneId, matchedWard.wardId);
+    } catch (_) {
+      setState(() => _isLoadingMohallas = false);
+      return;
+    }
+    if (!mounted) return;
+
+    // 7. Mohalla match karo name se
+    final matchedMohalla = mohallas.where((m) => m.mohallaName == property.mohalla).firstOrNull;
+    setState(() {
+      _mohallaList = mohallas;
+      _isLoadingMohallas = false;
+      _selectedMohalla = matchedMohalla;
     });
   }
 
@@ -474,26 +559,22 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
                   _buildTextField(
                     'Full Name',
                     _fullNameController,
-                    icon: Icons.person_outline,
                     enabled: false,
                   ),
                   _buildTextField(
                     'Mobile Number',
                     _mobileController,
-                    icon: Icons.phone_android_outlined,
                     keyboardType: TextInputType.phone,
                     enabled: false,
                   ),
                   _buildTextField(
                     'Father/Husband Name',
                     _fatherNameController,
-                    icon: Icons.family_restroom_outlined,
                     enabled: false,
                   ),
                   _buildTextField(
                     'Address',
                     _addressController,
-                    icon: Icons.location_on_outlined,
                     maxLines: 2,
                     enabled: false,
                   ),
@@ -509,6 +590,7 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
 
                   // Select ULB
                   _buildSelectableField(
+                    label: 'ULB',
                     hint: _isLoadingUlbs
                         ? 'Loading ULBs...'
                         : (_selectedUlb?.toString() ?? 'Select ULB'),
@@ -535,6 +617,7 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
 
                   // Select Zone
                   _buildSelectableField(
+                    label: 'Zone',
                     hint: _isLoadingZones
                         ? 'Loading Zones...'
                         : (_selectedZone?.zoneName ?? 'Select Zone'),
@@ -562,6 +645,7 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
 
                   // Select Ward
                   _buildSelectableField(
+                    label: 'Ward',
                     hint: _isLoadingWards
                         ? 'Loading Wards...'
                         : (_selectedWard?.wardName ?? 'Select Ward'),
@@ -588,6 +672,7 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
 
                   // Select Mohalla
                   _buildSelectableField(
+                    label: 'Mohalla',
                     hint: _isLoadingMohallas
                         ? 'Loading Mohallas...'
                         : (_selectedMohalla?.mohallaName ?? 'Select Mohalla'),
@@ -810,8 +895,9 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
     Key? key,
     required String hint,
     VoidCallback? onTap,
+    String? label,
   }) {
-    return GestureDetector(
+    final field = GestureDetector(
       key: key,
       onTap: onTap,
       child: Container(
@@ -840,6 +926,23 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
           ],
         ),
       ),
+    );
+
+    if (label == null) return field;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.poppins(
+            fontSize: 13,
+            color: Colors.grey.shade700,
+          ),
+        ),
+        const SizedBox(height: 6),
+        field,
+      ],
     );
   }
 
