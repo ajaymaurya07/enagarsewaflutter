@@ -220,23 +220,6 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final status = widget.transaction.transactionStatus?.toUpperCase() ?? '';
-    final bool isSuccess = status == 'SUCCESS';
-    final bool isPending = status == 'PENDING';
-    final bool isFailed = status == 'FAILED';
-    final bool isExpired = status == 'EXPIRED';
-
-    Color statusColor = const Color(0xFF64748B);
-    if (isSuccess) {
-      statusColor = Colors.green;
-    } else if (isPending) {
-      statusColor = const Color(0xFFE6A23C);
-    } else if (isFailed) {
-      statusColor = Colors.red;
-    } else if (isExpired) {
-      statusColor = const Color(0xFF64748B);
-    }
-
     return Scaffold(
       backgroundColor: const Color(0xFFF0F2F5),
       appBar: AppBar(
@@ -268,150 +251,14 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
       ),
       body: SingleChildScrollView(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
           child: Column(
             children: [
-              // Receipt Container wrapped with Screenshot widget
               Screenshot(
                 controller: _screenshotController,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.05),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 32),
-                      // Status Icon
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: statusColor.withValues(alpha: 0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          isSuccess
-                              ? Icons.check_rounded
-                          : (isPending
-                                    ? Icons.access_time_rounded
-                            : (isFailed
-                              ? Icons.close_rounded
-                            : (isExpired
-                              ? Icons.timer_off_outlined
-                              : Icons.help_outline_rounded))),
-                          color: statusColor,
-                          size: 48,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        isSuccess
-                            ? 'Payment Successful'
-                            : (isPending
-                                  ? 'Payment Pending'
-                              : (isFailed
-                                ? 'Payment Failed'
-                              : (isExpired
-                                ? 'Payment Expired'
-                                : 'Payment Status Unknown'))),
-                        style: GoogleFonts.poppins(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        '₹ ${widget.transaction.paymentAmount ?? "0.0"}',
-                        style: GoogleFonts.poppins(
-                          fontSize: 32,
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFF0E3B90),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 24),
-                        child: Divider(
-                          height: 1,
-                          thickness: 1,
-                          color: Color(0xFFF0F0F0),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Details List
-                      _buildDetailItem(
-                        'Transaction ID',
-                        widget.transaction.txnId ?? 'N/A',
-                      ),
-                      _buildDetailItem(
-                        'Date & Time',
-                        widget.transaction.dateTime ?? 'N/A',
-                      ),
-                      _buildDetailItem(
-                        'Property ID',
-                        widget.transaction.propertyId ?? 'N/A',
-                      ),
-                      _buildDetailItem(
-                        'Bill Number',
-                        widget.transaction.billNo ?? 'N/A',
-                      ),
-                      _buildDetailItem(
-                        'Financial Year',
-                        widget.transaction.financialYear ?? 'N/A',
-                      ),
-                      _buildDetailItem(
-                        'Payment Mode',
-                        widget.transaction.paymentMode ?? 'N/A',
-                      ),
-                      if (widget.transaction.bankRefNo != null)
-                        _buildDetailItem(
-                          'Bank Ref No',
-                          widget.transaction.bankRefNo!,
-                        ),
-
-                      const SizedBox(height: 16),
-                      // Dashed Line Simulation
-                      Row(
-                        children: List.generate(
-                          30,
-                          (index) => Expanded(
-                            child: Container(
-                              color: index % 2 == 0
-                                  ? Colors.transparent
-                                  : Colors.grey.shade300,
-                              height: 1,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Logo or Footer
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 32.0),
-                        child: Image.asset(
-                          'assets/images/e_nagar_seva_logo.png',
-                          height: 40,
-                          errorBuilder: (context, error, stackTrace) =>
-                              const SizedBox.shrink(),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                child: _buildReceiptCard(),
               ),
-              const SizedBox(height: 32),
-
-              // Action Buttons
+              const SizedBox(height: 24),
               Row(
                 children: [
                   Expanded(
@@ -448,32 +295,185 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
     );
   }
 
-  Widget _buildDetailItem(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: GoogleFonts.poppins(
-              fontSize: 13,
-              color: Colors.grey.shade600,
-              fontWeight: FontWeight.w500,
-            ),
+  Widget _buildReceiptCard() {
+    final txn = widget.transaction;
+    final status = txn.transactionStatus?.toUpperCase() ?? '';
+    final bool isSuccess = status == 'SUCCESS';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
-          Flexible(
+        ],
+      ),
+      child: Column(
+        children: [
+          // Header
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+            decoration: const BoxDecoration(
+              color: Color(0xFFF5F5F5),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(8),
+                topRight: Radius.circular(8),
+              ),
+              border: Border(
+                bottom: BorderSide(color: Color(0xFF4CAF50), width: 2),
+              ),
+            ),
             child: Text(
-              value,
-              textAlign: TextAlign.right,
+              'Property Tax Property ID. [ ${txn.propertyId ?? "N/A"} ]',
+              textAlign: TextAlign.center,
               style: GoogleFonts.poppins(
-                fontSize: 13,
-                color: Colors.black87,
-                fontWeight: FontWeight.w600,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF333333),
               ),
             ),
           ),
+
+          // Status Message
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+            color: const Color(0xFFFAFAFA),
+            child: Text(
+              isSuccess
+                  ? 'Payment for Property Tax Successful for Property ID. [ ${txn.propertyId ?? "N/A"} ]${txn.ulbName != null ? ', ${txn.ulbName}' : ''}'
+                  : 'Payment ${status.isNotEmpty ? status : "UNKNOWN"} for Property ID. [ ${txn.propertyId ?? "N/A"} ]${txn.ulbName != null ? ', ${txn.ulbName}' : ''}',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: isSuccess ? const Color(0xFF4CAF50) : Colors.red,
+              ),
+            ),
+          ),
+
+          const Divider(height: 1, thickness: 1, color: Color(0xFF4CAF50)),
+
+          // Receipt Table
+          _buildReceiptRow('Transaction Number', txn.txnId ?? 'N/A'),
+          _buildReceiptRow('Property ID', txn.propertyId ?? 'N/A'),
+          _buildReceiptRow('Transaction Date', txn.dateTime ?? 'N/A'),
+          if (txn.eNagarSewaRefNo != null)
+            _buildReceiptRow('E-NagarSewa Ref No.', txn.eNagarSewaRefNo!),
+          if (txn.userCode != null)
+            _buildReceiptRow('User Code', txn.userCode!),
+          if (txn.ownerName != null)
+            _buildReceiptRow('Owner Name', txn.ownerName!),
+          if (txn.fatherName != null)
+            _buildReceiptRow('Father/Husband Name', txn.fatherName!),
+          if (txn.address != null)
+            _buildReceiptRow('Address', txn.address!),
+          _buildReceiptRow('Fees(Rs.)', txn.paymentAmount ?? '0.0'),
+          if (txn.mobileNo != null)
+            _buildReceiptRow('Mobile Number', txn.mobileNo!),
+          if (txn.billNo != null)
+            _buildReceiptRow('Bill Number', txn.billNo!),
+          if (txn.financialYear != null)
+            _buildReceiptRow('Financial Year', txn.financialYear!),
+          if (txn.paymentMode != null)
+            _buildReceiptRow('Payment Mode', txn.paymentMode!),
+          if (txn.bankRefNo != null)
+            _buildReceiptRow('Bank Ref No', txn.bankRefNo!),
+
+          // Footer
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+            decoration: const BoxDecoration(
+              color: Color(0xFFF5F5F5),
+              border: Border(
+                top: BorderSide(color: Color(0xFF4CAF50), width: 2),
+              ),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  'This is Computer Generated Receipt. It does not require a signature.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(
+                    fontSize: 11,
+                    color: const Color(0xFF555555),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'This receipt is printed through EODB, e-nagarsewa portal GoUP.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(
+                    fontSize: 11,
+                    color: const Color(0xFF555555),
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Image.asset(
+                  'assets/images/e_nagar_seva_logo.png',
+                  height: 36,
+                  errorBuilder: (context, error, stackTrace) =>
+                      const SizedBox.shrink(),
+                ),
+              ],
+            ),
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildReceiptRow(String label, String value) {
+    return Container(
+      decoration: const BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: Color(0xFFE0E0E0), width: 0.5),
+        ),
+      ),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              width: 150,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: const BoxDecoration(
+                color: Color(0xFFFAFAFA),
+                border: Border(
+                  right: BorderSide(color: Color(0xFFE0E0E0), width: 0.5),
+                ),
+              ),
+              child: Text(
+                label,
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: const Color(0xFF444444),
+                ),
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                child: Text(
+                  value,
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF222222),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
