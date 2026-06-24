@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'signup_screen.dart';
+import 'sign_up_02.dart';
 // import 'widgets/property_registration_webview.dart';
 import 'forgot_password_screen.dart';
 import 'search_property_screen.dart';
@@ -370,7 +370,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         onTap: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) => const SignUpScreen()),
+                            MaterialPageRoute(builder: (context) => const SignUp02Screen()),
                           );
                         },
                         child: Text(

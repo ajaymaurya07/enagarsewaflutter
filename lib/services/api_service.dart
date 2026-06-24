@@ -943,6 +943,150 @@ class ApiService {
     }
   }
 
+  // Fetch Signup Captcha
+  static Future<CaptchaResponse> getSignupCaptcha() async {
+    try {
+      final headers = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'X-App-Version': AppConstants.apiVersion,
+      };
+
+      final response = await _get(
+            Uri.parse('${AppConstants.baseUrl}api/Signup_citizen/captcha'),
+            headers: headers,
+          )
+          .timeout(Duration(seconds: AppConstants.networkTimeout));
+
+      if (response.statusCode == 200) {
+        final decodedData = json.decode(response.body);
+        if (decodedData['success'] == true && decodedData['data'] != null) {
+          return CaptchaResponse.fromJson(decodedData['data']);
+        }
+        throw Exception(decodedData['message'] ?? 'Failed to load captcha');
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw _userSafeException(e);
+    }
+  }
+
+  // Fetch Signup Cities by ULB Type
+  static Future<List<SignupCity>> getSignupCities(String ulbTypeCode) async {
+    try {
+      final headers = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'X-App-Version': AppConstants.apiVersion,
+      };
+
+      final response = await _get(
+            Uri.parse(
+                '${AppConstants.baseUrl}api/Signup_citizen/cities?type=$ulbTypeCode'),
+            headers: headers,
+          )
+          .timeout(Duration(seconds: AppConstants.networkTimeout));
+
+      if (response.statusCode == 200) {
+        final decodedData = json.decode(response.body);
+        if (decodedData['success'] == true && decodedData['data'] != null) {
+          return (decodedData['data'] as List)
+              .map((item) => SignupCity.fromJson(item))
+              .toList();
+        }
+        throw Exception(decodedData['message'] ?? 'Failed to load cities');
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw _userSafeException(e);
+    }
+  }
+
+  // Register Citizen API
+  static Future<CitizenRegisterResponse> registerCitizen({
+    required String name,
+    required String fatherHusbandName,
+    required String address1,
+    required String address2,
+    required String ulbType,
+    required int city,
+    required String mobileNo,
+    required String email,
+    required String encryptedPassword,
+    required String encryptedConfirmPassword,
+    required String captchaId,
+    required String captcha,
+  }) async {
+    try {
+      final headers = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'X-App-Version': AppConstants.apiVersion,
+      };
+
+      final requestBody = {
+        'name': name,
+        'fatherHusbandName': fatherHusbandName,
+        'address1': address1,
+        'address2': address2,
+        'ulbType': ulbType,
+        'city': city,
+        'mobileNo': mobileNo,
+        'email': email,
+        'encryptedPassword': encryptedPassword,
+        'encryptedConfirmPassword': encryptedConfirmPassword,
+        'captchaId': captchaId,
+        'captcha': captcha,
+      };
+
+      final response = await _post(
+            Uri.parse('${AppConstants.baseUrl}api/Signup_citizen/register'),
+            headers: headers,
+            body: jsonEncode(requestBody),
+          )
+          .timeout(Duration(seconds: AppConstants.networkTimeout));
+
+      if (response.statusCode == 200) {
+        return CitizenRegisterResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Registration failed: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw _userSafeException(e);
+    }
+  }
+
+  // Verify Citizen OTP (Mobile)
+  static Future<CitizenVerifyOtpResponse> verifyCitizenOtp({
+    required String mobileNo,
+    required String otp,
+  }) async {
+    try {
+      final headers = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'X-App-Version': AppConstants.apiVersion,
+      };
+
+      final response = await _post(
+            Uri.parse('${AppConstants.baseUrl}api/Signup_citizen/verify_otp'),
+            headers: headers,
+            body: jsonEncode({'mobileNo': mobileNo, 'otp': otp}),
+          )
+          .timeout(Duration(seconds: AppConstants.networkTimeout));
+
+      if (response.statusCode == 200) {
+        return CitizenVerifyOtpResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('OTP verification failed: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw _userSafeException(e);
+    }
+  }
+
   // Sign Up API
   static Future<SignUpResponse> signUp({
     required String name,
@@ -1002,7 +1146,7 @@ class ApiService {
       if (response.statusCode == 200) {
         return VerifyOtpMailResponse.fromJson(jsonDecode(response.body));
       } else {
-        throw Exception('OTP verification failed: \${response.statusCode}');
+        throw Exception('OTP verification failed: ${response.statusCode}');
       }
     } catch (e) {
       if (e is Exception) rethrow;
@@ -2426,6 +2570,112 @@ class VerifyOtpMailResponse {
       message: json['message'],
       status: json['status'],
       responseCode: json['responseCode'],
+    );
+  }
+}
+
+class SignupCity {
+  final int id;
+  final String name;
+
+  SignupCity({required this.id, required this.name});
+
+  factory SignupCity.fromJson(Map<String, dynamic> json) {
+    return SignupCity(
+      id: json['id'] as int,
+      name: json['name'] as String,
+    );
+  }
+}
+
+class CaptchaResponse {
+  final String captchaId;
+  final String captchaImage;
+
+  CaptchaResponse({required this.captchaId, required this.captchaImage});
+
+  factory CaptchaResponse.fromJson(Map<String, dynamic> json) {
+    return CaptchaResponse(
+      captchaId: json['captchaId'] as String,
+      captchaImage: json['captchaImage'] as String,
+    );
+  }
+}
+
+class CitizenRegisterResponse {
+  final bool? status;
+  final int? responseCode;
+  final String? message;
+  final bool? mobileOtpRequired;
+  final bool? emailOtpRequired;
+  final bool? emailOtpSent;
+  final bool? registrationComplete;
+  final bool? alreadyOnEnagarsewa;
+  final String? enagarMessage;
+
+  CitizenRegisterResponse({
+    this.status,
+    this.responseCode,
+    this.message,
+    this.mobileOtpRequired,
+    this.emailOtpRequired,
+    this.emailOtpSent,
+    this.registrationComplete,
+    this.alreadyOnEnagarsewa,
+    this.enagarMessage,
+  });
+
+  factory CitizenRegisterResponse.fromJson(Map<String, dynamic> json) {
+    final data = json['data'] as Map<String, dynamic>?;
+    return CitizenRegisterResponse(
+      status: json['status'],
+      responseCode: json['responseCode'],
+      message: json['message'],
+      mobileOtpRequired: data?['mobile_otp_required'],
+      emailOtpRequired: data?['email_otp_required'],
+      emailOtpSent: data?['email_otp_sent'],
+      registrationComplete: data?['registration_complete'],
+      alreadyOnEnagarsewa: data?['already_on_enagarsewa'],
+      enagarMessage: data?['enagar_message'],
+    );
+  }
+}
+
+class CitizenVerifyOtpResponse {
+  final bool? status;
+  final int? responseCode;
+  final String? message;
+  final bool? mobileVerified;
+  final bool? emailVerified;
+  final bool? mobileOtpRequired;
+  final bool? emailOtpRequired;
+  final bool? registrationComplete;
+  final String? enagarMessage;
+
+  CitizenVerifyOtpResponse({
+    this.status,
+    this.responseCode,
+    this.message,
+    this.mobileVerified,
+    this.emailVerified,
+    this.mobileOtpRequired,
+    this.emailOtpRequired,
+    this.registrationComplete,
+    this.enagarMessage,
+  });
+
+  factory CitizenVerifyOtpResponse.fromJson(Map<String, dynamic> json) {
+    final data = json['data'] as Map<String, dynamic>?;
+    return CitizenVerifyOtpResponse(
+      status: json['status'],
+      responseCode: json['responseCode'],
+      message: json['message'],
+      mobileVerified: data?['mobile_verified'],
+      emailVerified: data?['email_verified'],
+      mobileOtpRequired: data?['mobile_otp_required'],
+      emailOtpRequired: data?['email_otp_required'],
+      registrationComplete: data?['registration_complete'],
+      enagarMessage: data?['enagar_message'],
     );
   }
 }
