@@ -678,8 +678,6 @@ class ApiService {
       final authHeaders = await _getHeaders();
       final deviceId = await DeviceService.getDeviceId();
 
-      debugPrint('[PayU] getTransactionDetails → Authorization: ${authHeaders['Authorization']}');
-
       final request = http.MultipartRequest(
         'POST',
         Uri.parse('${AppConstants.baseUrl}api/payment/getTransactionDetails'),
@@ -697,8 +695,6 @@ class ApiService {
           .timeout(Duration(seconds: AppConstants.networkTimeout));
       final response = await http.Response.fromStream(streamed);
 
-      debugPrint('[PayU] getTransactionDetails → HTTP ${response.statusCode}');
-      debugPrint('[PayU] getTransactionDetails → RAW BODY: ${response.body}');
 
       if (response.statusCode == 200) {
         final body = response.body.trim();
@@ -712,7 +708,6 @@ class ApiService {
         );
       }
     } catch (e) {
-      debugPrint('[PayU] getTransactionDetails → EXCEPTION: $e');
       throw _userSafeException(e);
     }
   }
@@ -1300,9 +1295,13 @@ class SaveGrievanceResponse {
 
 class GrievanceData {
   final String? grievanceId;
-  GrievanceData({this.grievanceId});
+  final String? maskedMobile;
+  GrievanceData({this.grievanceId, this.maskedMobile});
   factory GrievanceData.fromJson(Map<String, dynamic> json) =>
-      GrievanceData(grievanceId: json['grievance_id']?.toString());
+      GrievanceData(
+        grievanceId: json['grievance_id']?.toString(),
+        maskedMobile: json['maskedMobile'],
+      );
 }
 
 class GrievanceCategory {
@@ -1784,14 +1783,17 @@ class SendOtpResponse {
   final bool? success;
   final String? message;
   final int? responseCode;
+  final String? maskedMobile;
 
-  SendOtpResponse({this.success, this.message, this.responseCode});
+  SendOtpResponse({this.success, this.message, this.responseCode, this.maskedMobile});
 
   factory SendOtpResponse.fromJson(Map<String, dynamic> json) {
+    final data = json['data'] as Map<String, dynamic>?;
     return SendOtpResponse(
       success: json['success'],
       message: json['message'],
       responseCode: json['responseCode'],
+      maskedMobile: data?['maskedMobile'],
     );
   }
 }

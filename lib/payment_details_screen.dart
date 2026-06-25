@@ -411,7 +411,8 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
       setState(() => _isLoading = false);
 
       if (otpRes.success == true) {
-        _showOtpAndPaymentDialog(mobileNo);
+        final maskedNumber = otpRes.maskedMobile ?? 'XXXXXX${mobileNo.length > 4 ? mobileNo.substring(mobileNo.length - 4) : mobileNo}';
+        _showOtpAndPaymentDialog(mobileNo, maskedNumber);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(otpRes.message ?? 'Failed to send OTP')),
@@ -435,7 +436,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
     }
   }
 
-  void _showOtpAndPaymentDialog(String mobileNo) {
+  void _showOtpAndPaymentDialog(String mobileNo, String maskedNumber) {
     final otpController = TextEditingController();
     bool isVerifying = false;
     String? sheetError;
@@ -481,7 +482,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Enter the OTP sent to $mobileNo to proceed with payment.',
+                  'Enter the OTP sent to $maskedNumber to proceed with payment.',
                   style: GoogleFonts.poppins(
                     fontSize: 13,
                     color: Colors.grey.shade500,

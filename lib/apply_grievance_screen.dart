@@ -1225,7 +1225,8 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
             }
           } else {
             // Normal OTP flow: open bottom sheet
-            _showOtpVerificationSheet(mobileNo, grievanceId);
+            final maskedNumber = response.data?.maskedMobile ?? 'XXXXXX${mobileNo.length > 4 ? mobileNo.substring(mobileNo.length - 4) : mobileNo}';
+            _showOtpVerificationSheet(mobileNo, grievanceId, maskedNumber);
           }
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1255,7 +1256,7 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
     }
   }
 
-  void _showOtpVerificationSheet(String mobileNo, String grievanceId) {
+  void _showOtpVerificationSheet(String mobileNo, String grievanceId, String maskedNumber) {
     final TextEditingController otpController = TextEditingController();
     bool isVerifying = false;
     String? errorText;
@@ -1289,7 +1290,7 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Enter the OTP sent to $mobileNo to complete your grievance registration.',
+                'Enter the OTP sent to $maskedNumber to complete your grievance registration.',
                 style: GoogleFonts.poppins(color: Colors.grey.shade600),
               ),
               const SizedBox(height: 24),

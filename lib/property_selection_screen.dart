@@ -122,12 +122,13 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
 
       // 2b. Normal OTP flow
       final otpRes = await ApiService.sendOtp(mobileNo, propertyId);
-      
+
       if (!mounted) return;
       setState(() => _isLoading = false);
 
       if (otpRes.success == true) {
-        _showOtpBottomSheet(mobileNo, propertyId);
+        final maskedNumber = otpRes.maskedMobile ?? 'XXXXXX${mobileNo.length > 4 ? mobileNo.substring(mobileNo.length - 4) : mobileNo}';
+        _showOtpBottomSheet(mobileNo, propertyId, maskedNumber);
       } else {
         _showSnackBar(otpRes.message ?? 'Failed to send OTP');
       }
@@ -184,7 +185,7 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
     );
   }
 
-  void _showOtpBottomSheet(String mobileNo, String propertyId) {
+  void _showOtpBottomSheet(String mobileNo, String propertyId, String maskedNumber) {
     final otpController = TextEditingController();
     bool isVerifying = false;
     String? sheetError;
@@ -230,7 +231,7 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Enter the code sent to your mobile number ending in ${mobileNo.length > 4 ? mobileNo.substring(mobileNo.length - 4) : mobileNo}',
+                  'Enter the code sent to your mobile number $maskedNumber',
                   style: GoogleFonts.poppins(
                     fontSize: 13,
                     color: Colors.grey.shade500,
