@@ -2237,6 +2237,8 @@ class TransactionData {
   final String? eNagarSewaRefNo;
   final String? userCode;
   final String? ulbName;
+  final String? ulbType;
+  final String? receiptNo;
 
   TransactionData({
     this.paymentAmount,
@@ -2255,6 +2257,8 @@ class TransactionData {
     this.eNagarSewaRefNo,
     this.userCode,
     this.ulbName,
+    this.ulbType,
+    this.receiptNo,
   });
 
   factory TransactionData.fromJson(Map<String, dynamic> json) {
@@ -2275,6 +2279,8 @@ class TransactionData {
       eNagarSewaRefNo: json['e_nagarsewa_ref_no']?.toString(),
       userCode: json['user_code']?.toString(),
       ulbName: json['ulb_name']?.toString(),
+      ulbType: json['ulb_type']?.toString(),
+      receiptNo: json['receiptNo']?.toString(),
     );
   }
 }

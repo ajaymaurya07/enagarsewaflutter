@@ -183,39 +183,47 @@ class _SignUp02ScreenState extends State<SignUp02Screen> {
     }
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (ctx) {
         final searchController = TextEditingController();
         var filtered = List<SignupCity>.from(_cities);
 
         return StatefulBuilder(
-          builder: (ctx, setSheetState) => DraggableScrollableSheet(
-            initialChildSize: 0.6,
-            maxChildSize: 0.85,
-            minChildSize: 0.3,
-            expand: false,
-            builder: (ctx, scrollController) => Column(
+          builder: (ctx, setSheetState) => Container(
+            height: MediaQuery.of(ctx).size.height * 0.75,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
               children: [
+                const SizedBox(height: 12),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  padding: const EdgeInsets.fromLTRB(20, 16, 12, 0),
                   child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text('Select City',
                           style: GoogleFonts.poppins(
-                              fontSize: 16, fontWeight: FontWeight.w700)),
-                      const Spacer(),
+                              fontSize: 17, fontWeight: FontWeight.w700)),
                       IconButton(
-                        icon: const Icon(Icons.close_rounded, size: 22),
+                        icon: Icon(Icons.close, color: Colors.grey.shade500),
                         onPressed: () => Navigator.pop(ctx),
                       ),
                     ],
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   child: TextField(
                     controller: searchController,
                     autofocus: true,
@@ -234,8 +242,7 @@ class _SignUp02ScreenState extends State<SignUp02Screen> {
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide:
-                            BorderSide(color: Colors.grey.shade200),
+                        borderSide: BorderSide(color: Colors.grey.shade200),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -260,7 +267,6 @@ class _SignUp02ScreenState extends State<SignUp02Screen> {
                     },
                   ),
                 ),
-                const Divider(height: 1),
                 Expanded(
                   child: filtered.isEmpty
                       ? Center(
@@ -269,13 +275,16 @@ class _SignUp02ScreenState extends State<SignUp02Screen> {
                                   fontSize: 13,
                                   color: Colors.grey.shade400)),
                         )
-                      : ListView.builder(
-                          controller: scrollController,
+                      : ListView.separated(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
                           itemCount: filtered.length,
+                          separatorBuilder: (ctx, index) =>
+                              Divider(height: 1, color: Colors.grey.shade100),
                           itemBuilder: (ctx, i) => ListTile(
                             title: Text(filtered[i].name,
-                                style:
-                                    GoogleFonts.poppins(fontSize: 14)),
+                                style: GoogleFonts.poppins(fontSize: 14)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10)),
                             trailing:
                                 _selectedCity?.id == filtered[i].id
                                     ? const Icon(Icons.check_circle,

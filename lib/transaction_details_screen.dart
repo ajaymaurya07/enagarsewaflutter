@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -131,39 +130,30 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
   }
 
   Future<void> _shareReceipt() async {
-    if (_isTourActive) {
-      return;
-    }
+    if (_isTourActive) return;
 
     try {
-      final Uint8List? image = await _screenshotController.capture();
-      if (image != null) {
-        final directory = await getTemporaryDirectory();
-        final imagePath = await File(
-          '${directory.path}/receipt_${widget.transaction.txnId}.png',
-        ).create();
-        await imagePath.writeAsBytes(image);
-        try {
-          await Share.shareXFiles([
-            XFile(imagePath.path),
-          ], text: 'Transaction Receipt: ${widget.transaction.txnId}');
-        } finally {
-          try { await imagePath.delete(); } catch (_) {}
-        }
+      final pdf = await _buildPdf();
+      final bytes = await pdf.save();
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/receipt_${widget.transaction.txnId ?? 'payment'}.pdf');
+      await file.writeAsBytes(bytes);
+      try {
+        await Share.shareXFiles(
+          [XFile(file.path)],
+          text: 'Payment Receipt - Property ID: ${widget.transaction.propertyId}',
+        );
+      } finally {
+        try { await file.delete(); } catch (_) {}
       }
     } catch (e) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             ApiService.getUserFriendlyErrorMessage(
               e,
-              fallbackMessage:
-                  'Unable to share receipt right now. Please try again.',
+              fallbackMessage: 'Unable to share receipt right now. Please try again.',
             ),
           ),
         ),
@@ -171,46 +161,131 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
     }
   }
 
+  Future<pw.Document> _buildPdf() async {
+    final txn = widget.transaction;
+    final regularFont = await PdfGoogleFonts.notoSansRegular();
+    final boldFont = await PdfGoogleFonts.notoSansBold();
+    final pdf = pw.Document();
+
+    final status = txn.transactionStatus?.toUpperCase() ?? '';
+    final isSuccess = status == 'SUCCESS';
+
+    final rows = <List<String>>[];
+
+    rows.add(['Transaction Number', txn.txnId ?? 'null']);
+    rows.add(['Property ID.', txn.propertyId ?? 'null']);
+    rows.add(['Transaction Date', txn.dateTime ?? 'null']);
+    rows.add(['User Code', txn.userCode ?? 'null']);
+    rows.add(['Owner Name', txn.ownerName ?? 'null']);
+    rows.add(['Father/Husband Name', txn.fatherName ?? 'null']);
+    rows.add(['Address', txn.address ?? 'null']);
+    rows.add(['Fees(Rs.)', txn.paymentAmount ?? 'null']);
+    rows.add(['Mobile Number', txn.mobileNo ?? 'null']);
+    rows.add(['Receipt No', txn.receiptNo ?? 'null']);
+
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        theme: pw.ThemeData.withFont(base: regularFont, bold: boldFont),
+        build: (pw.Context context) {
+          return pw.Column(
+            children: [
+              pw.Container(
+                width: double.infinity,
+                padding: const pw.EdgeInsets.all(10),
+                decoration: const pw.BoxDecoration(
+                  color: PdfColors.grey200,
+                  border: pw.Border(bottom: pw.BorderSide(color: PdfColors.green, width: 2)),
+                ),
+                child: pw.Text(
+                  'Property Tax Property ID. [ ${txn.propertyId ?? "N/A"} ]',
+                  textAlign: pw.TextAlign.center,
+                  style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+                ),
+              ),
+              pw.Container(
+                width: double.infinity,
+                padding: const pw.EdgeInsets.all(8),
+                child: pw.Text(
+                  isSuccess
+                      ? 'Payment for Property Tax Successful for Property ID. [ ${txn.propertyId ?? "N/A"} ]${_ulbLabel(txn)}'
+                      : 'Payment ${status.isNotEmpty ? status : "UNKNOWN"} for Property ID. [ ${txn.propertyId ?? "N/A"} ]${_ulbLabel(txn)}',
+                  textAlign: pw.TextAlign.center,
+                  style: pw.TextStyle(
+                    fontSize: 11,
+                    color: isSuccess ? PdfColors.green : PdfColors.red,
+                  ),
+                ),
+              ),
+              pw.Divider(color: PdfColors.green, height: 1, thickness: 2),
+              pw.Table(
+                border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
+                columnWidths: {
+                  0: const pw.FlexColumnWidth(2),
+                  1: const pw.FlexColumnWidth(3),
+                },
+                children: rows.map((row) => pw.TableRow(
+                  children: [
+                    pw.Container(
+                      padding: const pw.EdgeInsets.all(8),
+                      color: PdfColors.grey100,
+                      child: pw.Text(row[0], style: const pw.TextStyle(fontSize: 11)),
+                    ),
+                    pw.Container(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text(row[1], style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
+                    ),
+                  ],
+                )).toList(),
+              ),
+              pw.Container(
+                width: double.infinity,
+                padding: const pw.EdgeInsets.all(12),
+                decoration: const pw.BoxDecoration(
+                  color: PdfColors.grey200,
+                  border: pw.Border(top: pw.BorderSide(color: PdfColors.green, width: 2)),
+                ),
+                child: pw.Column(
+                  children: [
+                    pw.Text(
+                      'This is Computer Generated Receipt. It does not require a signature.',
+                      textAlign: pw.TextAlign.center,
+                      style: const pw.TextStyle(fontSize: 10),
+                    ),
+                    pw.SizedBox(height: 4),
+                    pw.Text(
+                      'This receipt is printed through EODB,e-nagarsewa portal GoUP.',
+                      textAlign: pw.TextAlign.center,
+                      style: pw.TextStyle(fontSize: 10, fontStyle: pw.FontStyle.italic),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    return pdf;
+  }
+
   Future<void> _downloadReceipt() async {
-    if (_isTourActive) {
-      return;
-    }
+    if (_isTourActive) return;
 
     try {
-      final Uint8List? image = await _screenshotController.capture();
-      if (image != null) {
-        final pdf = pw.Document();
-        final imageProvider = pw.MemoryImage(image);
-
-        pdf.addPage(
-          pw.Page(
-            pageFormat: PdfPageFormat.a4,
-            build: (pw.Context context) {
-              return pw.Center(
-                child: pw.Image(imageProvider, fit: pw.BoxFit.contain),
-              );
-            },
-          ),
-        );
-
-        await Printing.layoutPdf(
-          onLayout: (PdfPageFormat format) async => pdf.save(),
-          name: 'receipt_${widget.transaction.txnId}.pdf',
-        );
-      }
+      final pdf = await _buildPdf();
+      await Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) async => pdf.save(),
+        name: 'receipt_${widget.transaction.txnId}.pdf',
+      );
     } catch (e) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             ApiService.getUserFriendlyErrorMessage(
               e,
-              fallbackMessage:
-                  'Unable to download receipt right now. Please try again.',
+              fallbackMessage: 'Unable to download receipt right now. Please try again.',
             ),
           ),
         ),
@@ -295,6 +370,13 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
     );
   }
 
+  String _ulbLabel(TransactionData txn) {
+    final parts = <String>[];
+    if (txn.ulbName != null) parts.add(txn.ulbName!);
+    if (txn.ulbType != null) parts.add(txn.ulbType!);
+    return parts.isNotEmpty ? ', ${parts.join(' ')}' : '';
+  }
+
   Widget _buildReceiptCard() {
     final txn = widget.transaction;
     final status = txn.transactionStatus?.toUpperCase() ?? '';
@@ -346,8 +428,8 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
             color: const Color(0xFFFAFAFA),
             child: Text(
               isSuccess
-                  ? 'Payment for Property Tax Successful for Property ID. [ ${txn.propertyId ?? "N/A"} ]${txn.ulbName != null ? ', ${txn.ulbName}' : ''}'
-                  : 'Payment ${status.isNotEmpty ? status : "UNKNOWN"} for Property ID. [ ${txn.propertyId ?? "N/A"} ]${txn.ulbName != null ? ', ${txn.ulbName}' : ''}',
+                  ? 'Payment for Property Tax Successful for Property ID. [ ${txn.propertyId ?? "N/A"} ]${_ulbLabel(txn)}'
+                  : 'Payment ${status.isNotEmpty ? status : "UNKNOWN"} for Property ID. [ ${txn.propertyId ?? "N/A"} ]${_ulbLabel(txn)}',
               textAlign: TextAlign.center,
               style: GoogleFonts.poppins(
                 fontSize: 12,
@@ -360,30 +442,16 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
           const Divider(height: 1, thickness: 1, color: Color(0xFF4CAF50)),
 
           // Receipt Table
-          _buildReceiptRow('Transaction Number', txn.txnId ?? 'N/A'),
-          _buildReceiptRow('Property ID', txn.propertyId ?? 'N/A'),
-          _buildReceiptRow('Transaction Date', txn.dateTime ?? 'N/A'),
-          if (txn.eNagarSewaRefNo != null)
-            _buildReceiptRow('E-NagarSewa Ref No.', txn.eNagarSewaRefNo!),
-          if (txn.userCode != null)
-            _buildReceiptRow('User Code', txn.userCode!),
-          if (txn.ownerName != null)
-            _buildReceiptRow('Owner Name', txn.ownerName!),
-          if (txn.fatherName != null)
-            _buildReceiptRow('Father/Husband Name', txn.fatherName!),
-          if (txn.address != null)
-            _buildReceiptRow('Address', txn.address!),
-          _buildReceiptRow('Fees(Rs.)', txn.paymentAmount ?? '0.0'),
-          if (txn.mobileNo != null)
-            _buildReceiptRow('Mobile Number', txn.mobileNo!),
-          if (txn.billNo != null)
-            _buildReceiptRow('Bill Number', txn.billNo!),
-          if (txn.financialYear != null)
-            _buildReceiptRow('Financial Year', txn.financialYear!),
-          if (txn.paymentMode != null)
-            _buildReceiptRow('Payment Mode', txn.paymentMode!),
-          if (txn.bankRefNo != null)
-            _buildReceiptRow('Bank Ref No', txn.bankRefNo!),
+          _buildReceiptRow('Transaction Number', txn.txnId ?? 'null'),
+          _buildReceiptRow('Property ID', txn.propertyId ?? 'null'),
+          _buildReceiptRow('Transaction Date', txn.dateTime ?? 'null'),
+          _buildReceiptRow('User Code', txn.userCode ?? 'null'),
+          _buildReceiptRow('Owner Name', txn.ownerName ?? 'null'),
+          _buildReceiptRow('Father/Husband Name', txn.fatherName ?? 'null'),
+          _buildReceiptRow('Address', txn.address ?? 'null'),
+          _buildReceiptRow('Fees(Rs.)', txn.paymentAmount ?? 'null'),
+          _buildReceiptRow('Mobile Number', txn.mobileNo ?? 'null'),
+          _buildReceiptRow('Receipt No', txn.receiptNo ?? 'null'),
 
           // Footer
           Container(
@@ -416,12 +484,12 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                Image.asset(
-                  'assets/images/e_nagar_seva_logo.png',
-                  height: 36,
-                  errorBuilder: (context, error, stackTrace) =>
-                      const SizedBox.shrink(),
-                ),
+                // Image.asset(
+                //   'assets/images/e_nagar_seva_logo.png',
+                //   height: 36,
+                //   errorBuilder: (context, error, stackTrace) =>
+                //       const SizedBox.shrink(),
+                // ),
               ],
             ),
           ),

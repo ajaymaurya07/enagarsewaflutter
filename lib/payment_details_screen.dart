@@ -1523,6 +1523,19 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: _buildSecondaryButton(
+                      'Payment History',
+                      Icons.payment_rounded,
+                      _showPaymentHistory,
+                      key: _keyPaymentHistoryButton,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildSecondaryButton(
                       'Apply Grievance',
                       Icons.add_comment_outlined,
                       () {
@@ -1536,15 +1549,6 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
                         );
                       },
                       key: _keyAddGrievanceButton,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildSecondaryButton(
-                      'Payment History',
-                      Icons.payment_rounded,
-                      _showPaymentHistory,
-                      key: _keyPaymentHistoryButton,
                     ),
                   ),
                 ],
