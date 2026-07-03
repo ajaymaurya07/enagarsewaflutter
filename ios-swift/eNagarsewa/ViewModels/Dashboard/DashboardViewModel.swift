@@ -106,4 +106,5 @@ final class DashboardViewModel: ObservableObject {
     func didTapAccount()            { coordinator?.showAccount() }
     func didTapApplyGrievance()     { coordinator?.showApplyGrievance(property: selectedProperty) }
     func didTapGrievanceStatus()    { coordinator?.showGrievanceStatus() }
+    func didTapArvChangeHistory()   { coordinator?.showArvChangeHistory() }
 }

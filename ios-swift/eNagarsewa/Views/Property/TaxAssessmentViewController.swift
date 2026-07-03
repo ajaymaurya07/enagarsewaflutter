@@ -22,6 +22,14 @@ final class TaxAssessmentViewController: UIViewController {
     private let resultCard = UIView()
     private let resultStack = UIStackView()
 
+    // Refs kept for the first-run tour guide
+    // (see lib/tour_guides/property_tax_assessment_tour.dart)
+    private weak var roadWidthSectionView: UIView?
+    private weak var constructionTypeSectionView: UIView?
+    private weak var areaDetailsSectionView: UIView?
+    private weak var constructionDetailsSectionView: UIView?
+    private var didPresentTour = false
+
     override func viewDidLoad() {
         super.viewDidLoad()
         title = "Self Assessment"
@@ -29,6 +37,11 @@ final class TaxAssessmentViewController: UIViewController {
         setupLayout()
         bindViewModel()
         calculateButton.addTarget(self, action: #selector(calculateTapped), for: .touchUpInside)
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        presentTourIfNeeded()
     }
 
     private func setupLayout() {
@@ -51,10 +64,25 @@ final class TaxAssessmentViewController: UIViewController {
         let constructionLabel = makeLabel("Construction Type")
         let roadLabel = makeLabel("Road Width")
 
+        let constructionSection = UIStackView(arrangedSubviews: [constructionLabel, constructionSegment])
+        constructionSection.axis = .vertical; constructionSection.spacing = 8
+        constructionTypeSectionView = constructionSection
+
+        let roadSection = UIStackView(arrangedSubviews: [roadLabel, roadSegment])
+        roadSection.axis = .vertical; roadSection.spacing = 8
+        roadWidthSectionView = roadSection
+
+        let areaSection = UIStackView(arrangedSubviews: [builtUpField, plotAreaField])
+        areaSection.axis = .vertical; areaSection.spacing = 12
+        areaDetailsSectionView = areaSection
+
+        let constructionDetailsSection = UIStackView(arrangedSubviews: [yearField])
+        constructionDetailsSection.axis = .vertical
+        constructionDetailsSectionView = constructionDetailsSection
+
         let mainStack = UIStackView(arrangedSubviews: [
-            constructionLabel, constructionSegment,
-            roadLabel, roadSegment,
-            builtUpField, plotAreaField, yearField,
+            constructionSection, roadSection,
+            areaSection, constructionDetailsSection,
             calculateButton, resultCard
         ])
         mainStack.axis = .vertical; mainStack.spacing = 16; mainStack.alignment = .fill
@@ -124,5 +152,46 @@ final class TaxAssessmentViewController: UIViewController {
         let val = UILabel(); val.text = value; val.font = .boldSystemFont(ofSize: 14); val.textAlignment = .right
         let s = UIStackView(arrangedSubviews: [lbl, val])
         s.distribution = .equalSpacing; return s
+    }
+
+    // MARK: - Tour guide (first-run coach mark, see lib/tour_guides/property_tax_assessment_tour.dart)
+    // Note: Flutter also spotlights a "Select Property" step and a
+    // "Property Type" (residential/non-residential) step, and its final step
+    // is a "Download Tax Comparison PDF" button; this native form has neither
+    // a property picker nor a PDF export yet, so those steps are adapted to
+    // the closest equivalent (the Calculate Tax button) or omitted.
+
+    private func presentTourIfNeeded() {
+        guard !didPresentTour, !UserDefaultsService.shared.hasTourBeenSeen(.propertyTaxAssessment) else { return }
+        guard let roadWidthSectionView, let constructionTypeSectionView,
+              let areaDetailsSectionView, let constructionDetailsSectionView else { return }
+        didPresentTour = true
+
+        let steps: [TourStep] = [
+            TourStep(target: constructionTypeSectionView, icon: "building.2",
+                     title: "Construction Type",
+                     description: "Choose the construction type here. This also affects the area rate used in the calculation.",
+                     edge: .bottom),
+            TourStep(target: roadWidthSectionView, icon: "road.lanes",
+                     title: "Road Width",
+                     description: "Select the road width of the property so the correct rate can be used for the assessment.",
+                     edge: .bottom),
+            TourStep(target: areaDetailsSectionView, icon: "square.resize",
+                     title: "Area Details",
+                     description: "Enter the built-up and plot area here so the total area can be prepared for calculation.",
+                     edge: .bottom),
+            TourStep(target: constructionDetailsSectionView, icon: "calendar",
+                     title: "Construction Details",
+                     description: "Enter the construction year here to calculate structure age and continue to the comparison step.",
+                     edge: .top),
+            TourStep(target: calculateButton, icon: "function",
+                     title: "Calculate Tax",
+                     description: "Once all fields are filled, tap here to calculate and view the property tax comparison.",
+                     edge: .top),
+        ]
+
+        TourCoachMarkView.present(steps: steps) {
+            UserDefaultsService.shared.markTourSeen(.propertyTaxAssessment)
+        }
     }
 }

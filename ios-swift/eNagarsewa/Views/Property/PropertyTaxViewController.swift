@@ -20,6 +20,7 @@ final class PropertyTaxViewController: UIViewController {
     private let contentStack = UIStackView()
     private let spinner = UIActivityIndicatorView(style: .large)
     private let emptyView = UIView()
+    private var didPresentTour = false
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -190,8 +191,29 @@ final class PropertyTaxViewController: UIViewController {
                 properties.forEach { prop in
                     self.contentStack.addArrangedSubview(self.buildPropertyCard(prop))
                 }
+                DispatchQueue.main.async { self.presentTourIfNeeded() }
             }
         }.store(in: &cancellables)
+    }
+
+    // MARK: - Tour guide (first-run coach mark, see lib/tour_guides/property_tax_tour.dart)
+
+    private func presentTourIfNeeded() {
+        guard !didPresentTour, !UserDefaultsService.shared.hasTourBeenSeen(.propertyTax) else { return }
+        guard let firstCard = contentStack.arrangedSubviews.first else { return }
+        didPresentTour = true
+
+        let steps: [TourStep] = [
+            TourStep(target: firstCard, icon: "doc.text",
+                     title: "Property Card List",
+                     description: "This screen can show a list of saved property cards. Tap any property card to open the tax payment screen, where you can review the details and proceed with payment.",
+                     shape: .roundedRect(radius: 20),
+                     edge: .bottom),
+        ]
+
+        TourCoachMarkView.present(steps: steps) {
+            UserDefaultsService.shared.markTourSeen(.propertyTax)
+        }
     }
 
     // MARK: - Property card
@@ -330,6 +352,12 @@ final class PropertyBillDetailsViewController: UIViewController {
     private weak var errorLabel: UILabel?
     private weak var propDetailsContent: UIView?
     private weak var propChevron: UIImageView?
+
+    // Refs kept for the first-run tour guide (see lib/tour_guides/payment_details_tour.dart)
+    private weak var payButtonView: UIView?
+    private weak var printButtonView: UIView?
+    private weak var paymentHistoryButtonView: UIView?
+    private var didPresentTour = false
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -524,6 +552,7 @@ final class PropertyBillDetailsViewController: UIViewController {
 
         // 2. Pay Your Tax Online button
         let payBtn = buildPayButton()
+        payButtonView = payBtn
         mainStack.addArrangedSubview(payBtn)
         mainStack.setCustomSpacing(12, after: payBtn)
 
@@ -534,6 +563,8 @@ final class PropertyBillDetailsViewController: UIViewController {
 
         // 4. Expandable Property Details card
         mainStack.addArrangedSubview(buildPropertyDetailsCard(prop: prop, owner: owner))
+
+        DispatchQueue.main.async { self.presentTourIfNeeded() }
     }
 
     // MARK: - Tax Summary Card
@@ -682,6 +713,8 @@ final class PropertyBillDetailsViewController: UIViewController {
     private func buildSecondaryButtonsRow() -> UIView {
         let printBtn   = makeSecondaryButton("Print Property",    icon: "printer",     action: #selector(printTapped))
         let historyBtn = makeSecondaryButton("Payment History",   icon: "creditcard",  action: #selector(historyTapped))
+        printButtonView = printBtn
+        paymentHistoryButtonView = historyBtn
         let row = UIStackView(arrangedSubviews: [printBtn, historyBtn])
         row.axis = .horizontal; row.spacing = 12; row.distribution = .fillEqually
         return row
@@ -990,6 +1023,36 @@ final class PropertyBillDetailsViewController: UIViewController {
                                           applicationActivities: nil)
         av.popoverPresentationController?.sourceView = view
         present(av, animated: true)
+    }
+
+    // MARK: - Tour guide (first-run coach mark, see lib/tour_guides/payment_details_tour.dart)
+    // Note: the Flutter tour also spotlights an "Add Grievance" and an
+    // "ARV History" button; this native screen doesn't have those actions
+    // yet, so those two steps are omitted here.
+
+    private func presentTourIfNeeded() {
+        guard !didPresentTour, !UserDefaultsService.shared.hasTourBeenSeen(.paymentDetails) else { return }
+        guard let payButtonView, let printButtonView, let paymentHistoryButtonView else { return }
+        didPresentTour = true
+
+        let steps: [TourStep] = [
+            TourStep(target: payButtonView, icon: "creditcard",
+                     title: "Pay Your Tax Online",
+                     description: "Tap here to start the tax payment flow. An OTP will be sent to the registered mobile number before payment continues to the gateway.",
+                     edge: .top),
+            TourStep(target: printButtonView, icon: "printer",
+                     title: "Print Property",
+                     description: "Tap here to print or download the current property tax details for this property.",
+                     edge: .top),
+            TourStep(target: paymentHistoryButtonView, icon: "clock.arrow.circlepath",
+                     title: "Payment History",
+                     description: "Tap here to view previous payment records and receipt history for this property.",
+                     edge: .top),
+        ]
+
+        TourCoachMarkView.present(steps: steps) {
+            UserDefaultsService.shared.markTourSeen(.paymentDetails)
+        }
     }
 }
 

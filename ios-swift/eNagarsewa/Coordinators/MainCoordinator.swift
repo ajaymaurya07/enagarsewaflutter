@@ -32,6 +32,12 @@ final class MainCoordinator: Coordinator {
         addChild(coordinator)
     }
 
+    func showArvChangeHistory() {
+        let vm = ArvChangeHistoryViewModel()
+        let vc = ArvChangeHistoryViewController(viewModel: vm)
+        navigationController.pushViewController(vc, animated: true)
+    }
+
     func showPropertyTaxList() {
         let vm = PropertyTaxViewModel()
         vm.onNavigateToPaymentDetails = { [weak self] property in

@@ -17,6 +17,16 @@ final class DashboardViewController: UIViewController {
     private weak var paymentStatusSlide: PaymentStatusSlideView?
     private weak var sliderScrollView: UIScrollView?
 
+    // Refs kept for the first-run tour guide (see DashboardTourGuide below)
+    private weak var propertyTaxCardView: UIView?
+    private weak var grievanceCardView: UIView?
+    private weak var arvHistoryCardView: UIView?
+    private weak var propertyTaxAssessmentCardView: UIView?
+    private weak var mutationCardView: UIView?
+    private weak var waterSewerageCardView: UIView?
+    private weak var bottomBarView: UIView?
+    private var didPresentTour = false
+
     init(viewModel: DashboardViewModel) {
         self.viewModel = viewModel
         super.init(nibName: nil, bundle: nil)
@@ -35,6 +45,11 @@ final class DashboardViewController: UIViewController {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         navigationController?.setNavigationBarHidden(true, animated: animated)
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        presentTourIfNeeded()
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -56,6 +71,7 @@ final class DashboardViewController: UIViewController {
         bottomBar.onTapHistory = { [weak self] in self?.viewModel.didTapTransactionHistory() }
         bottomBar.onTapAccount = { [weak self] in self?.viewModel.didTapAccount() }
         view.addSubview(bottomBar)
+        bottomBarView = bottomBar
 
         // Main scroll
         let scroll = UIScrollView()
@@ -318,7 +334,7 @@ final class DashboardViewController: UIViewController {
     private let serviceConfigs: [(title: String, desc: String, icon: String, sel: Selector?)] = [
         ("Property Tax",             "Manage all property tax",           "house.circle",                 #selector(taxTapped)),
         ("Track Grievance",          "Manage all property grievances",    "doc.text.magnifyingglass",     #selector(grievanceTapped)),
-        ("ARV Change History",       "Manage all ARV change history",     "clock.arrow.circlepath",       nil),
+        ("ARV Change History",       "Manage all ARV change history",     "clock.arrow.circlepath",       #selector(arvHistoryTapped)),
         ("Property Tax Assessment",  "Manage all property assessments",   "chart.bar.doc.horizontal",     nil),
         ("Mutation",                 "Manage name transfer and mutation", "arrow.left.arrow.right.circle",nil),
         ("Water & Sewerage",         "Manage water and sewerage services","drop.circle",                  nil),
@@ -335,7 +351,17 @@ final class DashboardViewController: UIViewController {
                 let idx = i + j
                 if idx < serviceConfigs.count {
                     let cfg = serviceConfigs[idx]
-                    cells.append(buildServiceCard(title: cfg.title, desc: cfg.desc, icon: cfg.icon, selector: cfg.sel))
+                    let card = buildServiceCard(title: cfg.title, desc: cfg.desc, icon: cfg.icon, selector: cfg.sel)
+                    switch idx {
+                    case 0: propertyTaxCardView = card
+                    case 1: grievanceCardView = card
+                    case 2: arvHistoryCardView = card
+                    case 3: propertyTaxAssessmentCardView = card
+                    case 4: mutationCardView = card
+                    case 5: waterSewerageCardView = card
+                    default: break
+                    }
+                    cells.append(card)
                 } else {
                     let spacer = UIView(); cells.append(spacer)
                 }
@@ -468,6 +494,62 @@ final class DashboardViewController: UIViewController {
     @objc private func searchPropertyTapped() { viewModel.didTapSearchProperty() }
     @objc private func taxTapped()            { viewModel.didTapPropertyTax() }
     @objc private func grievanceTapped()      { viewModel.didTapTrackGrievance() }
+    @objc private func arvHistoryTapped()     { viewModel.didTapArvChangeHistory() }
+
+    // MARK: - Tour guide (first-run coach mark, see lib/tour_guides/dashboard_tour.dart)
+
+    private func presentTourIfNeeded() {
+        guard !didPresentTour, !UserDefaultsService.shared.hasTourBeenSeen(.dashboard) else { return }
+        guard let propertyTaxCardView, let grievanceCardView, let arvHistoryCardView,
+              let propertyTaxAssessmentCardView, let mutationCardView,
+              let waterSewerageCardView, let bottomBarView else { return }
+        didPresentTour = true
+
+        var steps: [TourStep] = []
+        if let adminCardView, !adminCardView.isHidden {
+            steps.append(TourStep(
+                target: adminCardView,
+                icon: "building.2.crop.circle",
+                title: "Search New Property",
+                description: "Admin users can use this option to search and add more properties to their list before proceeding with further services.",
+                edge: .bottom
+            ))
+        }
+        steps.append(contentsOf: [
+            TourStep(target: propertyTaxCardView, icon: "house.circle",
+                     title: "Property Tax",
+                     description: "Use this option to view and manage your property tax related services.",
+                     edge: .bottom),
+            TourStep(target: grievanceCardView, icon: "doc.text.magnifyingglass",
+                     title: "Track Grievance",
+                     description: "Use this section to review grievance requests and track their current status.",
+                     edge: .bottom),
+            TourStep(target: arvHistoryCardView, icon: "clock.arrow.circlepath",
+                     title: "ARV Change History",
+                     description: "Use this option to review previous ARV change history records related to your property services.",
+                     edge: .bottom),
+            TourStep(target: propertyTaxAssessmentCardView, icon: "chart.bar.doc.horizontal",
+                     title: "Property Tax Assessment",
+                     description: "Use this option to access property tax assessment services and related details.",
+                     edge: .top),
+            TourStep(target: mutationCardView, icon: "arrow.left.arrow.right.circle",
+                     title: "Mutation",
+                     description: "Use this option for property name transfer and mutation related services when available.",
+                     edge: .top),
+            TourStep(target: waterSewerageCardView, icon: "drop.circle",
+                     title: "Water And Sewerage",
+                     description: "Use this section to access water and sewerage related services provided in the application.",
+                     edge: .top),
+            TourStep(target: bottomBarView, icon: "arrow.left.arrow.right",
+                     title: "Bottom Navigation",
+                     description: "Use the bottom navigation bar to move between Home, Transaction History, and Account sections at any time.",
+                     edge: .top),
+        ])
+
+        TourCoachMarkView.present(steps: steps) {
+            UserDefaultsService.shared.markTourSeen(.dashboard)
+        }
+    }
 }
 
 // MARK: - PaymentStatusSlideView

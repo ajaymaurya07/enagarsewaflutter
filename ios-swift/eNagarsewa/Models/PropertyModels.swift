@@ -49,6 +49,10 @@ struct MohallaDataResponse: Decodable {
     let data: [MohallaData]
 }
 
+struct PropertyIdBody: Encodable {
+    let propertyId: String
+}
+
 // MARK: - Property search
 
 struct PropertySearchRequest: Encodable {

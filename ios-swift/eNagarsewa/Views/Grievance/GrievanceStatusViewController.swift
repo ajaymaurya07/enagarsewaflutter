@@ -25,10 +25,41 @@ final class GrievanceStatusViewController: UIViewController, UITableViewDataSour
         view.addSubview(tableView); view.addSubview(activityIndicator)
         tableView.pinToEdges(of: view); activityIndicator.center(in: view)
 
-        viewModel.$grievances.receive(on: DispatchQueue.main).sink { [weak self] _ in self?.tableView.reloadData() }.store(in: &cancellables)
+        viewModel.$grievances.receive(on: DispatchQueue.main).sink { [weak self] grievances in
+            guard let self else { return }
+            self.tableView.reloadData()
+            if !grievances.isEmpty {
+                DispatchQueue.main.async { self.presentTourIfNeeded() }
+            }
+        }.store(in: &cancellables)
         viewModel.$isLoading.receive(on: DispatchQueue.main).sink { [weak self] l in l ? self?.activityIndicator.startAnimating() : self?.activityIndicator.stopAnimating() }.store(in: &cancellables)
         viewModel.$errorMessage.receive(on: DispatchQueue.main).sink { [weak self] msg in if let msg { self?.showAlert(message: msg) } }.store(in: &cancellables)
         viewModel.onViewAppear()
+    }
+
+    private var didPresentTour = false
+
+    // MARK: - Tour guide (first-run coach mark, see lib/tour_guides/grievance_status_tour.dart)
+
+    private func presentTourIfNeeded() {
+        guard !didPresentTour, !UserDefaultsService.shared.hasTourBeenSeen(.grievanceStatus) else { return }
+        guard let cell = tableView.cellForRow(at: IndexPath(row: 0, section: 0)) as? GrievanceCell else { return }
+        didPresentTour = true
+
+        let steps: [TourStep] = [
+            TourStep(target: cell.cardView, icon: "doc.text",
+                     title: "Grievance Card",
+                     description: "This card shows your grievance number, category, sub-category, and updated date. Tap it to open full grievance details.",
+                     edge: .bottom),
+            TourStep(target: cell.statusChipView, icon: "hourglass",
+                     title: "Current Status",
+                     description: "Use this badge to quickly check the latest status of your grievance request.",
+                     edge: .bottom),
+        ]
+
+        TourCoachMarkView.present(steps: steps) {
+            UserDefaultsService.shared.markTourSeen(.grievanceStatus)
+        }
     }
 
     func tableView(_ tv: UITableView, numberOfRowsInSection s: Int) -> Int { viewModel.grievances.count }
@@ -48,6 +79,10 @@ final class GrievanceCell: UITableViewCell {
     private let categoryLabel = UILabel()
     private let statusLabel  = UILabel()
     private let dateLabel    = UILabel()
+
+    /// Exposed for the first-run tour guide to spotlight this cell/its status chip.
+    var cardView: UIView { contentView }
+    var statusChipView: UIView { statusLabel }
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)

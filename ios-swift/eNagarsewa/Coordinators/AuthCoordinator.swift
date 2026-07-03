@@ -28,10 +28,12 @@ final class AuthCoordinator: Coordinator {
     }
 
     func showSignUp() {
-        let vm = SignUpViewModel(
-            onSignUpSuccess: { [weak self] in self?.showLogin() }
-        )
-        let vc = SignUpViewController(viewModel: vm)
+        // Routes to the new citizen self-registration flow (matches Flutter's
+        // `login_screen.dart`, which now pushes `SignUp02Screen` instead of the
+        // old `signup_screen.dart`). The original SignUpViewModel/ViewController
+        // are left in place, untouched, just no longer reachable from here.
+        let vm = SignUp02ViewModel()
+        let vc = SignUp02ViewController(viewModel: vm)
         navigationController.pushViewController(vc, animated: true)
     }
 

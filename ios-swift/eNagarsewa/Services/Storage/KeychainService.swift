@@ -31,10 +31,21 @@ final class KeychainService {
     func savePayuTxnId(_ value: String)      { save(key: .payuTxnId, value: value) }
     func saveAppAttestKeyId(_ value: String) { save(key: .appAttestKeyId, value: value) }
 
+    /// Matches Flutter's `StorageService.clearPayuMobileTransactionId()` — called once a PayU
+    /// transaction has been successfully cross-verified against the server.
+    func clearPayuTxnId() { delete(key: .payuTxnId) }
+    func clearSbiTxnId()  { delete(key: .sbiTxnId) }
+
     /// Clears remembered credentials when "Remember me" is unchecked — matches Flutter clearRememberMeCredentials().
     func clearRememberMe() {
         delete(key: .rememberMeEmail)
         delete(key: .rememberMePass)
+    }
+
+    /// Deletes the cached integrity token — matches Flutter StorageService.clearIntegrityToken()
+    /// (uses delete rather than writing an empty string, so the cache-check `!= nil` stays correct).
+    func clearIntegrityToken() {
+        delete(key: .integrityToken)
     }
 
     func clearAuthTokens() {

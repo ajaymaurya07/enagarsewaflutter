@@ -15,6 +15,7 @@ final class TrackGrievanceViewController: UIViewController {
     private lazy var numberField = UITextField.styledTextField(placeholder: "Enter grievance number")
     private lazy var trackButton = UIButton.primaryButton(title: "Track")
     private let activityIndicator = UIActivityIndicatorView(style: .medium)
+    private var didPresentTour = false
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -48,5 +49,36 @@ final class TrackGrievanceViewController: UIViewController {
         view.endEditing(true)
         viewModel.grievanceNumber = numberField.text ?? ""
         viewModel.track()
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        presentTourIfNeeded()
+    }
+
+    // MARK: - Tour guide (first-run coach mark, see lib/tour_guides/track_grievance_tour.dart)
+    // Note: Flutter's TrackGrievanceScreen is a chooser with "Apply Now" and
+    // "Track Status" cards that navigate elsewhere; this native screen instead
+    // tracks a grievance inline by number, so the steps are adapted to the
+    // number field and Track button rather than two navigation cards.
+
+    private func presentTourIfNeeded() {
+        guard !didPresentTour, !UserDefaultsService.shared.hasTourBeenSeen(.trackGrievance) else { return }
+        didPresentTour = true
+
+        let steps: [TourStep] = [
+            TourStep(target: numberField, icon: "number",
+                     title: "Grievance Number",
+                     description: "Enter the grievance number you received when the request was raised.",
+                     edge: .bottom),
+            TourStep(target: trackButton, icon: "location.magnifyingglass",
+                     title: "Track Status",
+                     description: "Use this option to check grievance details and track your request.",
+                     edge: .top),
+        ]
+
+        TourCoachMarkView.present(steps: steps) {
+            UserDefaultsService.shared.markTourSeen(.trackGrievance)
+        }
     }
 }

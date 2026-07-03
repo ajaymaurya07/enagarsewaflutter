@@ -612,6 +612,14 @@ final class ENSSelectorTile: UIView {
         valueLabel.textColor = UIColor(red: 0.067, green: 0.067, blue: 0.067, alpha: 1)
     }
 
+    /// Restores the placeholder appearance (e.g. after a dependent selection is cleared).
+    func reset(placeholder: String) {
+        currentValue = nil
+        valueLabel.text = placeholder
+        valueLabel.font = UIFont(name: "Poppins-Regular", size: 13) ?? .systemFont(ofSize: 13)
+        valueLabel.textColor = UIColor(red: 0.620, green: 0.620, blue: 0.620, alpha: 1)
+    }
+
     func startLoading() {
         spinner.startAnimating()
         chevron.isHidden = true

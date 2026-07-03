@@ -12,6 +12,7 @@ final class TransactionHistoryViewController: UIViewController {
     private let errorView   = UIView()
     private let emptyView   = UIView()
     private weak var errorLabel: UILabel?
+    private var didPresentTour = false
 
     init(viewModel: TransactionHistoryViewModel, coordinator: MainCoordinator) {
         self.viewModel   = viewModel
@@ -152,6 +153,9 @@ final class TransactionHistoryViewController: UIViewController {
             self.emptyView.isHidden  = !empty
             self.tableView.isHidden  = empty
             self.tableView.reloadData()
+            if !empty {
+                DispatchQueue.main.async { self.presentTourIfNeeded() }
+            }
         }.store(in: &cancellables)
 
         viewModel.$errorMessage.receive(on: DispatchQueue.main).sink { [weak self] msg in
@@ -166,6 +170,29 @@ final class TransactionHistoryViewController: UIViewController {
 
     @objc private func refreshPulled() { viewModel.onViewAppear() }
     @objc private func retryTapped()   { viewModel.onViewAppear() }
+
+    // MARK: - Tour guide (first-run coach mark, see lib/tour_guides/transaction_history_tour.dart)
+
+    private func presentTourIfNeeded() {
+        guard !didPresentTour, !UserDefaultsService.shared.hasTourBeenSeen(.transactionHistory) else { return }
+        guard let cell = tableView.cellForRow(at: IndexPath(row: 0, section: 0)) as? TxnCardCell else { return }
+        didPresentTour = true
+
+        let steps: [TourStep] = [
+            TourStep(target: cell.cardView, icon: "doc.text",
+                     title: "Transaction Card",
+                     description: "This card shows your payment amount, transaction ID, date, and status. Tap it to open the full receipt details.",
+                     edge: .bottom),
+            TourStep(target: cell.badgeView, icon: "checkmark.seal",
+                     title: "Payment Status",
+                     description: "Use this badge to quickly check whether the transaction is successful, pending, or failed.",
+                     edge: .bottom),
+        ]
+
+        TourCoachMarkView.present(steps: steps) {
+            UserDefaultsService.shared.markTourSeen(.transactionHistory)
+        }
+    }
 }
 
 extension TransactionHistoryViewController: UITableViewDataSource, UITableViewDelegate {
@@ -201,6 +228,10 @@ final class TxnCardCell: UITableViewCell {
     private let badgeLabel  = UILabel()
     private let txnIdLabel  = UILabel()
     private let dateLabel   = UILabel()
+
+    /// Exposed for the first-run tour guide to spotlight this cell's card/badge.
+    var cardView: UIView { card }
+    var badgeView: UIView { badge }
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)

@@ -8,6 +8,12 @@ final class PropertySelectionViewController: UIViewController {
     private let viewModel: PropertySelectionViewModel
     private var cancellables = Set<AnyCancellable>()
 
+    // Refs kept for the first-run tour guide (see lib/tour_guides/property_selection_tour.dart)
+    private weak var navBarView: UIView?
+    private weak var firstCardView: UIView?
+    private weak var firstSelectButtonView: UIView?
+    private var didPresentTour = false
+
     // Loading overlay (matches Flutter's Stack + Container(color: Colors.black26))
     private let loadingOverlay: UIView = {
         let v = UIView()
@@ -39,9 +45,15 @@ final class PropertySelectionViewController: UIViewController {
         bindViewModel()
     }
 
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        presentTourIfNeeded()
+    }
+
     private func setupLayout() {
         // Nav bar
         let navRow = makeNavBar()
+        navBarView = navRow
 
         // List
         if viewModel.properties.isEmpty {
@@ -69,7 +81,9 @@ final class PropertySelectionViewController: UIViewController {
 
             var cardViews: [UIView] = []
             for (i, property) in viewModel.properties.enumerated() {
-                cardViews.append(makePropertyCard(property, index: i))
+                let card = makePropertyCard(property, index: i)
+                if i == 0 { firstCardView = card }
+                cardViews.append(card)
             }
 
             let cardsStack = UIStackView(arrangedSubviews: cardViews)
@@ -183,6 +197,7 @@ final class PropertySelectionViewController: UIViewController {
         selectBtn.translatesAutoresizingMaskIntoConstraints = false
         selectBtn.heightAnchor.constraint(equalToConstant: 36).isActive = true
         selectBtn.setContentCompressionResistancePriority(.required, for: .horizontal)
+        if index == 0 { firstSelectButtonView = selectBtn }
 
         let headerRow = UIStackView(arrangedSubviews: [pidLabel, selectBtn])
         headerRow.axis = .horizontal
@@ -286,6 +301,34 @@ final class PropertySelectionViewController: UIViewController {
 
     func showSnackBar(_ message: String, isError: Bool = true) {
         ENSSnackbar.show(in: view, message: message, isError: isError)
+    }
+
+    // MARK: - Tour guide (first-run coach mark, see lib/tour_guides/property_selection_tour.dart)
+
+    private func presentTourIfNeeded() {
+        guard !didPresentTour, !UserDefaultsService.shared.hasTourBeenSeen(.propertySelection) else { return }
+        guard let navBarView, let firstCardView, let firstSelectButtonView else { return }
+        didPresentTour = true
+
+        let steps: [TourStep] = [
+            TourStep(target: navBarView, icon: "house.and.flag",
+                     title: "Select Property",
+                     description: "This screen displays the list of properties matched to your search. Please review the available property cards and select the correct property to proceed.",
+                     shape: .roundedRect(radius: 14),
+                     edge: .bottom),
+            TourStep(target: firstCardView, icon: "doc.text",
+                     title: "Check Property Details",
+                     description: "Each property card includes key details such as the PID, owner name, father or husband name, house number, and address to help you identify the correct property.",
+                     edge: .bottom),
+            TourStep(target: firstSelectButtonView, icon: "checkmark.circle",
+                     title: "Select And Verify",
+                     description: "Tap Select on the appropriate property card to receive an OTP on the registered mobile number. After successful OTP verification, the selected property will be saved to your account.",
+                     edge: .bottom),
+        ]
+
+        TourCoachMarkView.present(steps: steps) {
+            UserDefaultsService.shared.markTourSeen(.propertySelection)
+        }
     }
 }
 

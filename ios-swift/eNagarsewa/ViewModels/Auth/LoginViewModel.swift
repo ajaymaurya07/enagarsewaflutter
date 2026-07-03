@@ -29,7 +29,8 @@ final class LoginViewModel: ObservableObject {
         prefillRememberedCredentials()
     }
 
-    // MARK: - Login flow (challenge-response)
+    // MARK: - Login flow (secure double-hash challenge-response, matches Flutter secureLogin)
+    // hash = SHA512( SHA512(password) + challenge + timestamp + nonce )
 
     func login() {
         guard validate() else { return }
@@ -39,16 +40,29 @@ final class LoginViewModel: ObservableObject {
         Task {
             defer { isLoading = false }
             do {
+                let deviceId = DeviceSecurityService.shared.deviceId
+
                 // Step 1: get challenge
-                let challengeResp = try await api.getChallenge(email: email)
-                // Step 2: hash password with challenge (SHA-512)
-                let hashed = sha512(password + challengeResp.challenge)
+                let challengeResp = try await api.getChallenge(username: email, deviceId: deviceId)
+                guard challengeResp.status, let challengeData = challengeResp.data else {
+                    errorMessage = challengeResp.message ?? "Challenge generation failed"
+                    return
+                }
+
+                // Step 2: build the double-hash
+                let hashedPassword = sha512(password)
+                let nonce = generateNonce(16)
+                let combined = hashedPassword + challengeData.challenge + challengeData.timestamp + nonce
+                let finalHash = sha512(combined)
+
                 // Step 3: submit login
                 let loginResp = try await api.login(LoginRequest(
-                    email: email,
-                    hashedPassword: hashed,
-                    fcmToken: UserDefaults.standard.fcmToken ?? "",
-                    deviceId: DeviceSecurityService.shared.deviceId
+                    username: email,
+                    deviceId: deviceId,
+                    challengeId: challengeData.challengeId,
+                    timestamp: challengeData.timestamp,
+                    nonce: nonce,
+                    hash: finalHash
                 ))
                 guard loginResp.success, let data = loginResp.data else {
                     errorMessage = loginResp.message
@@ -100,5 +114,11 @@ final class LoginViewModel: ObservableObject {
     private func sha512(_ input: String) -> String {
         let hash = SHA512.hash(data: Data(input.utf8))
         return hash.compactMap { String(format: "%02x", $0) }.joined()
+    }
+
+    /// Matches Flutter's `_generateNonce`: `length` random lowercase-hex characters.
+    private func generateNonce(_ length: Int) -> String {
+        let chars = Array("0123456789abcdef")
+        return String((0..<length).map { _ in chars[Int.random(in: 0..<chars.count)] })
     }
 }

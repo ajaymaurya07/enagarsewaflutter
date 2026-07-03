@@ -65,10 +65,16 @@ private enum DefaultsKey: String {
 }
 
 enum TourKey: String {
-    case dashboard          = "tour_dashboard"
-    case applyGrievance     = "tour_apply_grievance"
-    case transactionHistory = "tour_transaction_history"
-    case propertyTax        = "tour_property_tax"
-    case paymentHistory     = "tour_payment_history"
-    case searchProperty     = "tour_search_property"
+    case dashboard              = "tour_dashboard"
+    case applyGrievance         = "tour_apply_grievance"
+    case transactionHistory     = "tour_transaction_history"
+    case propertyTax            = "tour_property_tax"
+    case paymentDetails         = "tour_payment_details"
+    case searchProperty         = "tour_search_property"
+    case account                = "tour_account"
+    case grievanceStatus        = "tour_grievance_status"
+    case propertySelection      = "tour_property_selection"
+    case propertyTaxAssessment  = "tour_property_tax_assessment"
+    case trackGrievance         = "tour_track_grievance"
+    case transactionDetails     = "tour_transaction_details"
 }

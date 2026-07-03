@@ -43,6 +43,15 @@ enum APIEndpoint {
     case getNonce
     case verifyIntegrity
 
+    // MARK: - ARV Change History
+    case arvChangeHistory
+
+    // MARK: - Sign Up (citizen self-registration, Step 2)
+    case signupCaptcha
+    case signupCities(ulbType: String)
+    case registerCitizen
+    case verifyCitizenOtp
+
     // MARK: - Computed URL
     var url: URL {
         URL(string: AppConstants.baseURL + path)!
@@ -84,6 +93,13 @@ enum APIEndpoint {
 
         case .getNonce:                  return "api/Play_integrity/get_nonce"
         case .verifyIntegrity:           return "api/house_tax/verify-integrity"
+
+        case .arvChangeHistory:          return "api/house_tax/getArvChangeHistory"
+
+        case .signupCaptcha:             return "api/Signup_citizen/captcha"
+        case .signupCities(let type):    return "api/Signup_citizen/cities?type=\(type)"
+        case .registerCitizen:           return "api/Signup_citizen/register"
+        case .verifyCitizenOtp:          return "api/Signup_citizen/verify_otp"
         }
     }
 }

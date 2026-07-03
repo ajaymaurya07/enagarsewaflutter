@@ -54,6 +54,13 @@ final class ApplyGrievanceViewController: UIViewController {
     private lazy var verifyOtpButton: UIButton = { let b = UIButton.primaryButton(title: "Verify OTP"); b.isHidden = true; return b }()
     private let activityIndicator = UIActivityIndicatorView(style: .medium)
 
+    // Section container refs kept for the first-run tour guide
+    // (see lib/tour_guides/apply_grievance_tour.dart)
+    private weak var grievanceSectionView: UIView?
+    private weak var personalSectionView: UIView?
+    private weak var photoSectionView: UIView?
+    private var didPresentTour = false
+
     override func viewDidLoad() {
         super.viewDidLoad()
         title = "Apply Grievance"
@@ -69,6 +76,45 @@ final class ApplyGrievanceViewController: UIViewController {
         verifyOtpButton.addTarget(self, action: #selector(verifyOtpTapped), for: .touchUpInside)
     }
 
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        presentTourIfNeeded()
+    }
+
+    // MARK: - Tour guide (first-run coach mark, see lib/tour_guides/apply_grievance_tour.dart)
+    // Note: the Flutter tour also spotlights a "Select Property" and a
+    // "Location Details" (ULB/Zone/Ward/Mohalla) section; this native screen
+    // doesn't yet have that UI, so those two steps are omitted here.
+
+    private func presentTourIfNeeded() {
+        guard !didPresentTour, !UserDefaultsService.shared.hasTourBeenSeen(.applyGrievance) else { return }
+        guard let grievanceSectionView, let personalSectionView, let photoSectionView else { return }
+        didPresentTour = true
+
+        let steps: [TourStep] = [
+            TourStep(target: grievanceSectionView, icon: "exclamationmark.bubble",
+                     title: "Grievance Details",
+                     description: "Choose a category, then a sub-category, and describe your grievance clearly.",
+                     edge: .bottom),
+            TourStep(target: personalSectionView, icon: "person",
+                     title: "Personal Information",
+                     description: "Enter the mobile number linked to this grievance so we can reach you with updates.",
+                     edge: .bottom),
+            TourStep(target: photoSectionView, icon: "camera",
+                     title: "Upload Photo (Optional)",
+                     description: "Attach a photo of the issue from your camera or gallery. Max size: 200 KB.",
+                     edge: .top),
+            TourStep(target: submitButton, icon: "paperplane",
+                     title: "Submit Grievance",
+                     description: "Once all fields are filled, tap here to submit. You will receive an OTP on your mobile to confirm.",
+                     edge: .top),
+        ]
+
+        TourCoachMarkView.present(steps: steps) {
+            UserDefaultsService.shared.markTourSeen(.applyGrievance)
+        }
+    }
+
     private func setupLayout() {
         activityIndicator.hidesWhenStopped = true; activityIndicator.translatesAutoresizingMaskIntoConstraints = false
         let scroll = UIScrollView(); let content = UIView()
@@ -76,12 +122,26 @@ final class ApplyGrievanceViewController: UIViewController {
         view.addSubview(scroll); scroll.addSubview(content); scroll.pinToEdges(of: view)
         NSLayoutConstraint.activate([content.topAnchor.constraint(equalTo: scroll.topAnchor), content.leadingAnchor.constraint(equalTo: scroll.leadingAnchor), content.trailingAnchor.constraint(equalTo: scroll.trailingAnchor), content.bottomAnchor.constraint(equalTo: scroll.bottomAnchor), content.widthAnchor.constraint(equalTo: scroll.widthAnchor)])
 
-        let stack = UIStackView(arrangedSubviews: [
+        let grievanceSection = UIStackView(arrangedSubviews: [
             makeLabel("Category"), categoryButton, makeLabel("Sub-Category"), subCategoryButton,
-            makeLabel("Description"), descriptionField, makeLabel("Mobile Number"), mobileField,
-            addImageButton, imageView, submitButton, otpField, verifyOtpButton, activityIndicator
+            makeLabel("Description"), descriptionField,
         ])
-        stack.axis = .vertical; stack.spacing = 12; stack.alignment = .fill
+        grievanceSection.axis = .vertical; grievanceSection.spacing = 12
+        grievanceSectionView = grievanceSection
+
+        let personalSection = UIStackView(arrangedSubviews: [makeLabel("Mobile Number"), mobileField])
+        personalSection.axis = .vertical; personalSection.spacing = 12
+        personalSectionView = personalSection
+
+        let photoSection = UIStackView(arrangedSubviews: [addImageButton, imageView])
+        photoSection.axis = .vertical; photoSection.spacing = 12
+        photoSectionView = photoSection
+
+        let stack = UIStackView(arrangedSubviews: [
+            grievanceSection, personalSection, photoSection,
+            submitButton, otpField, verifyOtpButton, activityIndicator
+        ])
+        stack.axis = .vertical; stack.spacing = 20; stack.alignment = .fill
         stack.translatesAutoresizingMaskIntoConstraints = false; content.addSubview(stack)
         NSLayoutConstraint.activate([
             descriptionField.heightAnchor.constraint(equalToConstant: 100),

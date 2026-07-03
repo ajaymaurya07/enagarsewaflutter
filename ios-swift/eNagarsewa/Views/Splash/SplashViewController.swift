@@ -11,6 +11,9 @@ final class SplashViewController: UIViewController {
     init(viewModel: SplashViewModel) {
         self.viewModel = viewModel
         super.init(nibName: nil, bundle: nil)
+        self.viewModel.onUpdateRequired = { [weak self] info in
+            self?.presentUpdateSheet(info)
+        }
     }
     required init?(coder: NSCoder) { fatalError() }
 
@@ -106,6 +109,13 @@ final class SplashViewController: UIViewController {
         viewModel.runStartupChecks()
     }
 
+    // MARK: - Force update (matches Flutter's non-dismissible update bottom sheet)
+
+    private func presentUpdateSheet(_ info: AppUpdateService.UpdateInfo) {
+        let sheet = UpdateSheetViewController(updateInfo: info)
+        present(sheet, animated: true)
+    }
+
     // MARK: - Layout
 
     private func setupUI() {
@@ -173,9 +183,10 @@ final class SplashViewController: UIViewController {
 @MainActor
 final class SplashViewModel: ObservableObject {
 
-    private let security  = DeviceSecurityService.shared
-    private let integrity = IntegrityService.shared
-    private let storage   = UserDefaultsService.shared
+    private let security      = DeviceSecurityService.shared
+    private let integrity     = IntegrityService.shared
+    private let storage       = UserDefaultsService.shared
+    private let updateService = AppUpdateService.shared
 
     let onSecurityFailed:            () -> Void
     let onNoConnection:              () -> Void
@@ -184,6 +195,12 @@ final class SplashViewModel: ObservableObject {
     let onAuthenticatedWithProperty: () -> Void
     /// Logged-in but property not verified → go to SearchProperty
     let onAuthenticatedNoProperty:   () -> Void
+
+    /// Fired when the App Store has a newer published version. Set by SplashViewController
+    /// (not passed through AppCoordinator, since it presents a sheet over splash itself rather
+    /// than navigating anywhere) — matches Flutter's `_showUpdateSheet()`, which also blocks the
+    /// startup flow in place instead of routing elsewhere.
+    var onUpdateRequired: ((AppUpdateService.UpdateInfo) -> Void)?
 
     init(onSecurityFailed:            @escaping () -> Void,
          onNoConnection:              @escaping () -> Void,
@@ -201,6 +218,16 @@ final class SplashViewModel: ObservableObject {
         Task {
             // Minimum 3-second splash (matches Flutter Future.delayed 3s)
             async let minWait: Void = Task.sleep(nanoseconds: 3_000_000_000)
+
+            // Mandatory App Store update check — mirrors Flutter's _checkForUpdate() +
+            // _showUpdateSheet(). A required update blocks the flow entirely: Dart never falls
+            // through to the checks below once the sheet is shown (the splash coroutine returns
+            // after the sheet closes), so we return here too rather than firing any callback.
+            if let updateInfo = await updateService.checkForUpdate() {
+                _ = try? await minWait
+                onUpdateRequired?(updateInfo)
+                return
+            }
 
             // Security gate — jailbreak / tamper
             if security.isJailbroken || security.isTamperingDetected {

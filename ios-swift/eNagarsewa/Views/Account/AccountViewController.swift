@@ -6,6 +6,13 @@ final class AccountViewController: UIViewController {
     private let viewModel: AccountViewModel
     private var cancellables = Set<AnyCancellable>()
 
+    // Refs kept for the first-run tour guide (see lib/tour_guides/account_tour.dart)
+    private weak var profileHeaderView: UIView?
+    private weak var userIdCardView: UIView?
+    private weak var userTypeCardView: UIView?
+    private weak var logoutButtonView: UIView?
+    private var didPresentTour = false
+
     init(viewModel: AccountViewModel) {
         self.viewModel = viewModel
         super.init(nibName: nil, bundle: nil)
@@ -17,6 +24,11 @@ final class AccountViewController: UIViewController {
         title = "My Account"
         view.backgroundColor = .appBackground
         setupLayout()
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        presentTourIfNeeded()
     }
 
     private func setupLayout() {
@@ -70,17 +82,21 @@ final class AccountViewController: UIViewController {
 
         let headerStack = UIStackView(arrangedSubviews: [avatarBg, typeL])
         headerStack.axis = .vertical; headerStack.spacing = 16; headerStack.alignment = .center
+        profileHeaderView = headerStack
 
         // MARK: Info cards
         let emailCard = buildInfoCard(icon: "envelope",
                                       label: "User ID",
                                       value: email)
+        userIdCardView = emailCard
         let typeCard  = buildInfoCard(icon: "shield.lefthalf.filled",
                                       label: "User Type",
                                       value: userType)
+        userTypeCardView = typeCard
 
         // MARK: Logout button
         let logoutBtn = buildLogoutButton()
+        logoutButtonView = logoutBtn
 
         // MARK: Main stack
         let mainStack = UIStackView(arrangedSubviews: [headerStack, emailCard, typeCard, logoutBtn])
@@ -186,6 +202,38 @@ final class AccountViewController: UIViewController {
                          message: "Are you sure you want to logout?",
                          confirmTitle: "Logout") { [weak self] in
             self?.viewModel.logout()
+        }
+    }
+
+    // MARK: - Tour guide (first-run coach mark, see lib/tour_guides/account_tour.dart)
+
+    private func presentTourIfNeeded() {
+        guard !didPresentTour, !UserDefaultsService.shared.hasTourBeenSeen(.account) else { return }
+        guard let profileHeaderView, let userIdCardView, let userTypeCardView, let logoutButtonView else { return }
+        didPresentTour = true
+
+        let steps: [TourStep] = [
+            TourStep(target: profileHeaderView, icon: "person.crop.circle",
+                     title: "Profile Overview",
+                     description: "This section shows your account profile and the role currently signed in to the app.",
+                     shape: .roundedRect(radius: 18),
+                     edge: .bottom),
+            TourStep(target: userIdCardView, icon: "envelope",
+                     title: "User Id",
+                     description: "This card displays the email or user ID currently linked with your account.",
+                     edge: .bottom),
+            TourStep(target: userTypeCardView, icon: "shield.lefthalf.filled",
+                     title: "User Type",
+                     description: "This card shows the account type or access role you are using in the app.",
+                     edge: .top),
+            TourStep(target: logoutButtonView, icon: "rectangle.portrait.and.arrow.right",
+                     title: "Logout",
+                     description: "Use this button to safely log out from the app and return to the login screen.",
+                     edge: .top),
+        ]
+
+        TourCoachMarkView.present(steps: steps) {
+            UserDefaultsService.shared.markTourSeen(.account)
         }
     }
 }

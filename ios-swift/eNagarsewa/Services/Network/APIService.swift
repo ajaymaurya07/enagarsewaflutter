@@ -12,9 +12,10 @@ final class APIService {
 
     // MARK: - Auth
 
-    func getChallenge(email: String) async throws -> ChallengeResponse {
+    func getChallenge(username: String, deviceId: String) async throws -> ChallengeResponse {
         try await perform(.getChallenge, method: .POST,
-                          body: ChallengeRequest(email: email), requiresAuth: false)
+                          body: ChallengeRequest(username: username, deviceId: deviceId),
+                          requiresAuth: false)
     }
 
     func login(_ request: LoginRequest) async throws -> LoginResponse {
@@ -121,18 +122,60 @@ final class APIService {
         try await network.requestMultipart(.getSbiTransactionDetails, fields: fields, requiresAuth: true)
     }
 
-    func getTransactionDetails(txnId: String) async throws -> PayUTransactionDetailsResponse {
-        try await perform(.getTransactionDetails, method: .POST,
-                          body: PayUTransactionDetailsRequest(txnId: txnId))
+    /// Cross-verifies a PayU transaction after the SDK callback fires. Matches Dart's
+    /// `getTransactionDetails`: POST multipart/form-data with field `mobile_transaction_id`.
+    func getTransactionDetails(mobileTransactionId: String) async throws -> PayUTransactionDetailsResponse {
+        try await network.requestMultipart(.getTransactionDetails,
+                                           fields: ["mobile_transaction_id": mobileTransactionId],
+                                           requiresAuth: true)
     }
 
-    func generateHash(_ request: HashRequest) async throws -> HashResponse {
-        try await perform(.generateHash, method: .POST, body: request)
+    /// PayU SDK hash-generation round trip. Matches Dart's `generateHash`: POST
+    /// application/x-www-form-urlencoded with fields `hashName` + `hashString`.
+    func generateHash(hashName: String, hashString: String) async throws -> HashResponse {
+        try await network.requestForm(.generateHash,
+                                      fields: ["hashName": hashName, "hashString": hashString],
+                                      requiresAuth: true)
     }
 
     func getTransactionsByEmail(emailId: String) async throws -> TransactionsByEmailResponse {
         try await perform(.getTransactionsByEmail, method: .POST,
                           body: TransactionsByEmailRequest(emailId: emailId))
+    }
+
+    // MARK: - ARV Change History
+
+    func getArvChangeHistory(propertyId: String) async throws -> ArvChangeHistoryResponse {
+        try await perform(.arvChangeHistory, method: .POST,
+                          body: PropertyIdBody(propertyId: propertyId))
+    }
+
+    // MARK: - Sign Up (Step 2) — citizen self-registration
+
+    func getSignupCaptcha() async throws -> CaptchaResponse {
+        let wrapper: SignupCaptchaEnvelope = try await perform(.signupCaptcha, method: .GET, requiresAuth: false)
+        guard wrapper.success, let data = wrapper.data else {
+            throw NetworkError.unknown(NSError(domain: "APIService", code: -1,
+                userInfo: [NSLocalizedDescriptionKey: wrapper.message ?? "Failed to load captcha"]))
+        }
+        return data
+    }
+
+    func getSignupCities(ulbType: String) async throws -> [SignupCity] {
+        let wrapper: SignupCitiesEnvelope = try await perform(.signupCities(ulbType: ulbType), method: .GET, requiresAuth: false)
+        guard wrapper.success, let data = wrapper.data else {
+            throw NetworkError.unknown(NSError(domain: "APIService", code: -1,
+                userInfo: [NSLocalizedDescriptionKey: wrapper.message ?? "Failed to load cities"]))
+        }
+        return data
+    }
+
+    func registerCitizen(_ request: CitizenRegisterRequest) async throws -> CitizenRegisterResponse {
+        try await perform(.registerCitizen, method: .POST, body: request, requiresAuth: false)
+    }
+
+    func verifyCitizenOtp(_ request: CitizenVerifyOtpRequest) async throws -> CitizenVerifyOtpResponse {
+        try await perform(.verifyCitizenOtp, method: .POST, body: request, requiresAuth: false)
     }
 
     // MARK: - Core perform wrappers

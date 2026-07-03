@@ -63,7 +63,6 @@ final class AuthManager: ObservableObject {
                 throw NetworkError.unauthorized
             }
             keychain.saveAccessToken(data.accessToken)
-            keychain.saveRefreshToken(data.refreshToken)
         } catch {
             await logout()
             throw error

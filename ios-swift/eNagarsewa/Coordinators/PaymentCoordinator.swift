@@ -53,6 +53,24 @@ final class PaymentCoordinator: Coordinator {
         navigationController.pushViewController(vc, animated: true)
     }
 
+    /// Matches Flutter's `ApplyGrievanceScreen(preselectedPropertyId: widget.propertyId)`
+    /// pushed from the "Apply Grievance" button on Payment Details.
+    func showApplyGrievance() {
+        let vm = ApplyGrievanceViewModel(property: property)
+        let vc = ApplyGrievanceViewController(viewModel: vm, coordinator: self)
+        navigationController.pushViewController(vc, animated: true)
+    }
+
+    /// Matches Flutter's "Payment History" button on Payment Details. Flutter passes the
+    /// already-fetched receipt lists for just this property; the equivalent screen here
+    /// (`PaymentHistoryViewController`) instead fetches all of the user's transactions by email —
+    /// an accepted approximation since that screen isn't part of this workstream.
+    func showPaymentHistory() {
+        let vm = PaymentHistoryViewModel()
+        let vc = PaymentHistoryViewController(viewModel: vm, coordinator: nil)
+        navigationController.pushViewController(vc, animated: true)
+    }
+
     func dismiss() {
         // Pop back to dashboard
         if let dashboard = navigationController.viewControllers
@@ -61,5 +79,12 @@ final class PaymentCoordinator: Coordinator {
         } else {
             navigationController.popToRootViewController(animated: true)
         }
+    }
+}
+
+extension PaymentCoordinator: GrievanceCoordinatorProtocol {
+    /// After a grievance is filed from Payment Details, just pop back to the payment screen.
+    func grievanceSubmitted() {
+        navigationController.popViewController(animated: true)
     }
 }

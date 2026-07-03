@@ -48,6 +48,10 @@ final class SearchPropertyViewController: UIViewController {
         return b
     }()
 
+    // Refs kept for the first-run tour guide (see lib/tour_guides/search_property_tour.dart)
+    private weak var modeChipsContainerView: UIView?
+    private var didPresentTour = false
+
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .white
@@ -56,6 +60,11 @@ final class SearchPropertyViewController: UIViewController {
         viewModel.onViewAppear()
         updateModeChips()
         rebuildFormBody()
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        presentTourIfNeeded()
     }
 
     // MARK: - Layout
@@ -83,6 +92,7 @@ final class SearchPropertyViewController: UIViewController {
 
         // Mode chips
         let chipsContainer = makeModeChipsView()
+        modeChipsContainerView = chipsContainer
 
         // Form card
         formCard.backgroundColor = .white
@@ -486,6 +496,42 @@ final class SearchPropertyViewController: UIViewController {
             s.preferredCornerRadius = 24
         }
         present(sheet, animated: true)
+    }
+
+    // MARK: - Tour guide (first-run coach mark, see lib/tour_guides/search_property_tour.dart)
+    // Note: Flutter re-runs a short 2-step tour every time the search mode tab
+    // is switched (5 separate step sets, one per mode). To keep this native
+    // port simple, a single walkthrough is shown once on first visit covering
+    // the mode tabs, the ULB picker, the current form fields (defaulting to
+    // "By Owner", the initial mode), and the Search button.
+
+    private func presentTourIfNeeded() {
+        guard !didPresentTour, !UserDefaultsService.shared.hasTourBeenSeen(.searchProperty) else { return }
+        guard let modeChipsContainerView else { return }
+        didPresentTour = true
+
+        let steps: [TourStep] = [
+            TourStep(target: modeChipsContainerView, icon: "slider.horizontal.3",
+                     title: "5 Ways to Search",
+                     description: "You can search property in 5 different ways. Each tab shows different input fields. Tap any tab to switch the search mode.",
+                     edge: .bottom),
+            TourStep(target: ulbDropdown, icon: "building.columns",
+                     title: "Select ULB",
+                     description: "Select your Urban Local Body first. This is mandatory for all 5 search options and loads the location data.",
+                     edge: .bottom),
+            TourStep(target: formBodyContainer, icon: "person.text.rectangle",
+                     title: "Owner Search Fields",
+                     description: "Enter Owner Name and Father Name here to search matching properties under that owner profile.",
+                     edge: .bottom),
+            TourStep(target: searchButton, icon: "magnifyingglass",
+                     title: "Search Property",
+                     description: "Once ULB and required fields are filled, tap Search. Matching properties will open on the next screen where you can select and save one.",
+                     edge: .top),
+        ]
+
+        TourCoachMarkView.present(steps: steps) {
+            UserDefaultsService.shared.markTourSeen(.searchProperty)
+        }
     }
 }
 
