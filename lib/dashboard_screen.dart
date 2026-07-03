@@ -16,6 +16,7 @@ import 'services/api_service.dart';
 import 'services/database_service.dart';
 import 'services/notification_helper.dart';
 import 'tour_guides/dashboard_tour.dart';
+import 'arv_change_history_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -569,6 +570,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             Icons.history_outlined,
                             cardWidth,
                             key: _keyArvChangeHistory,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const ArvChangeHistoryScreen(),
+                                ),
+                              );
+                            },
                           ),
                           _buildServiceCard(
                             'Property Tax Assessment',

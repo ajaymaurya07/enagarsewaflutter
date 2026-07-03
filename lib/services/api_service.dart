@@ -612,6 +612,32 @@ class ApiService {
     }
   }
 
+  // Get ARV Change History API
+  static Future<ArvChangeHistoryResponse> getArvChangeHistory(
+    String propertyId,
+  ) async {
+    try {
+      final response = await _makeAuthenticatedRequest(
+        (headers) => _post(
+              Uri.parse(
+                '${AppConstants.baseUrl}api/house_tax/getArvChangeHistory',
+              ),
+              headers: headers,
+              body: jsonEncode({'propertyId': propertyId}),
+            )
+            .timeout(Duration(seconds: AppConstants.networkTimeout)),
+      );
+
+      if (response.statusCode == 200) {
+        return ArvChangeHistoryResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Failed to fetch ARV history: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw _userSafeException(e);
+    }
+  }
+
   // Create Transaction API
   static Future<CreateTransactionResponse> initiateTransaction(
     InitiateTransactionRequest request,
@@ -2684,6 +2710,77 @@ class CitizenVerifyOtpResponse {
       emailOtpRequired: data?['email_otp_required'],
       registrationComplete: data?['registration_complete'],
       enagarMessage: data?['enagar_message'],
+    );
+  }
+}
+
+class ArvChangeHistoryResponse {
+  final bool? success;
+  final int? responseCode;
+  final String? message;
+  final List<ArvChangeHistoryItem>? data;
+
+  ArvChangeHistoryResponse({
+    this.success,
+    this.responseCode,
+    this.message,
+    this.data,
+  });
+
+  factory ArvChangeHistoryResponse.fromJson(Map<String, dynamic> json) {
+    return ArvChangeHistoryResponse(
+      success: json['success'],
+      responseCode: json['responseCode'],
+      message: json['message'],
+      data: json['data'] != null
+          ? (json['data'] as List)
+                .map((i) => ArvChangeHistoryItem.fromJson(i))
+                .toList()
+          : null,
+    );
+  }
+}
+
+class ArvChangeHistoryItem {
+  final int? ulbId;
+  final String? propertyId;
+  final String? ownerName;
+  final String? fatherHusbandName;
+  final String? houseNo;
+  final String? oldPropertyId;
+  final String? address;
+  final num? oldArv;
+  final num? currentArv;
+  final String? ulbLanguage;
+  final String? arvChangeDate;
+
+  ArvChangeHistoryItem({
+    this.ulbId,
+    this.propertyId,
+    this.ownerName,
+    this.fatherHusbandName,
+    this.houseNo,
+    this.oldPropertyId,
+    this.address,
+    this.oldArv,
+    this.currentArv,
+    this.ulbLanguage,
+    this.arvChangeDate,
+  });
+
+  factory ArvChangeHistoryItem.fromJson(Map<String, dynamic> json) {
+    return ArvChangeHistoryItem(
+      ulbId: json['ulbId'],
+      propertyId: json['propertyId']?.toString(),
+      ownerName: json['ownerName']?.toString(),
+      fatherHusbandName: json['fatherHusbandName']?.toString(),
+      houseNo: json['houseNo']?.toString(),
+      oldPropertyId: json['oldPropertyId']?.toString(),
+      address: json['address']?.toString(),
+      oldArv: json['oldArv'],
+      currentArv: json['currentArv'],
+      ulbLanguage: json['ulbLanguage']?.toString(),
+      arvChangeDate: json['arvChangeDate']?.toString(),
     );
   }
 }

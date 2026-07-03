@@ -11,11 +11,9 @@ import 'package:payu_checkoutpro_flutter/payu_checkoutpro_flutter.dart';
 import 'package:payu_checkoutpro_flutter/PayUConstantKeys.dart';
 import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 import 'payment_result_screen.dart';
-import 'payment_grievance_screen.dart';
 import 'payment_history_screen.dart';
 import 'apply_grievance_screen.dart';
 import 'tour_guides/payment_details_tour.dart';
-import 'sbi_payment_screen.dart';
 
 class PaymentDetailsScreen extends StatefulWidget {
   final String propertyId;
@@ -1019,46 +1017,6 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
     );
   }
 
-  Future<void> _handleSbiTransaction({String? customAmount}) async {
-    setState(() => _isLoading = true);
-    try {
-      final request = await _buildTransactionRequest(customAmount: customAmount);
-      final response = await ApiService.createSbiTransaction(request);
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-
-      if (response.status == true && response.data != null) {
-        await StorageService.saveSbiMobileTransactionId(
-          request.mobileTransactionId,
-        );
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => SbiPaymentScreen(sbiData: response.data!),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(response.message ?? 'Failed to initiate SBI payment'),
-          ),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            ApiService.getUserFriendlyErrorMessage(
-              e,
-              fallbackMessage: 'Unable to start SBI payment right now. Please try again.',
-            ),
-          ),
-        ),
-      );
-    }
-  }
 
   Future<void> _startPayuFlow(Transaction? txnData) async {
     if (txnData == null) return;
