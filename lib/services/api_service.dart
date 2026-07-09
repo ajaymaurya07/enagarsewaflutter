@@ -289,6 +289,95 @@ class ApiService {
     }
   }
 
+  // Fetch Property Rebate Types
+  static Future<List<RebateType>> getRebateTypeList() async {
+    try {
+      final response = await _makeAuthenticatedRequest(
+        (headers) => _get(
+              Uri.parse(
+                '${AppConstants.baseUrl}api/house_tax/getRebateTypeList',
+              ),
+              headers: headers,
+            )
+            .timeout(Duration(seconds: AppConstants.networkTimeout)),
+      );
+
+      if (response.statusCode == 200) {
+        final decodedData = json.decode(response.body);
+        if (decodedData['success'] == true && decodedData['data'] != null) {
+          return (decodedData['data'] as List)
+              .map((item) => RebateType.fromJson(item))
+              .toList();
+        }
+        throw Exception(decodedData['message'] ?? 'Failed to load rebate types');
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw _userSafeException(e);
+    }
+  }
+
+  // Fetch Floor Type List for a given floor usage category (RS, RR, MIS, COM)
+  static Future<List<FloorType>> getFloorTypeList(String floorUsageId) async {
+    try {
+      final response = await _makeAuthenticatedRequest(
+        (headers) => _post(
+              Uri.parse(
+                '${AppConstants.baseUrl}api/house_tax/getFloorTypeList',
+              ),
+              headers: headers,
+              body: json.encode({'floorUsageId': floorUsageId}),
+            )
+            .timeout(Duration(seconds: AppConstants.networkTimeout)),
+      );
+
+      if (response.statusCode == 200) {
+        final decodedData = json.decode(response.body);
+        if (decodedData['success'] == true && decodedData['data'] != null) {
+          return (decodedData['data'] as List)
+              .map((item) => FloorType.fromJson(item))
+              .toList();
+        }
+        throw Exception(decodedData['message'] ?? 'Failed to load floor types');
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw _userSafeException(e);
+    }
+  }
+
+  // Fetch Property Type Multiplier for a given floor type id
+  static Future<double> getPropertyTypeMultiplier(int floorType) async {
+    try {
+      final response = await _makeAuthenticatedRequest(
+        (headers) => _post(
+              Uri.parse(
+                '${AppConstants.baseUrl}api/house_tax/getPropertyTypeMultiplier',
+              ),
+              headers: headers,
+              body: json.encode({'floorType': floorType}),
+            )
+            .timeout(Duration(seconds: AppConstants.networkTimeout)),
+      );
+
+      if (response.statusCode == 200) {
+        final decodedData = json.decode(response.body);
+        if (decodedData['success'] == true && decodedData['data'] != null) {
+          return double.tryParse(decodedData['data'].toString()) ?? 0.0;
+        }
+        throw Exception(
+          decodedData['message'] ?? 'Failed to load property type multiplier',
+        );
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw _userSafeException(e);
+    }
+  }
+
   // Fetch ULB Data
   static Future<List<UlbData>> getUlbData() async {
     try {
@@ -1360,6 +1449,36 @@ class GrievanceSubCategory {
     return GrievanceSubCategory(
       subCatCode: json['subCatCode'],
       subName: json['subName'],
+    );
+  }
+}
+
+class RebateType {
+  final int? rebateId;
+  final String? rebateName;
+  final num? rebatePercentage;
+
+  RebateType({this.rebateId, this.rebateName, this.rebatePercentage});
+
+  factory RebateType.fromJson(Map<String, dynamic> json) {
+    return RebateType(
+      rebateId: json['rebateId'],
+      rebateName: json['rebateName'],
+      rebatePercentage: json['rebatePercentage'],
+    );
+  }
+}
+
+class FloorType {
+  final int? id;
+  final String? name;
+
+  FloorType({this.id, this.name});
+
+  factory FloorType.fromJson(Map<String, dynamic> json) {
+    return FloorType(
+      id: json['id'],
+      name: json['name'],
     );
   }
 }
