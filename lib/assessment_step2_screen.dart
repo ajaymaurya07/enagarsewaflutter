@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'services/api_service.dart';
 import 'apply_grievance_screen.dart' show SelectionSheet;
+import 'assessment_step3_screen.dart';
 
 class AssessmentStep2Screen extends StatefulWidget {
   final String ackNo;
@@ -73,13 +74,28 @@ class _AssessmentStep2ScreenState extends State<AssessmentStep2Screen> {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
 
-      if (response.success != true) {
+      if (response.success != true || response.data == null) {
         _showSnackBar(response.message ?? 'Failed to submit assessment');
         return;
       }
 
       _showSnackBar(response.message ?? 'Assessment Step 2 saved successfully');
-      Navigator.pop(context, response.data ?? {'ackNo': widget.ackNo});
+
+      final data = response.data!;
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => AssessmentStep3Screen(
+            ackNo: data.ackNo ?? widget.ackNo,
+            floorNoList: data.floorNoList,
+            floorUsageList: data.floorUsageList,
+            constructionTypeList: data.constructionTypeList,
+          ),
+        ),
+      );
+      if (result != null && mounted) {
+        Navigator.pop(context, result);
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);

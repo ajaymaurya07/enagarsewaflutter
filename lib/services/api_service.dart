@@ -384,7 +384,7 @@ class ApiService {
     required int wardId,
     required int mohallaId,
     required String oldPropertyId,
-    required num totalArea,
+    required int totalArea,
     required String ownerName,
     required String fatherHusbandName,
     required String email,
@@ -413,14 +413,18 @@ class ApiService {
 
     try {
       final response = await _makeAuthenticatedRequest(
-        (headers) => _post(
-              Uri.parse(
-                '${AppConstants.baseUrl}api/house_tax/assessmentSubmitS1',
-              ),
-              headers: headers,
-              body: json.encode(requestBody),
-            )
-            .timeout(Duration(seconds: AppConstants.networkTimeout)),
+        (headers) {
+          debugPrint('[AssessmentStep1] Authorization -> ${headers['Authorization']}');
+          debugPrint('[AssessmentStep1] Device Id -> ${headers['X-Device-Id']}');
+          return _post(
+                Uri.parse(
+                  '${AppConstants.baseUrl}api/house_tax/assessmentSubmitS1',
+                ),
+                headers: headers,
+                body: json.encode(requestBody),
+              )
+              .timeout(Duration(seconds: AppConstants.networkTimeout));
+        },
       );
 
       debugPrint(
@@ -457,14 +461,18 @@ class ApiService {
 
     try {
       final response = await _makeAuthenticatedRequest(
-        (headers) => _post(
-              Uri.parse(
-                '${AppConstants.baseUrl}api/house_tax/assessmentSubmitS2',
-              ),
-              headers: headers,
-              body: json.encode(requestBody),
-            )
-            .timeout(Duration(seconds: AppConstants.networkTimeout)),
+        (headers) {
+          debugPrint('[AssessmentStep2] Authorization -> ${headers['Authorization']}');
+          debugPrint('[AssessmentStep2] Device Id -> ${headers['X-Device-Id']}');
+          return _post(
+                Uri.parse(
+                  '${AppConstants.baseUrl}api/house_tax/assessmentSubmitS2',
+                ),
+                headers: headers,
+                body: json.encode(requestBody),
+              )
+              .timeout(Duration(seconds: AppConstants.networkTimeout));
+        },
       );
 
       debugPrint(
@@ -478,6 +486,154 @@ class ApiService {
       }
     } catch (e) {
       debugPrint('[AssessmentStep2] Error -> $e');
+      throw _userSafeException(e);
+    }
+  }
+
+  // Property Assessment - Step 3A: Save Floor Details
+  static Future<SaveFloorResponse> saveFloorDetails({
+    required String ackNo,
+    required int floorNumber,
+    required String floorUsageCode,
+    required int floorTypeId,
+    required int constructionTypeId,
+    required String constructionDate,
+    required int carpetArea,
+    required int roomsPorchArea,
+    required int kitchenBalconyArea,
+    required int garageArea,
+    required String areaEnterMode,
+  }) async {
+    final requestBody = {
+      'ackNo': ackNo,
+      'floorNumber': floorNumber,
+      'floorUsageCode': floorUsageCode,
+      'floorTypeId': floorTypeId,
+      'constructionTypeId': constructionTypeId,
+      'constructionDate': constructionDate,
+      'carpetArea': carpetArea,
+      'roomsPorchArea': roomsPorchArea,
+      'kitchenBalconyArea': kitchenBalconyArea,
+      'garageArea': garageArea,
+      'areaEnterMode': areaEnterMode,
+    };
+    debugPrint('[SaveFloorDetails] Request -> ${json.encode(requestBody)}');
+
+    try {
+      final response = await _makeAuthenticatedRequest(
+        (headers) {
+          debugPrint('[SaveFloorDetails] Authorization -> ${headers['Authorization']}');
+          debugPrint('[SaveFloorDetails] Device Id -> ${headers['X-Device-Id']}');
+          return _post(
+                Uri.parse(
+                  '${AppConstants.baseUrl}api/house_tax/assessmentSaveFloor',
+                ),
+                headers: headers,
+                body: json.encode(requestBody),
+              )
+              .timeout(Duration(seconds: AppConstants.networkTimeout));
+        },
+      );
+
+      debugPrint(
+        '[SaveFloorDetails] Response (${response.statusCode}) -> ${response.body}',
+      );
+
+      if (response.statusCode == 200) {
+        return SaveFloorResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('[SaveFloorDetails] Error -> $e');
+      throw _userSafeException(e);
+    }
+  }
+
+  // Property Assessment - Step 3B: Delete Floor Details
+  static Future<DeleteFloorResponse> deleteFloorDetails({
+    required String ackNo,
+    required int floorNumber,
+  }) async {
+    final requestBody = {
+      'ackNo': ackNo,
+      'floorNumber': floorNumber,
+    };
+    debugPrint('[DeleteFloorDetails] Request -> ${json.encode(requestBody)}');
+
+    try {
+      final response = await _makeAuthenticatedRequest(
+        (headers) {
+          debugPrint('[DeleteFloorDetails] Authorization -> ${headers['Authorization']}');
+          debugPrint('[DeleteFloorDetails] Device Id -> ${headers['X-Device-Id']}');
+          return _post(
+                Uri.parse(
+                  '${AppConstants.baseUrl}api/house_tax/assessmentDeleteFloor',
+                ),
+                headers: headers,
+                body: json.encode(requestBody),
+              )
+              .timeout(Duration(seconds: AppConstants.networkTimeout));
+        },
+      );
+
+      debugPrint(
+        '[DeleteFloorDetails] Response (${response.statusCode}) -> ${response.body}',
+      );
+
+      if (response.statusCode == 200) {
+        return DeleteFloorResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('[DeleteFloorDetails] Error -> $e');
+      throw _userSafeException(e);
+    }
+  }
+
+  // Property Assessment - Step 3C: Finalize Floor Details and Rebate Information
+  static Future<AssessmentStep3Response> submitAssessmentStep3({
+    required String ackNo,
+    required String rebateFinyear,
+    required String isRebateClaimed,
+    required int? rebateTypeId,
+  }) async {
+    final requestBody = {
+      'ackNo': ackNo,
+      'rebateFinyear': rebateFinyear,
+      'isRebateClaimed': isRebateClaimed,
+      'rebateTypeId': rebateTypeId,
+    };
+    debugPrint('[AssessmentStep3] Request -> ${json.encode(requestBody)}');
+
+    try {
+      final response = await _makeAuthenticatedRequest(
+        (headers) {
+          debugPrint('[AssessmentStep3] Authorization -> ${headers['Authorization']}');
+          debugPrint('[AssessmentStep3] Device Id -> ${headers['X-Device-Id']}');
+          return _post(
+                Uri.parse(
+                  '${AppConstants.baseUrl}api/house_tax/assessmentSubmitS3',
+                ),
+                headers: headers,
+                body: json.encode(requestBody),
+              )
+              .timeout(Duration(seconds: AppConstants.networkTimeout));
+        },
+      );
+
+      debugPrint(
+        '[AssessmentStep3] Response (${response.statusCode}) -> ${response.body}',
+      );
+
+      if (response.statusCode == 200) {
+        return AssessmentStep3Response.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('[AssessmentStep3] Error -> $e');
       throw _userSafeException(e);
     }
   }
@@ -1699,7 +1855,7 @@ class AssessmentStep1Data {
       assessmentDate: json['assessmentDate'],
       propertyTypeList: _toStringMap(json['propertyTypeList']),
       roadLocationList: _toStringMap(json['roadLocationList']),
-      propertyUsesList: _toStringMap(json['propertyUsesList']),
+      propertyUsesList: _toStringMap(json['propertyUseasList']),
     );
   }
 }
@@ -1708,7 +1864,7 @@ class AssessmentStep2Response {
   final bool? success;
   final String? message;
   final int? responseCode;
-  final Map<String, dynamic>? data;
+  final AssessmentStep2Data? data;
 
   AssessmentStep2Response({
     this.success,
@@ -1722,7 +1878,316 @@ class AssessmentStep2Response {
       success: json['success'],
       message: json['message'],
       responseCode: json['responseCode'],
-      data: json['data'] is Map ? Map<String, dynamic>.from(json['data']) : null,
+      data: json['data'] != null
+          ? AssessmentStep2Data.fromJson(json['data'])
+          : null,
+    );
+  }
+}
+
+class AssessmentStep2Data {
+  final String? ackNo;
+  final Map<String, String> floorNoList;
+  final Map<String, String> floorUsageList;
+  final Map<String, String> constructionTypeList;
+
+  AssessmentStep2Data({
+    this.ackNo,
+    this.floorNoList = const {},
+    this.floorUsageList = const {},
+    this.constructionTypeList = const {},
+  });
+
+  factory AssessmentStep2Data.fromJson(Map<String, dynamic> json) {
+    return AssessmentStep2Data(
+      ackNo: json['ackNo'],
+      floorNoList: AssessmentStep1Data._toStringMap(json['floorNoList']),
+      floorUsageList: AssessmentStep1Data._toStringMap(json['floorUsageList']),
+      constructionTypeList:
+          AssessmentStep1Data._toStringMap(json['constructionTypeList']),
+    );
+  }
+}
+
+class SaveFloorResponse {
+  final bool? success;
+  final String? message;
+  final int? responseCode;
+  final SaveFloorData? data;
+
+  SaveFloorResponse({this.success, this.message, this.responseCode, this.data});
+
+  factory SaveFloorResponse.fromJson(Map<String, dynamic> json) {
+    return SaveFloorResponse(
+      success: json['success'],
+      message: json['message'],
+      responseCode: json['responseCode'],
+      data: json['data'] != null ? SaveFloorData.fromJson(json['data']) : null,
+    );
+  }
+}
+
+class SaveFloorData {
+  final String? ackNo;
+  final double? totalArv;
+  final List<FloorDetailItem> floorList;
+  final Map<String, String> rebateFinancialYearList;
+
+  SaveFloorData({
+    this.ackNo,
+    this.totalArv,
+    this.floorList = const [],
+    this.rebateFinancialYearList = const {},
+  });
+
+  factory SaveFloorData.fromJson(Map<String, dynamic> json) {
+    return SaveFloorData(
+      ackNo: json['ackNo'],
+      totalArv: (json['totalArv'] as num?)?.toDouble(),
+      floorList: json['floorList'] is List
+          ? (json['floorList'] as List)
+              .map((e) => FloorDetailItem.fromJson(e))
+              .toList()
+          : [],
+      rebateFinancialYearList:
+          AssessmentStep1Data._toStringMap(json['rebateFinancialYearList']),
+    );
+  }
+}
+
+class FloorDetailItem {
+  final int? floorNumber;
+  final String? floorName;
+  final double? carpetArea;
+  final String? floorTypeName;
+  final String? constructionTypeName;
+  final String? constructionDate;
+  final double? mrate;
+  final double? multiplier;
+  final double? rentalValue;
+  final double? arv;
+  final double? arvAfterRebate;
+
+  FloorDetailItem({
+    this.floorNumber,
+    this.floorName,
+    this.carpetArea,
+    this.floorTypeName,
+    this.constructionTypeName,
+    this.constructionDate,
+    this.mrate,
+    this.multiplier,
+    this.rentalValue,
+    this.arv,
+    this.arvAfterRebate,
+  });
+
+  factory FloorDetailItem.fromJson(Map<String, dynamic> json) {
+    return FloorDetailItem(
+      floorNumber: json['floorNumber'],
+      floorName: json['floorName'],
+      carpetArea: (json['carpetArea'] as num?)?.toDouble(),
+      floorTypeName: json['floorTypeName'],
+      constructionTypeName: json['constructionTypeName'],
+      constructionDate: json['constructionDate'],
+      mrate: (json['mrate'] as num?)?.toDouble(),
+      multiplier: (json['multiplier'] as num?)?.toDouble(),
+      rentalValue: (json['rentalValue'] as num?)?.toDouble(),
+      arv: (json['arv'] as num?)?.toDouble(),
+      arvAfterRebate: (json['arvAfterRebate'] as num?)?.toDouble(),
+    );
+  }
+}
+
+class DeleteFloorResponse {
+  final bool? success;
+  final String? message;
+  final int? responseCode;
+
+  DeleteFloorResponse({this.success, this.message, this.responseCode});
+
+  factory DeleteFloorResponse.fromJson(Map<String, dynamic> json) {
+    return DeleteFloorResponse(
+      success: json['success'],
+      message: json['message'],
+      responseCode: json['responseCode'],
+    );
+  }
+}
+
+class AssessmentStep3Response {
+  final bool? success;
+  final String? message;
+  final int? responseCode;
+  final AssessmentStep3Data? data;
+
+  AssessmentStep3Response({
+    this.success,
+    this.message,
+    this.responseCode,
+    this.data,
+  });
+
+  factory AssessmentStep3Response.fromJson(Map<String, dynamic> json) {
+    return AssessmentStep3Response(
+      success: json['success'],
+      message: json['message'],
+      responseCode: json['responseCode'],
+      data: json['data'] != null
+          ? AssessmentStep3Data.fromJson(json['data'])
+          : null,
+    );
+  }
+}
+
+class AssessmentStep3Data {
+  final List<PwsItem> pwsList;
+  final int? ulbId;
+  final String? acknowledgementId;
+  final double? totalArea;
+  final String? ownerName;
+  final String? fatherName;
+  final String? houseNo;
+  final String? address;
+  final int? zoneId;
+  final int? wardId;
+  final int? mohallaId;
+  final String? mobile;
+  final String? assessmentType;
+  final String? fileNo;
+  final String? propertyUse;
+  final String? roadLocation;
+  final int? propertyType;
+  final String? assessmentDate;
+  final String? oldArv;
+  final String? existingPropertyId;
+  final double? totalArv;
+  final String? rebateFinancialYear;
+  final String? taxRebateTypeName;
+
+  AssessmentStep3Data({
+    this.pwsList = const [],
+    this.ulbId,
+    this.acknowledgementId,
+    this.totalArea,
+    this.ownerName,
+    this.fatherName,
+    this.houseNo,
+    this.address,
+    this.zoneId,
+    this.wardId,
+    this.mohallaId,
+    this.mobile,
+    this.assessmentType,
+    this.fileNo,
+    this.propertyUse,
+    this.roadLocation,
+    this.propertyType,
+    this.assessmentDate,
+    this.oldArv,
+    this.existingPropertyId,
+    this.totalArv,
+    this.rebateFinancialYear,
+    this.taxRebateTypeName,
+  });
+
+  factory AssessmentStep3Data.fromJson(Map<String, dynamic> json) {
+    return AssessmentStep3Data(
+      pwsList: json['pwsList'] is List
+          ? (json['pwsList'] as List).map((e) => PwsItem.fromJson(e)).toList()
+          : [],
+      ulbId: json['ulbId'],
+      acknowledgementId: json['acknowledgementId'],
+      totalArea: (json['totalArea'] as num?)?.toDouble(),
+      ownerName: json['ownerName'],
+      fatherName: json['fatherName'],
+      houseNo: json['houseNo'],
+      address: json['address'],
+      zoneId: json['zoneId'],
+      wardId: json['wardId'],
+      mohallaId: json['mohallaId'],
+      mobile: json['mobile']?.toString(),
+      assessmentType: json['assessmentType'],
+      fileNo: json['fileNo'],
+      propertyUse: json['propertyUse']?.toString(),
+      roadLocation: json['roadLocation']?.toString(),
+      propertyType: json['propertyType'],
+      assessmentDate: json['assessmentDate'],
+      oldArv: json['oldArv']?.toString(),
+      existingPropertyId: json['existingPropertyId'],
+      totalArv: (json['totalArv'] as num?)?.toDouble(),
+      rebateFinancialYear: json['rebateFinancialYear'],
+      taxRebateTypeName: json['taxRebateTypeName'],
+    );
+  }
+}
+
+class PwsItem {
+  final String? finYear;
+  final double? propertyTax;
+  final double? propertyArrear;
+  final double? propertyInterest;
+  final double? waterTax;
+  final double? waterArrear;
+  final double? waterInterest;
+  final double? sewerageTax;
+  final double? sewerageArrear;
+  final double? sewerageInterest;
+  final double? otherTax;
+  final double? otherArrear;
+  final double? otherInterest;
+  final double? waterCharge;
+  final double? waterChargeArrear;
+  final double? waterChargeInterest;
+  final double? totalTax;
+  final double? totalInterest;
+  final double? grandTotal;
+
+  PwsItem({
+    this.finYear,
+    this.propertyTax,
+    this.propertyArrear,
+    this.propertyInterest,
+    this.waterTax,
+    this.waterArrear,
+    this.waterInterest,
+    this.sewerageTax,
+    this.sewerageArrear,
+    this.sewerageInterest,
+    this.otherTax,
+    this.otherArrear,
+    this.otherInterest,
+    this.waterCharge,
+    this.waterChargeArrear,
+    this.waterChargeInterest,
+    this.totalTax,
+    this.totalInterest,
+    this.grandTotal,
+  });
+
+  static double? _d(dynamic v) => (v as num?)?.toDouble();
+
+  factory PwsItem.fromJson(Map<String, dynamic> json) {
+    return PwsItem(
+      finYear: json['finYear'],
+      propertyTax: _d(json['propertyTax']),
+      propertyArrear: _d(json['propertyArrear']),
+      propertyInterest: _d(json['propertyInterest']),
+      waterTax: _d(json['waterTax']),
+      waterArrear: _d(json['waterArrear']),
+      waterInterest: _d(json['waterInterest']),
+      sewerageTax: _d(json['sewerageTax']),
+      sewerageArrear: _d(json['sewerageArrear']),
+      sewerageInterest: _d(json['sewerageInterest']),
+      otherTax: _d(json['otherTax']),
+      otherArrear: _d(json['otherArrear']),
+      otherInterest: _d(json['otherInterest']),
+      waterCharge: _d(json['waterCharge']),
+      waterChargeArrear: _d(json['waterChargeArrear']),
+      waterChargeInterest: _d(json['waterChargeInterest']),
+      totalTax: _d(json['totalTax']),
+      totalInterest: _d(json['totalInterest']),
+      grandTotal: _d(json['grandTotal']),
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'services/api_service.dart';
 import 'services/database_service.dart';
@@ -104,8 +105,9 @@ class _PropertyTaxAssessmentScreenState
     }
     if (!mounted) return;
 
-    final matchedZone =
-        zones.where((z) => z.zoneName == property.zone).firstOrNull;
+    final matchedZone = zones
+        .where((z) => z.zoneName.trim() == (property.zone ?? '').trim())
+        .firstOrNull;
     setState(() {
       _zoneList = zones;
       _isLoadingZones = false;
@@ -132,7 +134,9 @@ class _PropertyTaxAssessmentScreenState
 
     final matchedWard = matchWardName == null
         ? null
-        : wards.where((w) => w.wardName == matchWardName).firstOrNull;
+        : wards
+            .where((w) => w.wardName.trim() == matchWardName.trim())
+            .firstOrNull;
     setState(() {
       _wardList = wards;
       _isLoadingWards = false;
@@ -167,7 +171,9 @@ class _PropertyTaxAssessmentScreenState
 
     final matchedMohalla = matchMohallaName == null
         ? null
-        : mohallas.where((m) => m.mohallaName == matchMohallaName).firstOrNull;
+        : mohallas
+            .where((m) => m.mohallaName.trim() == matchMohallaName.trim())
+            .firstOrNull;
     setState(() {
       _mohallaList = mohallas;
       _isLoadingMohallas = false;
@@ -189,8 +195,13 @@ class _PropertyTaxAssessmentScreenState
     );
   }
 
-  void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  void _showSnackBar(String message, {Duration? duration}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: duration ?? const Duration(seconds: 4),
+      ),
+    );
   }
 
   Future<void> _handleContinue() async {
@@ -207,7 +218,8 @@ class _PropertyTaxAssessmentScreenState
         wardId: int.tryParse(_selectedWard!.wardId) ?? 0,
         mohallaId: int.tryParse(_selectedMohalla!.mohallaId) ?? 0,
         oldPropertyId: _selectedProperty!.propertyId,
-        totalArea: num.tryParse(_totalAreaController.text.trim()) ?? 0,
+        totalArea: int.tryParse(_totalAreaController.text.trim()) ??
+            (double.tryParse(_totalAreaController.text.trim())?.round() ?? 0),
         ownerName: _fullNameController.text.trim(),
         fatherHusbandName: _fatherNameController.text.trim(),
         email: _emailController.text.trim(),
@@ -222,7 +234,13 @@ class _PropertyTaxAssessmentScreenState
       setState(() => _isSubmitting = false);
 
       if (response.success != true || response.data == null) {
-        _showSnackBar(response.message ?? 'Failed to submit assessment');
+        _showSnackBar(
+          '${response.message ?? 'Failed to submit assessment'}\n'
+          '(zone: ${_selectedZone!.zoneName}/${_selectedZone!.zoneId}, '
+          'ward: ${_selectedWard!.wardName}/${_selectedWard!.wardId}, '
+          'mohalla: ${_selectedMohalla!.mohallaName}/${_selectedMohalla!.mohallaId})',
+          duration: const Duration(seconds: 8),
+        );
         return;
       }
 
@@ -393,6 +411,7 @@ class _PropertyTaxAssessmentScreenState
                 _totalAreaController,
                 keyboardType: TextInputType.number,
                 isRequired: true,
+                digitsOnly: true,
               ),
               const SizedBox(height: 12),
               _buildTextField('Address', _addressController, maxLines: 2, isRequired: true),
@@ -496,11 +515,14 @@ class _PropertyTaxAssessmentScreenState
     TextInputType keyboardType = TextInputType.text,
     int maxLines = 1,
     bool isRequired = false,
+    bool digitsOnly = false,
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
       maxLines: maxLines,
+      inputFormatters:
+          digitsOnly ? [FilteringTextInputFormatter.digitsOnly] : null,
       style: GoogleFonts.poppins(fontSize: 14, color: const Color(0xFF333333)),
       validator: isRequired
           ? (value) {
