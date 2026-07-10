@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'services/api_service.dart';
 import 'services/database_service.dart';
 import 'apply_grievance_screen.dart' show SelectionSheet;
-import 'floor_usage_assessment_screen.dart';
+import 'assessment_step2_screen.dart';
 
 class PropertyTaxAssessmentScreen extends StatefulWidget {
   const PropertyTaxAssessmentScreen({super.key});
@@ -19,11 +19,6 @@ class _PropertyTaxAssessmentScreenState
 
   final _formKey = GlobalKey<FormState>();
   bool _isSubmitting = false;
-
-  bool _isLoadingRebates = true;
-  String? _rebateError;
-  List<RebateType> _rebateList = [];
-  RebateType? _selectedRebate;
 
   bool _isLoadingProperties = true;
   List<PropertyEntity> _savedProperties = [];
@@ -56,7 +51,6 @@ class _PropertyTaxAssessmentScreenState
   @override
   void initState() {
     super.initState();
-    _fetchRebateTypes();
     _loadSavedProperties();
   }
 
@@ -195,34 +189,6 @@ class _PropertyTaxAssessmentScreenState
     );
   }
 
-  Future<void> _fetchRebateTypes() async {
-    setState(() {
-      _isLoadingRebates = true;
-      _rebateError = null;
-    });
-
-    debugPrint('[PropertyTaxAssessment] Fetching rebate types...');
-    try {
-      final rebates = await ApiService.getRebateTypeList();
-      debugPrint(
-        '[PropertyTaxAssessment] getRebateTypeList -> ${rebates.length} item(s): '
-        '${rebates.map((r) => '${r.rebateId}:${r.rebateName}').join(', ')}',
-      );
-      if (!mounted) return;
-      setState(() {
-        _rebateList = rebates;
-        _isLoadingRebates = false;
-      });
-    } catch (e) {
-      debugPrint('[PropertyTaxAssessment] getRebateTypeList error: $e');
-      if (!mounted) return;
-      setState(() {
-        _rebateError = e.toString().replaceFirst('Exception: ', '');
-        _isLoadingRebates = false;
-      });
-    }
-  }
-
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
@@ -260,16 +226,23 @@ class _PropertyTaxAssessmentScreenState
         return;
       }
 
-      final ackNo = response.data!.ackNo;
-      if (ackNo != null) {
-        _showSnackBar(response.message ?? 'Assessment Step 1 saved with Ack No. $ackNo');
+      final data = response.data!;
+      final ackNo = data.ackNo;
+      if (ackNo == null) {
+        _showSnackBar('Assessment saved but no Ack No. was returned');
+        return;
       }
+      _showSnackBar(response.message ?? 'Assessment Step 1 saved with Ack No. $ackNo');
 
       final result = await Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) =>
-              FloorUsageAssessmentScreen(selectedRebate: _selectedRebate!),
+          builder: (_) => AssessmentStep2Screen(
+            ackNo: ackNo,
+            roadLocationList: data.roadLocationList,
+            propertyTypeList: data.propertyTypeList,
+            propertyUsesList: data.propertyUsesList,
+          ),
         ),
       );
       if (result != null && mounted) {
@@ -427,20 +400,13 @@ class _PropertyTaxAssessmentScreenState
               _buildTextField('Landmark', _landmarkController, isRequired: true),
               const SizedBox(height: 12),
               _buildTextField('Popular Property Name', _popularPropertyNameController),
-
-              const SizedBox(height: 24),
-              _sectionTitle('Rebate Type'),
-              const SizedBox(height: 12),
-              _buildRebateSection(),
             ],
             ],
           ),
         ),
       ),
       bottomNavigationBar:
-          (_selectedProperty == null || _selectedRebate == null)
-              ? null
-              : _buildBottomBar(),
+          _selectedProperty == null ? null : _buildBottomBar(),
     );
   }
 
@@ -576,144 +542,6 @@ class _PropertyTaxAssessmentScreenState
         fontSize: 16,
         fontWeight: FontWeight.w700,
         color: const Color(0xFF333333),
-      ),
-    );
-  }
-
-  Widget _buildRebateSection() {
-    if (_isLoadingRebates) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: CircularProgressIndicator(color: _primaryColor),
-        ),
-      );
-    }
-
-    if (_rebateError != null) {
-      return _buildErrorCard(_rebateError!, onRetry: _fetchRebateTypes);
-    }
-
-    if (_rebateList.isEmpty) {
-      return Text(
-        'No rebate types available',
-        style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey.shade600),
-      );
-    }
-
-    return Column(
-      children: [
-        for (final rebate in _rebateList) ...[
-          _buildOptionCard(
-            label: rebate.rebateName ?? '-',
-            badge: '${rebate.rebatePercentage ?? 0}%',
-            isSelected: _selectedRebate?.rebateId == rebate.rebateId,
-            onTap: () => setState(() => _selectedRebate = rebate),
-          ),
-          const SizedBox(height: 10),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildErrorCard(String message, {required VoidCallback onRetry}) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.red.shade100),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.error_outline_rounded,
-                  color: Colors.redAccent, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  message,
-                  style: GoogleFonts.poppins(
-                      fontSize: 13, color: Colors.grey.shade700),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          TextButton(
-            onPressed: onRetry,
-            child: Text(
-              'Retry',
-              style: GoogleFonts.poppins(
-                  color: _primaryColor, fontWeight: FontWeight.w600),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOptionCard({
-    required String label,
-    String? badge,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFFFF4E8) : Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? _primaryColor : Colors.grey.shade300,
-            width: isSelected ? 1.5 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              isSelected
-                  ? Icons.radio_button_checked_rounded
-                  : Icons.radio_button_unchecked_rounded,
-              color: isSelected ? _primaryColor : Colors.grey.shade400,
-              size: 20,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                label,
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF333333),
-                ),
-              ),
-            ),
-            if (badge != null)
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: isSelected ? Colors.white : const Color(0xFFFFF4E8),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  badge,
-                  style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: _primaryColor,
-                  ),
-                ),
-              ),
-          ],
-        ),
       ),
     );
   }

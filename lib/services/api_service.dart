@@ -438,6 +438,50 @@ class ApiService {
     }
   }
 
+  // Submit Property Tax Assessment - Step 2 (road location / property type / property uses)
+  static Future<AssessmentStep2Response> submitAssessmentStep2({
+    required String ackNo,
+    required String fileNo,
+    required int roadLocationId,
+    required int propertyTypeId,
+    required int propertyUseasId,
+  }) async {
+    final requestBody = {
+      'ackNo': ackNo,
+      'fileNo': fileNo,
+      'roadLocationId': roadLocationId,
+      'propertyTypeId': propertyTypeId,
+      'propertyUseasId': propertyUseasId,
+    };
+    debugPrint('[AssessmentStep2] Request -> ${json.encode(requestBody)}');
+
+    try {
+      final response = await _makeAuthenticatedRequest(
+        (headers) => _post(
+              Uri.parse(
+                '${AppConstants.baseUrl}api/house_tax/assessmentSubmitS2',
+              ),
+              headers: headers,
+              body: json.encode(requestBody),
+            )
+            .timeout(Duration(seconds: AppConstants.networkTimeout)),
+      );
+
+      debugPrint(
+        '[AssessmentStep2] Response (${response.statusCode}) -> ${response.body}',
+      );
+
+      if (response.statusCode == 200) {
+        return AssessmentStep2Response.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('[AssessmentStep2] Error -> $e');
+      throw _userSafeException(e);
+    }
+  }
+
   // Fetch ULB Data
   static Future<List<UlbData>> getUlbData() async {
     try {
@@ -1656,6 +1700,29 @@ class AssessmentStep1Data {
       propertyTypeList: _toStringMap(json['propertyTypeList']),
       roadLocationList: _toStringMap(json['roadLocationList']),
       propertyUsesList: _toStringMap(json['propertyUsesList']),
+    );
+  }
+}
+
+class AssessmentStep2Response {
+  final bool? success;
+  final String? message;
+  final int? responseCode;
+  final Map<String, dynamic>? data;
+
+  AssessmentStep2Response({
+    this.success,
+    this.message,
+    this.responseCode,
+    this.data,
+  });
+
+  factory AssessmentStep2Response.fromJson(Map<String, dynamic> json) {
+    return AssessmentStep2Response(
+      success: json['success'],
+      message: json['message'],
+      responseCode: json['responseCode'],
+      data: json['data'] is Map ? Map<String, dynamic>.from(json['data']) : null,
     );
   }
 }
