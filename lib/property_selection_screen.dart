@@ -173,6 +173,8 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
         userId: userId,
         fatherName: _selectedProperty?.fatherHusbandName ?? "N/A",
         address: _selectedProperty?.address ?? "N/A",
+        houseNo: _currentPropertyDetails?.propertyDetailsInfo?.houseNo,
+        totalArea: _currentPropertyDetails?.propertyDetailsInfo?.totalArea,
       ),
     );
 
@@ -353,6 +355,8 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
                               userId: userId,
                               fatherName: _selectedProperty?.fatherHusbandName ?? "N/A",
                               address: _selectedProperty?.address ?? "N/A",
+                              houseNo: _currentPropertyDetails?.propertyDetailsInfo?.houseNo,
+                              totalArea: _currentPropertyDetails?.propertyDetailsInfo?.totalArea,
                             ),
                           );
 

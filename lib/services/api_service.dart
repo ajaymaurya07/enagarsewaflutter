@@ -378,6 +378,66 @@ class ApiService {
     }
   }
 
+  // Submit Property Tax Assessment - Step 1 (property/location/owner details)
+  static Future<AssessmentStep1Response> submitAssessmentStep1({
+    required int zoneId,
+    required int wardId,
+    required int mohallaId,
+    required String oldPropertyId,
+    required num totalArea,
+    required String ownerName,
+    required String fatherHusbandName,
+    required String email,
+    required String mobile,
+    required String houseNo,
+    required String address,
+    required String landmark,
+    required String popularPropertyName,
+  }) async {
+    final requestBody = {
+      'zoneId': zoneId,
+      'wardId': wardId,
+      'mohallaId': mohallaId,
+      'oldPropertyId': oldPropertyId,
+      'totalArea': totalArea,
+      'ownerName': ownerName,
+      'fatherHusbandName': fatherHusbandName,
+      'email': email,
+      'mobile': mobile,
+      'houseNo': houseNo,
+      'address': address,
+      'landmark': landmark,
+      'popularPropertyName': popularPropertyName,
+    };
+    debugPrint('[AssessmentStep1] Request -> ${json.encode(requestBody)}');
+
+    try {
+      final response = await _makeAuthenticatedRequest(
+        (headers) => _post(
+              Uri.parse(
+                '${AppConstants.baseUrl}api/house_tax/assessmentSubmitS1',
+              ),
+              headers: headers,
+              body: json.encode(requestBody),
+            )
+            .timeout(Duration(seconds: AppConstants.networkTimeout)),
+      );
+
+      debugPrint(
+        '[AssessmentStep1] Response (${response.statusCode}) -> ${response.body}',
+      );
+
+      if (response.statusCode == 200) {
+        return AssessmentStep1Response.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('[AssessmentStep1] Error -> $e');
+      throw _userSafeException(e);
+    }
+  }
+
   // Fetch ULB Data
   static Future<List<UlbData>> getUlbData() async {
     try {
@@ -999,6 +1059,10 @@ class ApiService {
           )
           .timeout(Duration(seconds: AppConstants.networkTimeout));
 
+      debugPrint(
+        '[Login] get_challenge response (${challengeResponse.statusCode}) -> ${challengeResponse.body}',
+      );
+
       if (challengeResponse.statusCode != 200) {
         throw Exception(
           'Failed to get challenge: ${challengeResponse.statusCode}',
@@ -1036,6 +1100,10 @@ class ApiService {
             }),
           )
           .timeout(Duration(seconds: AppConstants.networkTimeout));
+
+      debugPrint(
+        '[Login] login response (${loginResponse.statusCode}) -> ${loginResponse.body}',
+      );
 
       if (loginResponse.statusCode == 200) {
         final loginData = LoginResponse.fromJson(
@@ -1483,6 +1551,115 @@ class FloorType {
   }
 }
 
+class AssessmentStep1Response {
+  final bool? success;
+  final String? message;
+  final int? responseCode;
+  final AssessmentStep1Data? data;
+
+  AssessmentStep1Response({
+    this.success,
+    this.message,
+    this.responseCode,
+    this.data,
+  });
+
+  factory AssessmentStep1Response.fromJson(Map<String, dynamic> json) {
+    return AssessmentStep1Response(
+      success: json['success'],
+      message: json['message'],
+      responseCode: json['responseCode'],
+      data: json['data'] != null
+          ? AssessmentStep1Data.fromJson(json['data'])
+          : null,
+    );
+  }
+}
+
+class AssessmentStep1Data {
+  final String? ulbId;
+  final String? zoneId;
+  final String? wardId;
+  final String? mohallaId;
+  final String? oldPropertyId;
+  final String? totalArea;
+  final String? ownerName;
+  final String? fatherHusbandName;
+  final String? email;
+  final String? mobile;
+  final String? houseNo;
+  final String? address;
+  final String? landmark;
+  final String? popularPropertyName;
+  final String? zoneName;
+  final String? wardName;
+  final String? mohallaName;
+  final String? ackNo;
+  final String? assessmentDate;
+  final Map<String, String> propertyTypeList;
+  final Map<String, String> roadLocationList;
+  final Map<String, String> propertyUsesList;
+
+  AssessmentStep1Data({
+    this.ulbId,
+    this.zoneId,
+    this.wardId,
+    this.mohallaId,
+    this.oldPropertyId,
+    this.totalArea,
+    this.ownerName,
+    this.fatherHusbandName,
+    this.email,
+    this.mobile,
+    this.houseNo,
+    this.address,
+    this.landmark,
+    this.popularPropertyName,
+    this.zoneName,
+    this.wardName,
+    this.mohallaName,
+    this.ackNo,
+    this.assessmentDate,
+    this.propertyTypeList = const {},
+    this.roadLocationList = const {},
+    this.propertyUsesList = const {},
+  });
+
+  static Map<String, String> _toStringMap(dynamic value) {
+    if (value is Map) {
+      return value.map((k, v) => MapEntry(k.toString(), v.toString()));
+    }
+    return {};
+  }
+
+  factory AssessmentStep1Data.fromJson(Map<String, dynamic> json) {
+    return AssessmentStep1Data(
+      ulbId: json['ulbId']?.toString(),
+      zoneId: json['zoneId']?.toString(),
+      wardId: json['wardId']?.toString(),
+      mohallaId: json['mohallaId']?.toString(),
+      oldPropertyId: json['oldPropertyId']?.toString(),
+      totalArea: json['totalArea']?.toString(),
+      ownerName: json['ownerName'],
+      fatherHusbandName: json['fatherHusbandName'],
+      email: json['email'],
+      mobile: json['mobile']?.toString(),
+      houseNo: json['houseNo']?.toString(),
+      address: json['address'],
+      landmark: json['landmark'],
+      popularPropertyName: json['popularPropertyName'],
+      zoneName: json['zoneName'],
+      wardName: json['wardName'],
+      mohallaName: json['mohallaName'],
+      ackNo: json['ackNo'],
+      assessmentDate: json['assessmentDate'],
+      propertyTypeList: _toStringMap(json['propertyTypeList']),
+      roadLocationList: _toStringMap(json['roadLocationList']),
+      propertyUsesList: _toStringMap(json['propertyUsesList']),
+    );
+  }
+}
+
 class UlbData {
   final String? ulbName;
   final String? ulbId;
@@ -1810,6 +1987,7 @@ class PropertyInfo {
   final String? wardName;
   final String? zoneName;
   final String? mohallaName;
+  final String? totalArea;
 
   PropertyInfo({
     this.address,
@@ -1817,6 +1995,7 @@ class PropertyInfo {
     this.wardName,
     this.zoneName,
     this.mohallaName,
+    this.totalArea,
   });
 
   factory PropertyInfo.fromJson(Map<String, dynamic> json) {
@@ -1826,6 +2005,7 @@ class PropertyInfo {
       wardName: json['wardName'],
       zoneName: json['zoneName'],
       mohallaName: json['mohallaName'],
+      totalArea: json['totalArea']?.toString(),
     );
   }
 }

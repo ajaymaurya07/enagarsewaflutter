@@ -15,6 +15,8 @@ class PropertyEntity {
   final String? fatherName;
   final String? address;
   final String? zone;
+  final String? houseNo;
+  final String? totalArea;
 
   PropertyEntity({
     required this.propertyId,
@@ -30,6 +32,8 @@ class PropertyEntity {
     this.fatherName,
     this.address,
     this.zone,
+    this.houseNo,
+    this.totalArea,
   });
 
   Map<String, dynamic> toMap() {
@@ -47,6 +51,8 @@ class PropertyEntity {
       'fatherName': fatherName,
       'address': address,
       'zone': zone,
+      'houseNo': houseNo,
+      'totalArea': totalArea,
     };
   }
 
@@ -65,6 +71,8 @@ class PropertyEntity {
       fatherName: map['fatherName'],
       address: map['address'],
       zone: map['zone'],
+      houseNo: map['houseNo'],
+      totalArea: map['totalArea'],
     );
   }
 }
@@ -82,10 +90,10 @@ class DatabaseService {
     String path = join(await getDatabasesPath(), 'property_database.db');
     return await openDatabase(
       path,
-      version: 5,
+      version: 6,
       onCreate: (db, version) {
         return db.execute(
-          'CREATE TABLE property_table(propertyId TEXT PRIMARY KEY, ownerName TEXT, ward TEXT, mohalla TEXT, phoneNumber TEXT, email TEXT, userType TEXT, ulbId TEXT, arvValue TEXT, userId TEXT, fatherName TEXT, address TEXT, zone TEXT)',
+          'CREATE TABLE property_table(propertyId TEXT PRIMARY KEY, ownerName TEXT, ward TEXT, mohalla TEXT, phoneNumber TEXT, email TEXT, userType TEXT, ulbId TEXT, arvValue TEXT, userId TEXT, fatherName TEXT, address TEXT, zone TEXT, houseNo TEXT, totalArea TEXT)',
         );
       },
       onUpgrade: (db, oldVersion, newVersion) async {
@@ -102,6 +110,10 @@ class DatabaseService {
         }
         if (oldVersion < 5) {
           await db.execute('ALTER TABLE property_table ADD COLUMN zone TEXT');
+        }
+        if (oldVersion < 6) {
+          await db.execute('ALTER TABLE property_table ADD COLUMN houseNo TEXT');
+          await db.execute('ALTER TABLE property_table ADD COLUMN totalArea TEXT');
         }
       },
     );
