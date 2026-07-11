@@ -485,12 +485,17 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        Text(
-                          'How do you want to enter the area?',
-                          style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade700),
+                        _buildSelectableField(
+                          label: 'How do you want to enter the area?',
+                          hint: _areaEnterModeLabel(_areaEnterMode),
+                          onTap: () => _showSelectionSheet(
+                            title: 'Select Area Entry Mode',
+                            items: const ['Carpet Area', 'Measure by Room'],
+                            onSelected: (index) => _onAreaEnterModeSelected(
+                              index == 0 ? 'CA' : 'MR',
+                            ),
+                          ),
                         ),
-                        const SizedBox(height: 6),
-                        _buildAreaModeToggle(),
                         const SizedBox(height: 6),
                         Text(
                           _areaEnterMode == 'CA'
@@ -848,30 +853,21 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
     );
   }
 
-  Widget _buildAreaModeToggle() {
-    return Row(
-      children: [
-        Expanded(
-          child: _buildYesNoOption('Carpet Area', 'CA', _areaEnterMode == 'CA', onTap: () {
-            setState(() {
-              _areaEnterMode = 'CA';
-              _roomsPorchAreaController.clear();
-              _kitchenBalconyAreaController.clear();
-              _garageAreaController.clear();
-            });
-          }),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildYesNoOption('Measure by Rooms', 'MR', _areaEnterMode == 'MR', onTap: () {
-            setState(() {
-              _areaEnterMode = 'MR';
-              _carpetAreaController.clear();
-            });
-          }),
-        ),
-      ],
-    );
+  String _areaEnterModeLabel(String mode) {
+    return mode == 'CA' ? 'Carpet Area' : 'Measure by Room';
+  }
+
+  void _onAreaEnterModeSelected(String mode) {
+    setState(() {
+      _areaEnterMode = mode;
+      if (mode == 'CA') {
+        _roomsPorchAreaController.clear();
+        _kitchenBalconyAreaController.clear();
+        _garageAreaController.clear();
+      } else {
+        _carpetAreaController.clear();
+      }
+    });
   }
 
   Widget _buildYesNoOption(String label, String value, bool isSelected, {VoidCallback? onTap}) {
