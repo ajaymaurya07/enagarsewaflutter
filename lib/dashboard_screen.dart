@@ -10,6 +10,7 @@ import 'transaction_history_screen.dart';
 import 'account_screen.dart';
 import 'track_grievance_screen.dart';
 import 'property_tax_assessment_screen.dart';
+import 'reassessment_screen.dart';
 import 'unable_to_connect_screen.dart';
 import 'services/storage_service.dart';
 import 'services/api_service.dart';
@@ -592,6 +593,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 MaterialPageRoute(
                                   builder: (context) =>
                                       const PropertyTaxAssessmentScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                          _buildServiceCard(
+                            'Property Reassessment',
+                            'Reassess an already assessed property',
+                            Icons.fact_check_outlined,
+                            cardWidth,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const ReassessmentScreen(),
                                 ),
                               );
                             },

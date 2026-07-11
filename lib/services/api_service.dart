@@ -81,6 +81,52 @@ class ApiService {
     return response;
   }
 
+  static Future<http.Response> _makeAuthenticatedMultipartRequest(
+    Future<http.MultipartRequest> Function(Map<String, String> headers)
+        requestFn,
+  ) async {
+    Future<http.Response> execute(Map<String, String> headers) async {
+      final request = await requestFn(headers);
+      request.headers.addAll(headers);
+      final pinnedClient = await PinnedHttpClient.getInstance();
+      final streamedResponse = await pinnedClient
+          .send(request)
+          .timeout(Duration(seconds: AppConstants.networkTimeout));
+      return http.Response.fromStream(streamedResponse);
+    }
+
+    var headers = await _getHeaders();
+    var response = await execute(headers);
+
+    if (response.statusCode == 403) {
+      final refreshTokenStr = await StorageService.getRefreshToken();
+      if (refreshTokenStr != null) {
+        try {
+          final refreshResponse = await refreshToken(refreshTokenStr);
+          if (refreshResponse.status == true &&
+              refreshResponse.data?.accessToken != null) {
+            await StorageService.updateAccessToken(
+              refreshResponse.data!.accessToken!,
+            );
+            headers = await _getHeaders();
+            response = await execute(headers);
+
+            if (response.statusCode == 403) {
+              await _handleSessionExpired();
+            }
+          } else {
+            await _handleSessionExpired();
+          }
+        } catch (e) {
+          await _handleSessionExpired();
+        }
+      } else {
+        await _handleSessionExpired();
+      }
+    }
+    return response;
+  }
+
   // Pinned HTTP helpers — all outbound calls go through the certificate-pinned client.
   static Future<http.Response> _get(
     Uri url, {
@@ -634,6 +680,331 @@ class ApiService {
       }
     } catch (e) {
       debugPrint('[AssessmentStep3] Error -> $e');
+      throw _userSafeException(e);
+    }
+  }
+
+  // Property Assessment - New Assessment - Step 4: Finalize Assessment (document upload)
+  static Future<DeleteFloorResponse> finalizeAssessment({
+    required String ackNo,
+    required File applicationFile,
+  }) async {
+    debugPrint('[AssessmentStep4] Request -> ackNo=$ackNo, file=${applicationFile.path}');
+
+    try {
+      final response = await _makeAuthenticatedMultipartRequest((headers) async {
+        debugPrint('[AssessmentStep4] Authorization -> ${headers['Authorization']}');
+        debugPrint('[AssessmentStep4] Device Id -> ${headers['X-Device-Id']}');
+        final request = http.MultipartRequest(
+          'POST',
+          Uri.parse('${AppConstants.baseUrl}api/house_tax/assessmentSubmitS4'),
+        );
+        request.fields['ackNo'] = ackNo;
+        request.files.add(
+          await http.MultipartFile.fromPath('applicationFile', applicationFile.path),
+        );
+        return request;
+      });
+
+      debugPrint(
+        '[AssessmentStep4] Response (${response.statusCode}) -> ${response.body}',
+      );
+
+      if (response.statusCode == 200) {
+        return DeleteFloorResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('[AssessmentStep4] Error -> $e');
+      throw _userSafeException(e);
+    }
+  }
+
+  // Property Assessment - Reassessment - Pre-check: Fetch Existing Assessment Details
+  static Future<ReassessmentGetS1Response> getReassessmentDetails({
+    required String propertyId,
+  }) async {
+    final requestBody = {'propertyId': propertyId};
+    debugPrint('[ReassessmentGetS1] Request -> ${json.encode(requestBody)}');
+
+    try {
+      final response = await _makeAuthenticatedRequest(
+        (headers) {
+          debugPrint('[ReassessmentGetS1] Authorization -> ${headers['Authorization']}');
+          debugPrint('[ReassessmentGetS1] Device Id -> ${headers['X-Device-Id']}');
+          return _post(
+                Uri.parse('${AppConstants.baseUrl}api/house_tax/reassessmentGetS1'),
+                headers: headers,
+                body: json.encode(requestBody),
+              )
+              .timeout(Duration(seconds: AppConstants.networkTimeout));
+        },
+      );
+
+      debugPrint(
+        '[ReassessmentGetS1] Response (${response.statusCode}) -> ${response.body}',
+      );
+
+      if (response.statusCode == 200) {
+        return ReassessmentGetS1Response.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('[ReassessmentGetS1] Error -> $e');
+      throw _userSafeException(e);
+    }
+  }
+
+  // Property Assessment - Reassessment - Step 1: Initialize Reassessment
+  static Future<ReassessmentStep1Response> initializeReassessment({
+    required String propertyId,
+    required String ackNo,
+  }) async {
+    final requestBody = {'propertyId': propertyId, 'ackNo': ackNo};
+    debugPrint('[ReassessmentStep1] Request -> ${json.encode(requestBody)}');
+
+    try {
+      final response = await _makeAuthenticatedRequest(
+        (headers) {
+          debugPrint('[ReassessmentStep1] Authorization -> ${headers['Authorization']}');
+          debugPrint('[ReassessmentStep1] Device Id -> ${headers['X-Device-Id']}');
+          return _post(
+                Uri.parse('${AppConstants.baseUrl}api/house_tax/reassessmentSubmitS1'),
+                headers: headers,
+                body: json.encode(requestBody),
+              )
+              .timeout(Duration(seconds: AppConstants.networkTimeout));
+        },
+      );
+
+      debugPrint(
+        '[ReassessmentStep1] Response (${response.statusCode}) -> ${response.body}',
+      );
+
+      if (response.statusCode == 200) {
+        return ReassessmentStep1Response.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('[ReassessmentStep1] Error -> $e');
+      throw _userSafeException(e);
+    }
+  }
+
+  // Property Assessment - Reassessment - Step 2: Fetch Floor Configuration Details
+  static Future<AssessmentStep2Response> fetchReassessmentFloorConfig({
+    required String propertyId,
+    required String ackNo,
+  }) async {
+    final requestBody = {'propertyId': propertyId, 'ackNo': ackNo};
+    debugPrint('[ReassessmentStep2] Request -> ${json.encode(requestBody)}');
+
+    try {
+      final response = await _makeAuthenticatedRequest(
+        (headers) {
+          debugPrint('[ReassessmentStep2] Authorization -> ${headers['Authorization']}');
+          debugPrint('[ReassessmentStep2] Device Id -> ${headers['X-Device-Id']}');
+          return _post(
+                Uri.parse('${AppConstants.baseUrl}api/house_tax/reassessmentFetchFloorConfig'),
+                headers: headers,
+                body: json.encode(requestBody),
+              )
+              .timeout(Duration(seconds: AppConstants.networkTimeout));
+        },
+      );
+
+      debugPrint(
+        '[ReassessmentStep2] Response (${response.statusCode}) -> ${response.body}',
+      );
+
+      if (response.statusCode == 200) {
+        return AssessmentStep2Response.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('[ReassessmentStep2] Error -> $e');
+      throw _userSafeException(e);
+    }
+  }
+
+  // Property Assessment - Reassessment - Step 3A: Save Floor Details
+  static Future<SaveFloorResponse> saveReassessmentFloor({
+    required String ackNo,
+    required int floorNumber,
+    required String floorUsageCode,
+    required int floorTypeId,
+    required int constructionTypeId,
+    required String constructionDate,
+    required int carpetArea,
+    required int roomsPorchArea,
+    required int kitchenBalconyArea,
+    required int garageArea,
+    required String areaEnterMode,
+  }) async {
+    final requestBody = {
+      'ackNo': ackNo,
+      'floorNumber': floorNumber,
+      'floorUsageCode': floorUsageCode,
+      'floorTypeId': floorTypeId,
+      'constructionTypeId': constructionTypeId,
+      'constructionDate': constructionDate,
+      'carpetArea': carpetArea,
+      'roomsPorchArea': roomsPorchArea,
+      'kitchenBalconyArea': kitchenBalconyArea,
+      'garageArea': garageArea,
+      'areaEnterMode': areaEnterMode,
+    };
+    debugPrint('[ReassessmentSaveFloor] Request -> ${json.encode(requestBody)}');
+
+    try {
+      final response = await _makeAuthenticatedRequest(
+        (headers) {
+          debugPrint('[ReassessmentSaveFloor] Authorization -> ${headers['Authorization']}');
+          debugPrint('[ReassessmentSaveFloor] Device Id -> ${headers['X-Device-Id']}');
+          return _post(
+                Uri.parse('${AppConstants.baseUrl}api/house_tax/reassessmentSaveFloor'),
+                headers: headers,
+                body: json.encode(requestBody),
+              )
+              .timeout(Duration(seconds: AppConstants.networkTimeout));
+        },
+      );
+
+      debugPrint(
+        '[ReassessmentSaveFloor] Response (${response.statusCode}) -> ${response.body}',
+      );
+
+      if (response.statusCode == 200) {
+        return SaveFloorResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('[ReassessmentSaveFloor] Error -> $e');
+      throw _userSafeException(e);
+    }
+  }
+
+  // Property Assessment - Reassessment - Step 3B: Delete Floor Details
+  static Future<DeleteFloorResponse> deleteReassessmentFloor({
+    required String ackNo,
+    required int floorNumber,
+  }) async {
+    final requestBody = {'ackNo': ackNo, 'floorNumber': floorNumber};
+    debugPrint('[ReassessmentDeleteFloor] Request -> ${json.encode(requestBody)}');
+
+    try {
+      final response = await _makeAuthenticatedRequest(
+        (headers) {
+          debugPrint('[ReassessmentDeleteFloor] Authorization -> ${headers['Authorization']}');
+          debugPrint('[ReassessmentDeleteFloor] Device Id -> ${headers['X-Device-Id']}');
+          return _post(
+                Uri.parse('${AppConstants.baseUrl}api/house_tax/reassessmentDeleteFloor'),
+                headers: headers,
+                body: json.encode(requestBody),
+              )
+              .timeout(Duration(seconds: AppConstants.networkTimeout));
+        },
+      );
+
+      debugPrint(
+        '[ReassessmentDeleteFloor] Response (${response.statusCode}) -> ${response.body}',
+      );
+
+      if (response.statusCode == 200) {
+        return DeleteFloorResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('[ReassessmentDeleteFloor] Error -> $e');
+      throw _userSafeException(e);
+    }
+  }
+
+  // Property Assessment - Reassessment - Step 3C: Finalize All Floor details and rebate details
+  static Future<AssessmentStep3Response> submitReassessmentStep3({
+    required String ackNo,
+    required String propertyId,
+    required String rebateFinyear,
+    required String isRebateClaimed,
+    required int? rebateTypeId,
+  }) async {
+    final requestBody = {
+      'ackNo': ackNo,
+      'propertyId': propertyId,
+      'rebateFinyear': rebateFinyear,
+      'isRebateClaimed': isRebateClaimed,
+      'rebateTypeId': rebateTypeId,
+    };
+    debugPrint('[ReassessmentStep3] Request -> ${json.encode(requestBody)}');
+
+    try {
+      final response = await _makeAuthenticatedRequest(
+        (headers) {
+          debugPrint('[ReassessmentStep3] Authorization -> ${headers['Authorization']}');
+          debugPrint('[ReassessmentStep3] Device Id -> ${headers['X-Device-Id']}');
+          return _post(
+                Uri.parse('${AppConstants.baseUrl}api/house_tax/reassessmentSubmitS3'),
+                headers: headers,
+                body: json.encode(requestBody),
+              )
+              .timeout(Duration(seconds: AppConstants.networkTimeout));
+        },
+      );
+
+      debugPrint(
+        '[ReassessmentStep3] Response (${response.statusCode}) -> ${response.body}',
+      );
+
+      if (response.statusCode == 200) {
+        return AssessmentStep3Response.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('[ReassessmentStep3] Error -> $e');
+      throw _userSafeException(e);
+    }
+  }
+
+  // Property Assessment - Reassessment - Step 4: Finalize Reassessment (document upload)
+  static Future<DeleteFloorResponse> finalizeReassessment({
+    required String ackNo,
+    required File applicationFile,
+  }) async {
+    debugPrint('[ReassessmentStep4] Request -> ackNo=$ackNo, file=${applicationFile.path}');
+
+    try {
+      final response = await _makeAuthenticatedMultipartRequest((headers) async {
+        debugPrint('[ReassessmentStep4] Authorization -> ${headers['Authorization']}');
+        debugPrint('[ReassessmentStep4] Device Id -> ${headers['X-Device-Id']}');
+        final request = http.MultipartRequest(
+          'POST',
+          Uri.parse('${AppConstants.baseUrl}api/house_tax/reassessmentSubmitS4'),
+        );
+        request.fields['ackNo'] = ackNo;
+        request.files.add(
+          await http.MultipartFile.fromPath('applicationFile', applicationFile.path),
+        );
+        return request;
+      });
+
+      debugPrint(
+        '[ReassessmentStep4] Response (${response.statusCode}) -> ${response.body}',
+      );
+
+      if (response.statusCode == 200) {
+        return DeleteFloorResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('[ReassessmentStep4] Error -> $e');
       throw _userSafeException(e);
     }
   }
@@ -2040,8 +2411,153 @@ class AssessmentStep3Response {
   }
 }
 
+class ReassessmentGetS1Response {
+  final bool? success;
+  final String? message;
+  final int? responseCode;
+  final ReassessmentGetS1Data? data;
+
+  ReassessmentGetS1Response({
+    this.success,
+    this.message,
+    this.responseCode,
+    this.data,
+  });
+
+  factory ReassessmentGetS1Response.fromJson(Map<String, dynamic> json) {
+    return ReassessmentGetS1Response(
+      success: json['success'],
+      message: json['message'],
+      responseCode: json['responseCode'],
+      data: json['data'] != null
+          ? ReassessmentGetS1Data.fromJson(json['data'])
+          : null,
+    );
+  }
+}
+
+class ReassessmentGetS1Data {
+  final String? propertyId;
+  final String? dateOfLastAssessment;
+  final int? noOfFloor;
+  final String? ackNo;
+
+  ReassessmentGetS1Data({
+    this.propertyId,
+    this.dateOfLastAssessment,
+    this.noOfFloor,
+    this.ackNo,
+  });
+
+  factory ReassessmentGetS1Data.fromJson(Map<String, dynamic> json) {
+    return ReassessmentGetS1Data(
+      propertyId: json['propertyId'],
+      dateOfLastAssessment: json['dateOfLastAssessment'],
+      noOfFloor: json['noOfFloor'],
+      ackNo: json['ackNo']?.toString().trim(),
+    );
+  }
+}
+
+class ReassessmentStep1Response {
+  final bool? success;
+  final String? message;
+  final int? responseCode;
+  final ReassessmentStep1Data? data;
+
+  ReassessmentStep1Response({
+    this.success,
+    this.message,
+    this.responseCode,
+    this.data,
+  });
+
+  factory ReassessmentStep1Response.fromJson(Map<String, dynamic> json) {
+    return ReassessmentStep1Response(
+      success: json['success'],
+      message: json['message'],
+      responseCode: json['responseCode'],
+      data: json['data'] != null
+          ? ReassessmentStep1Data.fromJson(json['data'])
+          : null,
+    );
+  }
+}
+
+class ReassessmentStep1Data {
+  final String? assessType;
+  final int? zoneId;
+  final int? wardId;
+  final int? mohallaId;
+  final String? zoneName;
+  final String? wardName;
+  final String? mohallaName;
+  final String? roadLocationName;
+  final String? propertyTypeName;
+  final String? fileNo;
+  final double? totalArea;
+  final String? ownerName;
+  final String? fatherName;
+  final String? houseNo;
+  final String? address;
+  final String? assessmentDate;
+  final String? propertyId;
+  final String? ackNo;
+  final String? roadLocationId;
+  final String? oldArv;
+
+  ReassessmentStep1Data({
+    this.assessType,
+    this.zoneId,
+    this.wardId,
+    this.mohallaId,
+    this.zoneName,
+    this.wardName,
+    this.mohallaName,
+    this.roadLocationName,
+    this.propertyTypeName,
+    this.fileNo,
+    this.totalArea,
+    this.ownerName,
+    this.fatherName,
+    this.houseNo,
+    this.address,
+    this.assessmentDate,
+    this.propertyId,
+    this.ackNo,
+    this.roadLocationId,
+    this.oldArv,
+  });
+
+  factory ReassessmentStep1Data.fromJson(Map<String, dynamic> json) {
+    return ReassessmentStep1Data(
+      assessType: json['assessType'],
+      zoneId: json['zoneId'],
+      wardId: json['wardId'],
+      mohallaId: json['mohallaId'],
+      zoneName: json['zoneName'],
+      wardName: json['wardName'],
+      mohallaName: json['mohallaName'],
+      roadLocationName: json['roadLocationName'],
+      propertyTypeName: json['propertyTypeName'],
+      fileNo: json['fileNo'],
+      totalArea: (json['totalArea'] as num?)?.toDouble(),
+      ownerName: json['ownerName'],
+      fatherName: json['fatherName'],
+      houseNo: json['houseNo'],
+      address: json['address'],
+      assessmentDate: json['assessmentDate'],
+      propertyId: json['propertyId'],
+      ackNo: json['ackNo']?.toString().trim(),
+      roadLocationId: json['roadLocationId']?.toString(),
+      oldArv: json['oldArv']?.toString(),
+    );
+  }
+}
+
 class AssessmentStep3Data {
   final List<PwsItem> pwsList;
+  final String? propertyId;
   final int? ulbId;
   final String? acknowledgementId;
   final double? totalArea;
@@ -2067,6 +2583,7 @@ class AssessmentStep3Data {
 
   AssessmentStep3Data({
     this.pwsList = const [],
+    this.propertyId,
     this.ulbId,
     this.acknowledgementId,
     this.totalArea,
@@ -2096,6 +2613,7 @@ class AssessmentStep3Data {
       pwsList: json['pwsList'] is List
           ? (json['pwsList'] as List).map((e) => PwsItem.fromJson(e)).toList()
           : [],
+      propertyId: json['propertyId'],
       ulbId: json['ulbId'],
       acknowledgementId: json['acknowledgementId'],
       totalArea: (json['totalArea'] as num?)?.toDouble(),

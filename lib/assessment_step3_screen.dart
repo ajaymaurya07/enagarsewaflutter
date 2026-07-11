@@ -3,12 +3,15 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'services/api_service.dart';
 import 'apply_grievance_screen.dart' show SelectionSheet;
+import 'assessment_document_upload_screen.dart';
 
 class AssessmentStep3Screen extends StatefulWidget {
   final String ackNo;
   final Map<String, String> floorNoList;
   final Map<String, String> floorUsageList;
   final Map<String, String> constructionTypeList;
+  final bool isReassessment;
+  final String? propertyId;
 
   const AssessmentStep3Screen({
     super.key,
@@ -16,6 +19,8 @@ class AssessmentStep3Screen extends StatefulWidget {
     required this.floorNoList,
     required this.floorUsageList,
     required this.constructionTypeList,
+    this.isReassessment = false,
+    this.propertyId,
   });
 
   @override
@@ -140,20 +145,39 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
 
     setState(() => _isSavingFloor = true);
     try {
-      final response = await ApiService.saveFloorDetails(
-        ackNo: widget.ackNo,
-        floorNumber: int.tryParse(_selectedFloorNumberKey!) ?? 0,
-        floorUsageCode: _selectedFloorUsageCode!,
-        floorTypeId: _selectedFloorType!.id ?? 0,
-        constructionTypeId: int.tryParse(_selectedConstructionTypeId!) ?? 0,
-        constructionDate: _constructionDateController.text.trim(),
-        carpetArea: int.tryParse(_carpetAreaController.text.trim()) ?? 0,
-        roomsPorchArea: int.tryParse(_roomsPorchAreaController.text.trim()) ?? 0,
-        kitchenBalconyArea:
-            int.tryParse(_kitchenBalconyAreaController.text.trim()) ?? 0,
-        garageArea: int.tryParse(_garageAreaController.text.trim()) ?? 0,
-        areaEnterMode: _areaEnterMode,
-      );
+      final response = widget.isReassessment
+          ? await ApiService.saveReassessmentFloor(
+              ackNo: widget.ackNo,
+              floorNumber: int.tryParse(_selectedFloorNumberKey!) ?? 0,
+              floorUsageCode: _selectedFloorUsageCode!,
+              floorTypeId: _selectedFloorType!.id ?? 0,
+              constructionTypeId:
+                  int.tryParse(_selectedConstructionTypeId!) ?? 0,
+              constructionDate: _constructionDateController.text.trim(),
+              carpetArea: int.tryParse(_carpetAreaController.text.trim()) ?? 0,
+              roomsPorchArea:
+                  int.tryParse(_roomsPorchAreaController.text.trim()) ?? 0,
+              kitchenBalconyArea:
+                  int.tryParse(_kitchenBalconyAreaController.text.trim()) ?? 0,
+              garageArea: int.tryParse(_garageAreaController.text.trim()) ?? 0,
+              areaEnterMode: _areaEnterMode,
+            )
+          : await ApiService.saveFloorDetails(
+              ackNo: widget.ackNo,
+              floorNumber: int.tryParse(_selectedFloorNumberKey!) ?? 0,
+              floorUsageCode: _selectedFloorUsageCode!,
+              floorTypeId: _selectedFloorType!.id ?? 0,
+              constructionTypeId:
+                  int.tryParse(_selectedConstructionTypeId!) ?? 0,
+              constructionDate: _constructionDateController.text.trim(),
+              carpetArea: int.tryParse(_carpetAreaController.text.trim()) ?? 0,
+              roomsPorchArea:
+                  int.tryParse(_roomsPorchAreaController.text.trim()) ?? 0,
+              kitchenBalconyArea:
+                  int.tryParse(_kitchenBalconyAreaController.text.trim()) ?? 0,
+              garageArea: int.tryParse(_garageAreaController.text.trim()) ?? 0,
+              areaEnterMode: _areaEnterMode,
+            );
 
       if (!mounted) return;
       setState(() => _isSavingFloor = false);
@@ -196,10 +220,15 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
   Future<void> _handleDeleteFloor(int floorNumber) async {
     setState(() => _deletingFloorNumber = floorNumber);
     try {
-      final response = await ApiService.deleteFloorDetails(
-        ackNo: widget.ackNo,
-        floorNumber: floorNumber,
-      );
+      final response = widget.isReassessment
+          ? await ApiService.deleteReassessmentFloor(
+              ackNo: widget.ackNo,
+              floorNumber: floorNumber,
+            )
+          : await ApiService.deleteFloorDetails(
+              ackNo: widget.ackNo,
+              floorNumber: floorNumber,
+            );
 
       if (!mounted) return;
       setState(() => _deletingFloorNumber = null);
@@ -270,12 +299,22 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
 
     setState(() => _isFinalizing = true);
     try {
-      final response = await ApiService.submitAssessmentStep3(
-        ackNo: widget.ackNo,
-        rebateFinyear: _rebateFinancialYearList[_selectedRebateFinyear!]!,
-        isRebateClaimed: _isRebateClaimed,
-        rebateTypeId: _isRebateClaimed == 'Y' ? _selectedRebateType!.rebateId : null,
-      );
+      final response = widget.isReassessment
+          ? await ApiService.submitReassessmentStep3(
+              ackNo: widget.ackNo,
+              propertyId: widget.propertyId!,
+              rebateFinyear: _rebateFinancialYearList[_selectedRebateFinyear!]!,
+              isRebateClaimed: _isRebateClaimed,
+              rebateTypeId:
+                  _isRebateClaimed == 'Y' ? _selectedRebateType!.rebateId : null,
+            )
+          : await ApiService.submitAssessmentStep3(
+              ackNo: widget.ackNo,
+              rebateFinyear: _rebateFinancialYearList[_selectedRebateFinyear!]!,
+              isRebateClaimed: _isRebateClaimed,
+              rebateTypeId:
+                  _isRebateClaimed == 'Y' ? _selectedRebateType!.rebateId : null,
+            );
 
       if (!mounted) return;
       setState(() => _isFinalizing = false);
@@ -446,7 +485,19 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
                           ),
                         ),
                         const SizedBox(height: 16),
+                        Text(
+                          'How do you want to enter the area?',
+                          style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade700),
+                        ),
+                        const SizedBox(height: 6),
                         _buildAreaModeToggle(),
+                        const SizedBox(height: 6),
+                        Text(
+                          _areaEnterMode == 'CA'
+                              ? 'Enter the total carpet area of the floor directly.'
+                              : 'Enter the area of each part of the floor separately — rooms/porch is required, kitchen/balcony and garage are optional.',
+                          style: GoogleFonts.poppins(fontSize: 11.5, color: Colors.grey.shade500),
+                        ),
                         const SizedBox(height: 12),
                         if (_areaEnterMode == 'CA')
                           _buildTextField(
@@ -458,7 +509,7 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
                           )
                         else ...[
                           _buildTextField(
-                            'Rooms/Porch Area (sq. ft.)',
+                            'Rooms & Porch Area (sq. ft.)',
                             _roomsPorchAreaController,
                             keyboardType: TextInputType.number,
                             isRequired: true,
@@ -466,7 +517,7 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
                           ),
                           const SizedBox(height: 12),
                           _buildTextField(
-                            'Kitchen/Balcony Area (sq. ft.)',
+                            'Kitchen, Balcony, Corridor & Store Area (sq. ft.)',
                             _kitchenBalconyAreaController,
                             keyboardType: TextInputType.number,
                             digitsOnly: true,
@@ -688,6 +739,32 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
               ),
             ),
           ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AssessmentDocumentUploadScreen(
+                      ackNo: data.acknowledgementId ?? widget.ackNo,
+                      isReassessment: widget.isReassessment,
+                    ),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _primaryColor,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: Text(
+                'Upload Document & Finish',
+                style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -776,13 +853,21 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
       children: [
         Expanded(
           child: _buildYesNoOption('Carpet Area', 'CA', _areaEnterMode == 'CA', onTap: () {
-            setState(() => _areaEnterMode = 'CA');
+            setState(() {
+              _areaEnterMode = 'CA';
+              _roomsPorchAreaController.clear();
+              _kitchenBalconyAreaController.clear();
+              _garageAreaController.clear();
+            });
           }),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: _buildYesNoOption('Measure by Rooms', 'MR', _areaEnterMode == 'MR', onTap: () {
-            setState(() => _areaEnterMode = 'MR');
+            setState(() {
+              _areaEnterMode = 'MR';
+              _carpetAreaController.clear();
+            });
           }),
         ),
       ],
