@@ -274,38 +274,6 @@ class ApiService {
     }
   }
 
-  // Register Grievance Verify OTP API
-  static Future<OtpVerificationResponse> registerGrievanceVerifyOtp({
-    required String mobileNo,
-    required String otp,
-    required String grievanceId,
-  }) async {
-    try {
-      final response = await _makeAuthenticatedRequest(
-        (headers) => _post(
-              Uri.parse(
-                '${AppConstants.baseUrl}api/house_tax/registerGrievanceAfterOtp',
-              ),
-              headers: headers,
-              body: jsonEncode({
-                'mobileNo': mobileNo,
-                'otp': otp,
-                'grievance_id': grievanceId,
-              }),
-            )
-            .timeout(Duration(seconds: AppConstants.networkTimeout)),
-      );
-
-      if (response.statusCode == 200) {
-        return OtpVerificationResponse.fromJson(jsonDecode(response.body));
-      } else {
-        throw Exception('Verification failed: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw _userSafeException(e);
-    }
-  }
-
   // Fetch Grievance Categories API
   static Future<List<GrievanceCategory>> getGrievanceCategories() async {
     try {
@@ -2028,7 +1996,9 @@ class SaveGrievanceResponse {
   final bool success;
   final int responseCode;
   final String message;
-  final GrievanceData? data;
+  // The grievance ID (e.g. "PG14452552"), or null when the API returns no
+  // data (an empty list `[]` on failure cases).
+  final String? data;
 
   SaveGrievanceResponse({
     required this.success,
@@ -2038,24 +2008,14 @@ class SaveGrievanceResponse {
   });
 
   factory SaveGrievanceResponse.fromJson(Map<String, dynamic> json) {
+    final rawData = json['data'];
     return SaveGrievanceResponse(
       success: json['success'] ?? false,
       responseCode: json['responseCode'] ?? 0,
       message: json['message'] ?? '',
-      data: json['data'] != null ? GrievanceData.fromJson(json['data']) : null,
+      data: rawData is String && rawData.isNotEmpty ? rawData : null,
     );
   }
-}
-
-class GrievanceData {
-  final String? grievanceId;
-  final String? maskedMobile;
-  GrievanceData({this.grievanceId, this.maskedMobile});
-  factory GrievanceData.fromJson(Map<String, dynamic> json) =>
-      GrievanceData(
-        grievanceId: json['grievance_id']?.toString(),
-        maskedMobile: json['maskedMobile'],
-      );
 }
 
 class GrievanceCategory {
@@ -3192,29 +3152,6 @@ class VerifyOtpResponse {
       message: json['message'],
       userId: json['userId'],
       responseCode: json['responseCode'],
-    );
-  }
-}
-
-class OtpVerificationResponse {
-  final bool? success;
-  final String? message;
-  final int? responseCode;
-  final String? data;
-
-  OtpVerificationResponse({
-    this.success,
-    this.message,
-    this.responseCode,
-    this.data,
-  });
-
-  factory OtpVerificationResponse.fromJson(Map<String, dynamic> json) {
-    return OtpVerificationResponse(
-      success: json['success'],
-      message: json['message'],
-      responseCode: json['responseCode'],
-      data: json['data']?.toString(),
     );
   }
 }

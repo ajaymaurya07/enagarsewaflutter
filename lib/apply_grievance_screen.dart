@@ -31,9 +31,6 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
   static const Color _textPrimaryColor = Color(0xFF111827);
   static const Color _hintColor = Color(0xFF6B7280);
 
-  // TODO: set true before production release
-  static const bool _kRequireOtp = true;
-
   final _formKey = GlobalKey<FormState>();
   final ImagePicker _picker = ImagePicker();
 
@@ -1189,51 +1186,13 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
 
       if (mounted) {
         setState(() => _isSubmitting = false);
-        if (response.success && response.data?.grievanceId != null) {
-          final mobileNo = _mobileController.text.trim();
-          final grievanceId = response.data!.grievanceId!;
-
-          if (!_kRequireOtp) {
-            // OTP bypass: sendOtp already happened on server, auto-verify with 123456
-            try {
-              final otpRes = await ApiService.registerGrievanceVerifyOtp(
-                mobileNo: mobileNo,
-                otp: '123456',
-                grievanceId: grievanceId,
-              );
-              if (mounted) {
-                if (otpRes.success == true) {
-                  _showSuccessDialog(
-                    otpRes.message ?? 'Grievance Registered Successfully!',
-                    otpRes.data ?? grievanceId,
-                  );
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(otpRes.message ?? 'OTP verification failed'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              }
-            } catch (e) {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(ApiService.getUserFriendlyErrorMessage(
-                      e,
-                      fallbackMessage: 'Unable to verify OTP right now. Please try again.',
-                    )),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-            }
-          } else {
-            // Normal OTP flow: open bottom sheet
-            final maskedNumber = response.data?.maskedMobile ?? 'XXXXXX${mobileNo.length > 4 ? mobileNo.substring(mobileNo.length - 4) : mobileNo}';
-            _showOtpVerificationSheet(mobileNo, grievanceId, maskedNumber);
-          }
+        if (response.success && response.data != null) {
+          _showSuccessDialog(
+            response.message.isNotEmpty
+                ? response.message
+                : 'Grievance Registered Successfully!',
+            response.data,
+          );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -1260,177 +1219,6 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
         );
       }
     }
-  }
-
-  void _showOtpVerificationSheet(String mobileNo, String grievanceId, String maskedNumber) {
-    final TextEditingController otpController = TextEditingController();
-    bool isVerifying = false;
-    String? errorText;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) => StatefulBuilder(
-        builder: (sheetContext, setModalState) => Container(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
-            top: 24,
-            left: 24,
-            right: 24,
-          ),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Verify OTP',
-                style: GoogleFonts.poppins(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Enter the OTP sent to $maskedNumber to complete your grievance registration.',
-                style: GoogleFonts.poppins(color: Colors.grey.shade600),
-              ),
-              const SizedBox(height: 24),
-              TextField(
-                controller: otpController,
-                keyboardType: TextInputType.number,
-                maxLength: 6,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.poppins(
-                  fontSize: 24,
-                  letterSpacing: 8,
-                  fontWeight: FontWeight.bold,
-                ),
-                onChanged: (_) {
-                  if (errorText != null) setModalState(() => errorText = null);
-                },
-                decoration: InputDecoration(
-                  hintText: '000000',
-                  counterText: "",
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-              if (errorText != null) ...[
-                const SizedBox(height: 10),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.red.shade200),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.error_outline,
-                        color: Colors.red.shade700,
-                        size: 18,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          errorText!,
-                          style: GoogleFonts.poppins(
-                            color: Colors.red.shade700,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: isVerifying
-                    ? null
-                    : () async {
-                        if (otpController.text.length < 4) return;
-
-                        setModalState(() {
-                          isVerifying = true;
-                          errorText = null;
-                        });
-                        try {
-                          final res =
-                              await ApiService.registerGrievanceVerifyOtp(
-                                mobileNo: mobileNo,
-                                otp: otpController.text,
-                                grievanceId: grievanceId,
-                              );
-                          if (res.success == true) {
-                            if (!mounted || !sheetContext.mounted) return;
-                            Navigator.pop(sheetContext); // Close OTP sheet
-                            _showSuccessDialog(
-                              res.message ??
-                                  'Grievance Registered Successfully!',
-                              res.data ?? grievanceId,
-                            );
-                          } else {
-                            if (!mounted) return;
-                            setModalState(
-                              () => errorText = res.message ?? 'Invalid OTP',
-                            );
-                          }
-                        } catch (e) {
-                          if (!mounted) return;
-                          setModalState(
-                            () =>
-                                errorText = ApiService.getUserFriendlyErrorMessage(
-                              e,
-                              fallbackMessage:
-                                  'Unable to verify OTP right now. Please try again.',
-                            ),
-                          );
-                        } finally {
-                          if (mounted) setModalState(() => isVerifying = false);
-                        }
-                      },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _primaryColor,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: isVerifying
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : Text(
-                        'Verify & Register',
-                        style: GoogleFonts.poppins(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-              ),
-              const SizedBox(height: 32),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   void _showSuccessDialog(String message, String? grievanceId) {

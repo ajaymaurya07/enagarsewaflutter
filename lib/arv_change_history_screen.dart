@@ -16,7 +16,6 @@ class _ArvChangeHistoryScreenState extends State<ArvChangeHistoryScreen> {
 
   bool _isLoadingInit = false;
   bool _needsPropertySelect = false;
-  bool _isOtpVerified = false;
   bool _isLoadingHistory = false;
 
   List<PropertyEntity> _properties = [];
@@ -42,7 +41,6 @@ class _ArvChangeHistoryScreenState extends State<ArvChangeHistoryScreen> {
       _isLoadingInit = true;
       _initError = null;
       _needsPropertySelect = false;
-      _isOtpVerified = false;
       _historyItems = [];
       _historyError = null;
     });
@@ -63,7 +61,7 @@ class _ArvChangeHistoryScreenState extends State<ArvChangeHistoryScreen> {
 
       if (props.length == 1) {
         setState(() => _isLoadingInit = false);
-        await _sendOtpForProperty(props.first);
+        await _selectPropertyAndFetch(props.first);
       } else {
         setState(() {
           _isLoadingInit = false;
@@ -82,295 +80,12 @@ class _ArvChangeHistoryScreenState extends State<ArvChangeHistoryScreen> {
     }
   }
 
-  Future<void> _sendOtpForProperty(PropertyEntity property) async {
+  Future<void> _selectPropertyAndFetch(PropertyEntity property) async {
     setState(() {
       _selectedProperty = property;
       _needsPropertySelect = false;
-      _isLoadingInit = true;
-      _initError = null;
     });
-
-    try {
-      final otpRes =
-          await ApiService.sendOtp(property.phoneNumber, property.propertyId);
-      if (!mounted) return;
-
-      setState(() => _isLoadingInit = false);
-
-      if (otpRes.success == true) {
-        final ph = property.phoneNumber;
-        final masked = otpRes.maskedMobile ??
-            'XXXXXX${ph.length > 4 ? ph.substring(ph.length - 4) : ph}';
-        _showOtpSheet(ph, property.propertyId, masked);
-      } else {
-        setState(() => _initError = otpRes.message ?? 'Failed to send OTP');
-      }
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _isLoadingInit = false;
-        _initError = ApiService.getUserFriendlyErrorMessage(
-          e,
-          fallbackMessage: 'Unable to send OTP. Please try again.',
-        );
-      });
-    }
-  }
-
-  void _showOtpSheet(
-      String mobileNo, String propertyId, String maskedMobile) {
-    final otpCtrl = TextEditingController();
-    bool isVerifying = false;
-    String? sheetError;
-
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      isDismissible: false,
-      enableDrag: false,
-      backgroundColor: Colors.transparent,
-      builder: (sheetCtx) => StatefulBuilder(
-        builder: (sheetCtx, setSheet) => Padding(
-          padding:
-              EdgeInsets.only(bottom: MediaQuery.of(sheetCtx).viewInsets.bottom),
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(2)),
-                  ),
-                ),
-                const SizedBox(height: 22),
-
-                // Info banner
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF4E5),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFFFE0B2)),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(Icons.security_rounded,
-                          color: _accent, size: 20),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Verification Required',
-                              style: GoogleFonts.poppins(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: const Color(0xFF333333)),
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
-                              'ARV change history is sensitive property data. Verify your mobile number to continue.',
-                              style: GoogleFonts.poppins(
-                                  fontSize: 12,
-                                  color: const Color(0xFF666666),
-                                  height: 1.45),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                Text(
-                  'Enter OTP',
-                  style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF222222)),
-                ),
-                const SizedBox(height: 4),
-                RichText(
-                  text: TextSpan(
-                    style: GoogleFonts.poppins(
-                        fontSize: 12.5, color: Colors.grey.shade500),
-                    children: [
-                      const TextSpan(text: 'A 6-digit code was sent to '),
-                      TextSpan(
-                        text: maskedMobile,
-                        style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w700,
-                            color: const Color(0xFF333333)),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 18),
-
-                if (sheetError != null) ...[
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 10),
-                    decoration: BoxDecoration(
-                        color: Colors.red.shade50,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.red.shade200)),
-                    child: Row(
-                      children: [
-                        Icon(Icons.error_outline,
-                            color: Colors.red.shade600, size: 16),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(sheetError!,
-                              style: GoogleFonts.poppins(
-                                  fontSize: 12, color: Colors.red.shade700)),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                ],
-
-                TextField(
-                  controller: otpCtrl,
-                  keyboardType: TextInputType.number,
-                  maxLength: 6,
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.poppins(
-                      fontSize: 20,
-                      letterSpacing: 10,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF222222)),
-                  decoration: InputDecoration(
-                    hintText: '– – – – – –',
-                    hintStyle: GoogleFonts.poppins(
-                        fontSize: 13,
-                        color: Colors.grey.shade300,
-                        letterSpacing: 4),
-                    counterText: '',
-                    filled: true,
-                    fillColor: const Color(0xFFF8F9FB),
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide.none),
-                    enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(color: Colors.grey.shade200)),
-                    focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide:
-                            const BorderSide(color: _accent, width: 1.5)),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 16),
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: isVerifying
-                        ? null
-                        : () async {
-                            if (otpCtrl.text.trim().isEmpty) {
-                              setSheet(
-                                  () => sheetError = 'Please enter the OTP');
-                              return;
-                            }
-                            if (otpCtrl.text.trim().length < 4) {
-                              setSheet(() =>
-                                  sheetError = 'Please enter a valid OTP');
-                              return;
-                            }
-                            setSheet(() {
-                              isVerifying = true;
-                              sheetError = null;
-                            });
-                            final sheetNav = Navigator.of(sheetCtx);
-                            try {
-                              final res = await ApiService.verifyOtp(
-                                  mobileNo, otpCtrl.text.trim());
-                              if (!mounted) return;
-                              if (res.success == true) {
-                                if (mounted) {
-                                  setState(() => _isOtpVerified = true);
-                                }
-                                sheetNav.pop();
-                                await _fetchArvHistory(propertyId);
-                              } else {
-                                setSheet(() =>
-                                    sheetError =
-                                        res.message ?? 'Invalid OTP');
-                              }
-                            } catch (e) {
-                              if (!mounted) return;
-                              setSheet(() => sheetError =
-                                  ApiService.getUserFriendlyErrorMessage(e,
-                                      fallbackMessage:
-                                          'Unable to verify OTP. Please try again.'));
-                            } finally {
-                              if (mounted) setSheet(() => isVerifying = false);
-                            }
-                          },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _accent,
-                      disabledBackgroundColor: _accent.withValues(alpha: 0.55),
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14)),
-                    ),
-                    child: isVerifying
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white)),
-                          )
-                        : Text('Verify OTP',
-                            style: GoogleFonts.poppins(
-                                fontSize: 15, fontWeight: FontWeight.w700)),
-                  ),
-                ),
-                const SizedBox(height: 10),
-
-                SizedBox(
-                  width: double.infinity,
-                  child: TextButton(
-                    onPressed: isVerifying
-                        ? null
-                        : () => Navigator.of(sheetCtx).pop(),
-                    child: Text('Cancel',
-                        style: GoogleFonts.poppins(
-                            fontSize: 14, color: Colors.grey.shade500)),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    ).then((_) {
-      if (mounted && !_isOtpVerified) Navigator.of(context).pop();
-    });
+    await _fetchArvHistory(property.propertyId);
   }
 
   Future<void> _fetchArvHistory(String propertyId) async {
@@ -459,7 +174,6 @@ class _ArvChangeHistoryScreenState extends State<ArvChangeHistoryScreen> {
     }
     if (_initError != null) return _buildInitError();
     if (_needsPropertySelect) return _buildPropertySelect();
-    if (!_isOtpVerified) return const SizedBox.shrink();
     if (_isLoadingHistory) {
       return const Center(child: CircularProgressIndicator(color: _accent));
     }
@@ -550,7 +264,7 @@ class _ArvChangeHistoryScreenState extends State<ArvChangeHistoryScreen> {
 
   Widget _buildPropertySelectCard(PropertyEntity p) {
     return GestureDetector(
-      onTap: () => _sendOtpForProperty(p),
+      onTap: () => _selectPropertyAndFetch(p),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
