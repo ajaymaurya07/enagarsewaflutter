@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'services/api_service.dart';
+import 'services/otp_gate_service.dart';
 import 'apply_grievance_screen.dart' show SelectionSheet;
 import 'assessment_step3_screen.dart';
 
@@ -9,6 +10,8 @@ class AssessmentStep2Screen extends StatefulWidget {
   final Map<String, String> roadLocationList;
   final Map<String, String> propertyTypeList;
   final Map<String, String> propertyUsesList;
+  final String propertyId;
+  final String mobileNo;
 
   const AssessmentStep2Screen({
     super.key,
@@ -16,6 +19,8 @@ class AssessmentStep2Screen extends StatefulWidget {
     required this.roadLocationList,
     required this.propertyTypeList,
     required this.propertyUsesList,
+    required this.propertyId,
+    required this.mobileNo,
   });
 
   @override
@@ -63,12 +68,17 @@ class _AssessmentStep2ScreenState extends State<AssessmentStep2Screen> {
 
     setState(() => _isSubmitting = true);
     try {
-      final response = await ApiService.submitAssessmentStep2(
-        ackNo: widget.ackNo,
-        fileNo: _fileNoController.text.trim(),
-        roadLocationId: int.tryParse(_selectedRoadLocationId!) ?? 0,
-        propertyTypeId: int.tryParse(_selectedPropertyTypeId!) ?? 0,
-        propertyUseasId: int.tryParse(_selectedPropertyUsesId!) ?? 0,
+      final response = await OtpGateService.guard(
+        call: () => ApiService.submitAssessmentStep2(
+          ackNo: widget.ackNo,
+          fileNo: _fileNoController.text.trim(),
+          roadLocationId: int.tryParse(_selectedRoadLocationId!) ?? 0,
+          propertyTypeId: int.tryParse(_selectedPropertyTypeId!) ?? 0,
+          propertyUseasId: int.tryParse(_selectedPropertyUsesId!) ?? 0,
+        ),
+        responseCode: (r) => r.responseCode,
+        propertyId: widget.propertyId,
+        mobileNo: widget.mobileNo,
       );
 
       if (!mounted) return;
@@ -90,6 +100,8 @@ class _AssessmentStep2ScreenState extends State<AssessmentStep2Screen> {
             floorNoList: data.floorNoList,
             floorUsageList: data.floorUsageList,
             constructionTypeList: data.constructionTypeList,
+            propertyId: widget.propertyId,
+            mobileNo: widget.mobileNo,
           ),
         ),
       );

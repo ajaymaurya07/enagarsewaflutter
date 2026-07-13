@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'services/api_service.dart';
 import 'services/database_service.dart';
+import 'services/otp_gate_service.dart';
 
 class ArvChangeHistoryScreen extends StatefulWidget {
   const ArvChangeHistoryScreen({super.key});
@@ -381,7 +382,12 @@ class _ArvChangeHistoryScreenState extends State<ArvChangeHistoryScreen> {
     });
 
     try {
-      final res = await ApiService.getArvChangeHistory(propertyId);
+      final res = await OtpGateService.guard(
+        call: () => ApiService.getArvChangeHistory(propertyId),
+        responseCode: (r) => r.responseCode,
+        propertyId: propertyId,
+        mobileNo: _selectedProperty?.phoneNumber ?? '',
+      );
       if (!mounted) return;
 
       if (res.success == true) {

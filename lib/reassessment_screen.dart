@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'services/api_service.dart';
 import 'services/database_service.dart';
+import 'services/otp_gate_service.dart';
 import 'apply_grievance_screen.dart' show SelectionSheet;
 import 'assessment_step3_screen.dart';
 
@@ -68,8 +69,13 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
       _isFetchingPreCheck = true;
     });
     try {
-      final response = await ApiService.getReassessmentDetails(
+      final response = await OtpGateService.guard(
+        call: () => ApiService.getReassessmentDetails(
+          propertyId: property.propertyId,
+        ),
+        responseCode: (r) => r.responseCode,
         propertyId: property.propertyId,
+        mobileNo: property.phoneNumber,
       );
       if (!mounted) return;
       setState(() => _isFetchingPreCheck = false);
@@ -96,9 +102,14 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
 
     setState(() => _isInitializing = true);
     try {
-      final response = await ApiService.initializeReassessment(
+      final response = await OtpGateService.guard(
+        call: () => ApiService.initializeReassessment(
+          propertyId: _selectedProperty!.propertyId,
+          ackNo: _preCheckData!.ackNo!,
+        ),
+        responseCode: (r) => r.responseCode,
         propertyId: _selectedProperty!.propertyId,
-        ackNo: _preCheckData!.ackNo!,
+        mobileNo: _selectedProperty!.phoneNumber,
       );
       if (!mounted) return;
       setState(() => _isInitializing = false);
@@ -125,9 +136,14 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
 
     setState(() => _isFetchingFloorConfig = true);
     try {
-      final response = await ApiService.fetchReassessmentFloorConfig(
+      final response = await OtpGateService.guard(
+        call: () => ApiService.fetchReassessmentFloorConfig(
+          propertyId: _selectedProperty!.propertyId,
+          ackNo: _step1Data!.ackNo!,
+        ),
+        responseCode: (r) => r.responseCode,
         propertyId: _selectedProperty!.propertyId,
-        ackNo: _step1Data!.ackNo!,
+        mobileNo: _selectedProperty!.phoneNumber,
       );
       if (!mounted) return;
       setState(() => _isFetchingFloorConfig = false);
@@ -148,6 +164,7 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
             constructionTypeList: data.constructionTypeList,
             isReassessment: true,
             propertyId: _selectedProperty!.propertyId,
+            mobileNo: _selectedProperty!.phoneNumber,
           ),
         ),
       );

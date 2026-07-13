@@ -3,15 +3,20 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'services/api_service.dart';
+import 'services/otp_gate_service.dart';
 
 class AssessmentDocumentUploadScreen extends StatefulWidget {
   final String ackNo;
   final bool isReassessment;
+  final String propertyId;
+  final String mobileNo;
 
   const AssessmentDocumentUploadScreen({
     super.key,
     required this.ackNo,
     this.isReassessment = false,
+    required this.propertyId,
+    required this.mobileNo,
   });
 
   @override
@@ -162,15 +167,20 @@ class _AssessmentDocumentUploadScreenState
 
     setState(() => _isSubmitting = true);
     try {
-      final response = widget.isReassessment
-          ? await ApiService.finalizeReassessment(
-              ackNo: widget.ackNo,
-              applicationFile: _selectedFile!,
-            )
-          : await ApiService.finalizeAssessment(
-              ackNo: widget.ackNo,
-              applicationFile: _selectedFile!,
-            );
+      final response = await OtpGateService.guard(
+        call: () => widget.isReassessment
+            ? ApiService.finalizeReassessment(
+                ackNo: widget.ackNo,
+                applicationFile: _selectedFile!,
+              )
+            : ApiService.finalizeAssessment(
+                ackNo: widget.ackNo,
+                applicationFile: _selectedFile!,
+              ),
+        responseCode: (r) => r.responseCode,
+        propertyId: widget.propertyId,
+        mobileNo: widget.mobileNo,
+      );
 
       if (!mounted) return;
       setState(() => _isSubmitting = false);

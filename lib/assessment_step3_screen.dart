@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'services/api_service.dart';
+import 'services/otp_gate_service.dart';
 import 'apply_grievance_screen.dart' show SelectionSheet;
 import 'assessment_document_upload_screen.dart';
 
@@ -11,7 +12,8 @@ class AssessmentStep3Screen extends StatefulWidget {
   final Map<String, String> floorUsageList;
   final Map<String, String> constructionTypeList;
   final bool isReassessment;
-  final String? propertyId;
+  final String propertyId;
+  final String mobileNo;
 
   const AssessmentStep3Screen({
     super.key,
@@ -20,7 +22,8 @@ class AssessmentStep3Screen extends StatefulWidget {
     required this.floorUsageList,
     required this.constructionTypeList,
     this.isReassessment = false,
-    this.propertyId,
+    required this.propertyId,
+    required this.mobileNo,
   });
 
   @override
@@ -145,39 +148,50 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
 
     setState(() => _isSavingFloor = true);
     try {
-      final response = widget.isReassessment
-          ? await ApiService.saveReassessmentFloor(
-              ackNo: widget.ackNo,
-              floorNumber: int.tryParse(_selectedFloorNumberKey!) ?? 0,
-              floorUsageCode: _selectedFloorUsageCode!,
-              floorTypeId: _selectedFloorType!.id ?? 0,
-              constructionTypeId:
-                  int.tryParse(_selectedConstructionTypeId!) ?? 0,
-              constructionDate: _constructionDateController.text.trim(),
-              carpetArea: int.tryParse(_carpetAreaController.text.trim()) ?? 0,
-              roomsPorchArea:
-                  int.tryParse(_roomsPorchAreaController.text.trim()) ?? 0,
-              kitchenBalconyArea:
-                  int.tryParse(_kitchenBalconyAreaController.text.trim()) ?? 0,
-              garageArea: int.tryParse(_garageAreaController.text.trim()) ?? 0,
-              areaEnterMode: _areaEnterMode,
-            )
-          : await ApiService.saveFloorDetails(
-              ackNo: widget.ackNo,
-              floorNumber: int.tryParse(_selectedFloorNumberKey!) ?? 0,
-              floorUsageCode: _selectedFloorUsageCode!,
-              floorTypeId: _selectedFloorType!.id ?? 0,
-              constructionTypeId:
-                  int.tryParse(_selectedConstructionTypeId!) ?? 0,
-              constructionDate: _constructionDateController.text.trim(),
-              carpetArea: int.tryParse(_carpetAreaController.text.trim()) ?? 0,
-              roomsPorchArea:
-                  int.tryParse(_roomsPorchAreaController.text.trim()) ?? 0,
-              kitchenBalconyArea:
-                  int.tryParse(_kitchenBalconyAreaController.text.trim()) ?? 0,
-              garageArea: int.tryParse(_garageAreaController.text.trim()) ?? 0,
-              areaEnterMode: _areaEnterMode,
-            );
+      final response = await OtpGateService.guard(
+        call: () => widget.isReassessment
+            ? ApiService.saveReassessmentFloor(
+                ackNo: widget.ackNo,
+                floorNumber: int.tryParse(_selectedFloorNumberKey!) ?? 0,
+                floorUsageCode: _selectedFloorUsageCode!,
+                floorTypeId: _selectedFloorType!.id ?? 0,
+                constructionTypeId:
+                    int.tryParse(_selectedConstructionTypeId!) ?? 0,
+                constructionDate: _constructionDateController.text.trim(),
+                carpetArea:
+                    int.tryParse(_carpetAreaController.text.trim()) ?? 0,
+                roomsPorchArea:
+                    int.tryParse(_roomsPorchAreaController.text.trim()) ?? 0,
+                kitchenBalconyArea: int.tryParse(
+                        _kitchenBalconyAreaController.text.trim()) ??
+                    0,
+                garageArea:
+                    int.tryParse(_garageAreaController.text.trim()) ?? 0,
+                areaEnterMode: _areaEnterMode,
+              )
+            : ApiService.saveFloorDetails(
+                ackNo: widget.ackNo,
+                floorNumber: int.tryParse(_selectedFloorNumberKey!) ?? 0,
+                floorUsageCode: _selectedFloorUsageCode!,
+                floorTypeId: _selectedFloorType!.id ?? 0,
+                constructionTypeId:
+                    int.tryParse(_selectedConstructionTypeId!) ?? 0,
+                constructionDate: _constructionDateController.text.trim(),
+                carpetArea:
+                    int.tryParse(_carpetAreaController.text.trim()) ?? 0,
+                roomsPorchArea:
+                    int.tryParse(_roomsPorchAreaController.text.trim()) ?? 0,
+                kitchenBalconyArea: int.tryParse(
+                        _kitchenBalconyAreaController.text.trim()) ??
+                    0,
+                garageArea:
+                    int.tryParse(_garageAreaController.text.trim()) ?? 0,
+                areaEnterMode: _areaEnterMode,
+              ),
+        responseCode: (r) => r.responseCode,
+        propertyId: widget.propertyId,
+        mobileNo: widget.mobileNo,
+      );
 
       if (!mounted) return;
       setState(() => _isSavingFloor = false);
@@ -220,15 +234,20 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
   Future<void> _handleDeleteFloor(int floorNumber) async {
     setState(() => _deletingFloorNumber = floorNumber);
     try {
-      final response = widget.isReassessment
-          ? await ApiService.deleteReassessmentFloor(
-              ackNo: widget.ackNo,
-              floorNumber: floorNumber,
-            )
-          : await ApiService.deleteFloorDetails(
-              ackNo: widget.ackNo,
-              floorNumber: floorNumber,
-            );
+      final response = await OtpGateService.guard(
+        call: () => widget.isReassessment
+            ? ApiService.deleteReassessmentFloor(
+                ackNo: widget.ackNo,
+                floorNumber: floorNumber,
+              )
+            : ApiService.deleteFloorDetails(
+                ackNo: widget.ackNo,
+                floorNumber: floorNumber,
+              ),
+        responseCode: (r) => r.responseCode,
+        propertyId: widget.propertyId,
+        mobileNo: widget.mobileNo,
+      );
 
       if (!mounted) return;
       setState(() => _deletingFloorNumber = null);
@@ -299,22 +318,31 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
 
     setState(() => _isFinalizing = true);
     try {
-      final response = widget.isReassessment
-          ? await ApiService.submitReassessmentStep3(
-              ackNo: widget.ackNo,
-              propertyId: widget.propertyId!,
-              rebateFinyear: _rebateFinancialYearList[_selectedRebateFinyear!]!,
-              isRebateClaimed: _isRebateClaimed,
-              rebateTypeId:
-                  _isRebateClaimed == 'Y' ? _selectedRebateType!.rebateId : null,
-            )
-          : await ApiService.submitAssessmentStep3(
-              ackNo: widget.ackNo,
-              rebateFinyear: _rebateFinancialYearList[_selectedRebateFinyear!]!,
-              isRebateClaimed: _isRebateClaimed,
-              rebateTypeId:
-                  _isRebateClaimed == 'Y' ? _selectedRebateType!.rebateId : null,
-            );
+      final response = await OtpGateService.guard(
+        call: () => widget.isReassessment
+            ? ApiService.submitReassessmentStep3(
+                ackNo: widget.ackNo,
+                propertyId: widget.propertyId,
+                rebateFinyear:
+                    _rebateFinancialYearList[_selectedRebateFinyear!]!,
+                isRebateClaimed: _isRebateClaimed,
+                rebateTypeId: _isRebateClaimed == 'Y'
+                    ? _selectedRebateType!.rebateId
+                    : null,
+              )
+            : ApiService.submitAssessmentStep3(
+                ackNo: widget.ackNo,
+                rebateFinyear:
+                    _rebateFinancialYearList[_selectedRebateFinyear!]!,
+                isRebateClaimed: _isRebateClaimed,
+                rebateTypeId: _isRebateClaimed == 'Y'
+                    ? _selectedRebateType!.rebateId
+                    : null,
+              ),
+        responseCode: (r) => r.responseCode,
+        propertyId: widget.propertyId,
+        mobileNo: widget.mobileNo,
+      );
 
       if (!mounted) return;
       setState(() => _isFinalizing = false);
@@ -756,6 +784,8 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
                     builder: (_) => AssessmentDocumentUploadScreen(
                       ackNo: data.acknowledgementId ?? widget.ackNo,
                       isReassessment: widget.isReassessment,
+                      propertyId: widget.propertyId,
+                      mobileNo: widget.mobileNo,
                     ),
                   ),
                 );

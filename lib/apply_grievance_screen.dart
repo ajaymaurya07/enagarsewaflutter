@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'services/api_service.dart';
 import 'services/database_service.dart';
+import 'services/otp_gate_service.dart';
 import 'tour_guides/apply_grievance_tour.dart';
 import 'help/apply_grievance_help.dart';
 
@@ -1163,22 +1164,27 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      final response = await ApiService.saveGrievance(
-        ulbId: _selectedUlb!.ulbId!,
-        zoneId: _selectedZone!.zoneId,
-        wardId: _selectedWard!.wardId,
-        mohallaId: _selectedMohalla!.mohallaId,
-        categoryId: _selectedCategory!.serviceCode.toString(),
-        subCategoryId: _selectedSubCategory!.subCatCode.toString(),
-        landmark: _landmarkController.text.trim(),
-        description: _descriptionController.text.trim(),
-        name: _fullNameController.text.trim(),
-        fatherName: _fatherNameController.text.trim(),
-        mobileNo: _mobileController.text.trim(),
-        email: _emailController.text.trim(),
-        address: _addressController.text.trim(),
+      final response = await OtpGateService.guard(
+        call: () => ApiService.saveGrievance(
+          ulbId: _selectedUlb!.ulbId!,
+          zoneId: _selectedZone!.zoneId,
+          wardId: _selectedWard!.wardId,
+          mohallaId: _selectedMohalla!.mohallaId,
+          categoryId: _selectedCategory!.serviceCode.toString(),
+          subCategoryId: _selectedSubCategory!.subCatCode.toString(),
+          landmark: _landmarkController.text.trim(),
+          description: _descriptionController.text.trim(),
+          name: _fullNameController.text.trim(),
+          fatherName: _fatherNameController.text.trim(),
+          mobileNo: _mobileController.text.trim(),
+          email: _emailController.text.trim(),
+          address: _addressController.text.trim(),
+          propertyId: _selectedProperty!.propertyId,
+          imageFile: _selectedImage,
+        ),
+        responseCode: (r) => r.responseCode,
         propertyId: _selectedProperty!.propertyId,
-        imageFile: _selectedImage,
+        mobileNo: _mobileController.text.trim(),
       );
 
       if (mounted) {

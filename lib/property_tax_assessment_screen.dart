@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'services/api_service.dart';
 import 'services/database_service.dart';
+import 'services/otp_gate_service.dart';
 import 'apply_grievance_screen.dart' show SelectionSheet;
 import 'assessment_step2_screen.dart';
 
@@ -80,7 +81,7 @@ class _PropertyTaxAssessmentScreenState
       _fullNameController.text = property.ownerName;
       _fatherNameController.text = property.fatherName ?? '';
       _mobileController.text = property.phoneNumber;
-      _emailController.text = property.email ?? '';
+      _emailController.text = '';
 
       _addressController.text = property.address ?? '';
       _houseNoController.text = property.houseNo ?? '';
@@ -213,21 +214,27 @@ class _PropertyTaxAssessmentScreenState
 
     setState(() => _isSubmitting = true);
     try {
-      final response = await ApiService.submitAssessmentStep1(
-        zoneId: int.tryParse(_selectedZone!.zoneId) ?? 0,
-        wardId: int.tryParse(_selectedWard!.wardId) ?? 0,
-        mohallaId: int.tryParse(_selectedMohalla!.mohallaId) ?? 0,
-        oldPropertyId: _selectedProperty!.propertyId,
-        totalArea: int.tryParse(_totalAreaController.text.trim()) ??
-            (double.tryParse(_totalAreaController.text.trim())?.round() ?? 0),
-        ownerName: _fullNameController.text.trim(),
-        fatherHusbandName: _fatherNameController.text.trim(),
-        email: _emailController.text.trim(),
-        mobile: _mobileController.text.trim(),
-        houseNo: _houseNoController.text.trim(),
-        address: _addressController.text.trim(),
-        landmark: _landmarkController.text.trim(),
-        popularPropertyName: _popularPropertyNameController.text.trim(),
+      final response = await OtpGateService.guard(
+        call: () => ApiService.submitAssessmentStep1(
+          zoneId: int.tryParse(_selectedZone!.zoneId) ?? 0,
+          wardId: int.tryParse(_selectedWard!.wardId) ?? 0,
+          mohallaId: int.tryParse(_selectedMohalla!.mohallaId) ?? 0,
+          oldPropertyId: _selectedProperty!.propertyId,
+          totalArea: int.tryParse(_totalAreaController.text.trim()) ??
+              (double.tryParse(_totalAreaController.text.trim())?.round() ??
+                  0),
+          ownerName: _fullNameController.text.trim(),
+          fatherHusbandName: _fatherNameController.text.trim(),
+          email: _emailController.text.trim(),
+          mobile: _mobileController.text.trim(),
+          houseNo: _houseNoController.text.trim(),
+          address: _addressController.text.trim(),
+          landmark: _landmarkController.text.trim(),
+          popularPropertyName: _popularPropertyNameController.text.trim(),
+        ),
+        responseCode: (r) => r.responseCode,
+        propertyId: _selectedProperty!.propertyId,
+        mobileNo: _mobileController.text.trim(),
       );
 
       if (!mounted) return;
@@ -260,6 +267,8 @@ class _PropertyTaxAssessmentScreenState
             roadLocationList: data.roadLocationList,
             propertyTypeList: data.propertyTypeList,
             propertyUsesList: data.propertyUsesList,
+            propertyId: _selectedProperty!.propertyId,
+            mobileNo: _mobileController.text.trim(),
           ),
         ),
       );
@@ -318,15 +327,26 @@ class _PropertyTaxAssessmentScreenState
               const SizedBox(height: 24),
               _sectionTitle('Personal Details'),
               const SizedBox(height: 12),
-              _buildTextField('Full Name', _fullNameController, isRequired: true),
+              _buildTextField(
+                'Full Name',
+                _fullNameController,
+                isRequired: true,
+                enabled: false,
+              ),
               const SizedBox(height: 12),
-              _buildTextField('Father/Husband Name', _fatherNameController, isRequired: true),
+              _buildTextField(
+                'Father/Husband Name',
+                _fatherNameController,
+                isRequired: true,
+                enabled: false,
+              ),
               const SizedBox(height: 12),
               _buildTextField(
                 'Mobile Number',
                 _mobileController,
                 keyboardType: TextInputType.phone,
                 isRequired: true,
+                enabled: false,
               ),
               const SizedBox(height: 12),
               _buildTextField(
@@ -404,7 +424,12 @@ class _PropertyTaxAssessmentScreenState
                       ),
               ),
               const SizedBox(height: 16),
-              _buildTextField('House Number', _houseNoController, isRequired: true),
+              _buildTextField(
+                'House Number',
+                _houseNoController,
+                isRequired: true,
+                enabled: false,
+              ),
               const SizedBox(height: 12),
               _buildTextField(
                 'Total Area (sq. ft.)',
@@ -412,9 +437,16 @@ class _PropertyTaxAssessmentScreenState
                 keyboardType: TextInputType.number,
                 isRequired: true,
                 digitsOnly: true,
+                enabled: false,
               ),
               const SizedBox(height: 12),
-              _buildTextField('Address', _addressController, maxLines: 2, isRequired: true),
+              _buildTextField(
+                'Address',
+                _addressController,
+                maxLines: 2,
+                isRequired: true,
+                enabled: false,
+              ),
               const SizedBox(height: 12),
               _buildTextField('Landmark', _landmarkController, isRequired: true),
               const SizedBox(height: 12),
@@ -516,14 +548,20 @@ class _PropertyTaxAssessmentScreenState
     int maxLines = 1,
     bool isRequired = false,
     bool digitsOnly = false,
+    bool enabled = true,
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
       maxLines: maxLines,
+      enabled: enabled,
+      readOnly: !enabled,
       inputFormatters:
           digitsOnly ? [FilteringTextInputFormatter.digitsOnly] : null,
-      style: GoogleFonts.poppins(fontSize: 14, color: const Color(0xFF333333)),
+      style: GoogleFonts.poppins(
+        fontSize: 14,
+        color: enabled ? const Color(0xFF333333) : Colors.grey.shade700,
+      ),
       validator: isRequired
           ? (value) {
               if (value == null || value.trim().isEmpty) {
@@ -536,12 +574,16 @@ class _PropertyTaxAssessmentScreenState
         labelText: label,
         labelStyle: GoogleFonts.poppins(color: Colors.grey.shade600, fontSize: 14),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: enabled ? Colors.white : const Color(0xFFF3F4F6),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: Colors.grey.shade300),
         ),
         enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        disabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: Colors.grey.shade300),
         ),
