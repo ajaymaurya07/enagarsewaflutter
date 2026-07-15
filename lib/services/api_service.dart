@@ -766,8 +766,13 @@ class ApiService {
   static Future<AssessmentStep2Response> fetchReassessmentFloorConfig({
     required String propertyId,
     required String ackNo,
+    required String fileNo,
   }) async {
-    final requestBody = {'propertyId': propertyId, 'ackNo': ackNo};
+    final requestBody = {
+      'propertyId': propertyId,
+      'ackNo': ackNo,
+      'fileNo': fileNo,
+    };
     debugPrint('[ReassessmentStep2] Request -> ${json.encode(requestBody)}');
 
     try {

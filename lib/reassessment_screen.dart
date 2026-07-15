@@ -27,11 +27,18 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
   ReassessmentStep1Data? _step1Data;
 
   bool _isFetchingFloorConfig = false;
+  final TextEditingController _fileNoController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _loadSavedProperties();
+  }
+
+  @override
+  void dispose() {
+    _fileNoController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadSavedProperties() async {
@@ -133,6 +140,10 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
 
   Future<void> _handleContinueToFloors() async {
     if (_selectedProperty == null || _step1Data?.ackNo == null) return;
+    if (_fileNoController.text.trim().isEmpty) {
+      _showSnackBar('Please enter Zonal File No.');
+      return;
+    }
 
     setState(() => _isFetchingFloorConfig = true);
     try {
@@ -140,6 +151,7 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
         call: () => ApiService.fetchReassessmentFloorConfig(
           propertyId: _selectedProperty!.propertyId,
           ackNo: _step1Data!.ackNo!,
+          fileNo: _fileNoController.text.trim(),
         ),
         responseCode: (r) => r.responseCode,
         propertyId: _selectedProperty!.propertyId,
@@ -259,6 +271,35 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
                 ),
                 _InfoRow('Old ARV', _step1Data!.oldArv ?? '-'),
               ]),
+              const SizedBox(height: 16),
+              Text(
+                'Zonal File No.',
+                style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade700),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _fileNoController,
+                keyboardType: TextInputType.number,
+                style: GoogleFonts.poppins(fontSize: 14, color: const Color(0xFF333333)),
+                decoration: InputDecoration(
+                  hintText: 'Enter Zonal File No.',
+                  hintStyle: GoogleFonts.poppins(color: Colors.grey.shade600, fontSize: 14),
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: _primaryColor),
+                  ),
+                ),
+              ),
               const SizedBox(height: 20),
               _buildActionButton(
                 label: 'Continue to Floor Details',
