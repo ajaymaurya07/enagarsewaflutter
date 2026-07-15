@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'services/api_service.dart';
 import 'services/otp_gate_service.dart';
+import 'services/assessment_exit_guard.dart';
+import 'widgets/assessment_progress_bar.dart';
 import 'apply_grievance_screen.dart' show SelectionSheet;
 import 'assessment_step3_screen.dart';
 
@@ -126,7 +128,13 @@ class _AssessmentStep2ScreenState extends State<AssessmentStep2Screen> {
     final propertyTypeEntries = widget.propertyTypeList.entries.toList();
     final propertyUsesEntries = widget.propertyUsesList.entries.toList();
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        await handleAssessmentBack(context);
+      },
+      child: Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -138,7 +146,7 @@ class _AssessmentStep2ScreenState extends State<AssessmentStep2Screen> {
             color: _primaryColor,
             size: 20,
           ),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => handleAssessmentBack(context),
         ),
         title: Text(
           'Property Tax Assessment',
@@ -147,6 +155,10 @@ class _AssessmentStep2ScreenState extends State<AssessmentStep2Screen> {
             fontWeight: FontWeight.w600,
             color: const Color(0xFF333333),
           ),
+        ),
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(38),
+          child: AssessmentProgressBar(currentStep: 2, totalSteps: 4),
         ),
       ),
       body: SingleChildScrollView(
@@ -295,6 +307,7 @@ class _AssessmentStep2ScreenState extends State<AssessmentStep2Screen> {
             ),
           ),
         ),
+      ),
       ),
     );
   }

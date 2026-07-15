@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'services/api_service.dart';
 import 'services/otp_gate_service.dart';
+import 'services/assessment_exit_guard.dart';
+import 'widgets/assessment_progress_bar.dart';
 import 'apply_grievance_screen.dart' show SelectionSheet;
 import 'assessment_document_upload_screen.dart';
 
@@ -328,7 +330,7 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
                 isRebateClaimed: _isRebateClaimed,
                 rebateTypeId: _isRebateClaimed == 'Y'
                     ? _selectedRebateType!.rebateId
-                    : null,
+                    : 0,
               )
             : ApiService.submitAssessmentStep3(
                 ackNo: widget.ackNo,
@@ -337,7 +339,7 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
                 isRebateClaimed: _isRebateClaimed,
                 rebateTypeId: _isRebateClaimed == 'Y'
                     ? _selectedRebateType!.rebateId
-                    : null,
+                    : 0,
               ),
         responseCode: (r) => r.responseCode,
         propertyId: widget.propertyId,
@@ -373,7 +375,16 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
     final constructionTypeEntries = widget.constructionTypeList.entries.toList();
     final rebateFinyearEntries = _rebateFinancialYearList.entries.toList();
 
-    return Scaffold(
+    final totalSteps = widget.isReassessment ? 3 : 4;
+    final currentStep = widget.isReassessment ? 2 : 3;
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        await handleAssessmentBack(context);
+      },
+      child: Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -381,7 +392,7 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back_ios_new_rounded, color: _primaryColor, size: 20),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => handleAssessmentBack(context),
         ),
         title: Text(
           'Property Tax Assessment',
@@ -389,6 +400,13 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
             fontSize: 17,
             fontWeight: FontWeight.w600,
             color: const Color(0xFF333333),
+          ),
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(38),
+          child: AssessmentProgressBar(
+            currentStep: currentStep,
+            totalSteps: totalSteps,
           ),
         ),
       ),
@@ -705,6 +723,7 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
                 ],
               ),
             ),
+      ),
     );
   }
 

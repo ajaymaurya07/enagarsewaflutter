@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'services/api_service.dart';
 import 'services/database_service.dart';
 import 'services/otp_gate_service.dart';
+import 'services/assessment_exit_guard.dart';
+import 'widgets/assessment_progress_bar.dart';
 import 'apply_grievance_screen.dart' show SelectionSheet;
 import 'assessment_step2_screen.dart';
 
@@ -289,7 +291,13 @@ class _PropertyTaxAssessmentScreenState
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        await handleAssessmentBack(context);
+      },
+      child: Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -301,7 +309,7 @@ class _PropertyTaxAssessmentScreenState
             color: _primaryColor,
             size: 20,
           ),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => handleAssessmentBack(context),
         ),
         title: Text(
           'Property Tax Assessment',
@@ -310,6 +318,10 @@ class _PropertyTaxAssessmentScreenState
             fontWeight: FontWeight.w600,
             color: const Color(0xFF333333),
           ),
+        ),
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(38),
+          child: AssessmentProgressBar(currentStep: 1, totalSteps: 4),
         ),
       ),
       body: SingleChildScrollView(
@@ -458,6 +470,7 @@ class _PropertyTaxAssessmentScreenState
       ),
       bottomNavigationBar:
           _selectedProperty == null ? null : _buildBottomBar(),
+      ),
     );
   }
 
@@ -550,7 +563,7 @@ class _PropertyTaxAssessmentScreenState
     bool digitsOnly = false,
     bool enabled = true,
   }) {
-    return TextFormField(
+    final field = TextFormField(
       controller: controller,
       keyboardType: keyboardType,
       maxLines: maxLines,
@@ -596,6 +609,17 @@ class _PropertyTaxAssessmentScreenState
           borderSide: const BorderSide(color: Colors.red),
         ),
       ),
+    );
+
+    if (enabled) return field;
+
+    // Disabled fields must not grab focus themselves; tapping one should
+    // instead release focus from whichever field the keyboard is currently
+    // showing for, otherwise the cursor appears stuck on the last-focused
+    // editable field.
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: AbsorbPointer(child: field),
     );
   }
 

@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'services/api_service.dart';
 import 'services/otp_gate_service.dart';
+import 'services/assessment_exit_guard.dart';
+import 'widgets/assessment_progress_bar.dart';
 
 class AssessmentDocumentUploadScreen extends StatefulWidget {
   final String ackNo;
@@ -208,29 +210,48 @@ class _AssessmentDocumentUploadScreenState
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FB),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        elevation: 0,
-        automaticallyImplyLeading: !_isSuccess,
-        leading: _isSuccess
-            ? null
-            : IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _primaryColor, size: 20),
-                onPressed: () => Navigator.pop(context),
-              ),
-        title: Text(
-          widget.isReassessment ? 'Finalize Reassessment' : 'Finalize Assessment',
-          style: GoogleFonts.poppins(
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF333333),
+    final totalSteps = widget.isReassessment ? 3 : 4;
+    final currentStep = totalSteps;
+
+    return PopScope(
+      canPop: _isSuccess,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        await handleAssessmentBack(context);
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8F9FB),
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
+          elevation: 0,
+          automaticallyImplyLeading: !_isSuccess,
+          leading: _isSuccess
+              ? null
+              : IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _primaryColor, size: 20),
+                  onPressed: () => handleAssessmentBack(context),
+                ),
+          title: Text(
+            widget.isReassessment ? 'Finalize Reassessment' : 'Finalize Assessment',
+            style: GoogleFonts.poppins(
+              fontSize: 17,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF333333),
+            ),
           ),
+          bottom: _isSuccess
+              ? null
+              : PreferredSize(
+                  preferredSize: const Size.fromHeight(38),
+                  child: AssessmentProgressBar(
+                    currentStep: currentStep,
+                    totalSteps: totalSteps,
+                  ),
+                ),
         ),
+        body: _isSuccess ? _buildSuccessView() : _buildUploadForm(),
       ),
-      body: _isSuccess ? _buildSuccessView() : _buildUploadForm(),
     );
   }
 
