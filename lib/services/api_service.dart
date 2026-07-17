@@ -2222,12 +2222,14 @@ class AssessmentStep2Response {
 }
 
 class AssessmentStep2Data {
+  final String? propertyId;
   final String? ackNo;
   final Map<String, String> floorNoList;
   final Map<String, String> floorUsageList;
   final Map<String, String> constructionTypeList;
 
   AssessmentStep2Data({
+    this.propertyId,
     this.ackNo,
     this.floorNoList = const {},
     this.floorUsageList = const {},
@@ -2236,6 +2238,7 @@ class AssessmentStep2Data {
 
   factory AssessmentStep2Data.fromJson(Map<String, dynamic> json) {
     return AssessmentStep2Data(
+      propertyId: json['propertyId'],
       ackNo: json['ackNo'],
       floorNoList: AssessmentStep1Data._toStringMap(json['floorNoList']),
       floorUsageList: AssessmentStep1Data._toStringMap(json['floorUsageList']),

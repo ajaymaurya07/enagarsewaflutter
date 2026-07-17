@@ -175,7 +175,7 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
             floorUsageList: data.floorUsageList,
             constructionTypeList: data.constructionTypeList,
             isReassessment: true,
-            propertyId: _selectedProperty!.propertyId,
+            propertyId: data.propertyId ?? _selectedProperty!.propertyId,
             mobileNo: _selectedProperty!.phoneNumber,
           ),
         ),
