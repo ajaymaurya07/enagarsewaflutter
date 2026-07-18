@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python3 -c ' *)"
+      "Bash(python3 -c ' *)",
+      "Bash(dart analyze *)",
+      "Bash(grep -v -E \"/build/|/\\\\.dart_tool/\")",
+      "WebFetch(domain:gs.statcounter.com)",
+      "Bash(./gradlew.bat :app:checkDebugAarMetadata)"
     ]
   }
 }

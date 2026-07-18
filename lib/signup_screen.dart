@@ -1202,7 +1202,7 @@ class _SignUpScreenState extends State<SignUpScreen>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Join e-Nagarseva',
+                              'Join eNagarSewa',
                               style: GoogleFonts.poppins(
                                 fontSize: 20,
                                 fontWeight: FontWeight.w700,

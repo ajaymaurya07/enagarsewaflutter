@@ -45,7 +45,7 @@ android {
 
     defaultConfig {
         applicationId = "com.vdsai.enagaesewa"
-        minSdk = 29
+        minSdk = 26
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

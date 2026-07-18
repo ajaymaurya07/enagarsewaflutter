@@ -62,3 +62,7 @@ flutter:
     - assets/images/e_nagar_seva_logo.png
     - assets/rate_master.json
     - assets/certs/iamsup_chain.pem
+  fonts:
+    - family: Krutidev010
+      fonts:
+        - asset: assets/font/Kruti Dev 010 Regular.ttf

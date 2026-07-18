@@ -2,11 +2,11 @@
 class LoginHelp {
   LoginHelp._();
 
-  static const String emailTitle = 'Email';
+  static const String emailTitle = 'Email / Mobile Number';
   static const String emailMessage =
-      'Enter your registered email address.\n'
-      'Example: name@example.com\n\n'
-      'This is the email you used when creating your account.';
+      'Enter your registered email address or mobile number.\n'
+      'Example: name@example.com or 9876543210\n\n'
+      'This is the email or mobile number you used when creating your account.';
 
   static const String passwordTitle = 'Password';
   static const String passwordMessage =

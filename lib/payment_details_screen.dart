@@ -14,6 +14,7 @@ import 'payment_result_screen.dart';
 import 'payment_history_screen.dart';
 import 'apply_grievance_screen.dart';
 import 'tour_guides/payment_details_tour.dart';
+import 'utils/ulb_language_helper.dart';
 
 class PaymentDetailsScreen extends StatefulWidget {
   final String propertyId;
@@ -90,11 +91,11 @@ class _PayuDelegate implements PayUCheckoutProProtocol {
   }
 
   void _verifyPayment() => _verify(
-        'Payment verification could not be completed. Please check your Payment History to confirm the status.',
+        'Payment verification could not be completed. Please check your Current Receipt Details to confirm the status.',
       );
 
   void _verifyPaymentCancelled() => _verify(
-        'Payment Cancelled. Verification could not be completed. Please check your Payment History to confirm the status.',
+        'Payment Cancelled. Verification could not be completed. Please check your Current Receipt Details to confirm the status.',
       );
 
   void _verify(String unableToVerifyMessage) {
@@ -247,11 +248,19 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
   String? _errorMessage;
   bool _showPropertyDetails = false;
   TutorialCoachMark? _tutorialCoachMark;
+  bool _isKrutidev = false;
 
   @override
   void initState() {
     super.initState();
     _fetchDetails();
+    _loadUlbLanguagePreference();
+  }
+
+  Future<void> _loadUlbLanguagePreference() async {
+    final isKrutidev = await UlbLanguageHelper.isKrutidev();
+    if (!mounted) return;
+    setState(() => _isKrutidev = isKrutidev);
   }
 
   String _getCurrentTime() {
@@ -393,6 +402,12 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
   }
 
   void _handlePayTax() async {
+    final netPayable = double.tryParse(_details?.billDetails?.netPayble ?? '0') ?? 0.0;
+    if (netPayable <= 0) {
+      _showZeroPayableDialog();
+      return;
+    }
+
     final mobileNo = _details?.ownerDetails?.mobileNo;
     if (mobileNo == null || mobileNo.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -432,6 +447,49 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
         ),
       );
     }
+  }
+
+  void _showZeroPayableDialog() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.info_outline_rounded, color: Color(0xFFE67514)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Nothing to Pay',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF333333),
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'You cannot proceed with payment. Net Payable amount is ₹0.',
+          style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade700),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(
+              'OK',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFFE67514),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showOtpAndPaymentDialog(String mobileNo, String maskedNumber) {
@@ -1132,6 +1190,8 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
           propertyId: widget.propertyId,
           currReceiptDetails: _details?.currReceiptDetails ?? [],
           prevReceiptDetails: _details?.prevReceiptDetails ?? [],
+          ownerDetails: _details?.ownerDetails,
+          propertyDetails: _details?.propertyDetailsInfo,
         ),
       ),
     );
@@ -1480,7 +1540,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: _buildSecondaryButton(
-                      'Payment History',
+                      'Current Receipt Details',
                       Icons.payment_rounded,
                       _showPaymentHistory,
                       key: _keyPaymentHistoryButton,
@@ -1580,10 +1640,10 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
                         _buildSummaryRow('Ward Name', prop?.wardName),
                         _buildSummaryRow('Mohalla Name', prop?.mohallaName),
                         _buildSummaryRow('House No.', prop?.houseNo),
-                        _buildSummaryRow('Property Address', prop?.address),
-                        _buildSummaryRow('Owner/Occupier Name', owner?.ownerName),
+                        _buildSummaryRow('Property Address', prop?.address, isLanguageSensitive: true),
+                        _buildSummaryRow('Owner/Occupier Name', owner?.ownerName, isLanguageSensitive: true),
                         _buildSummaryRow('Owner Mobile Number', owner?.mobileNo),
-                        _buildSummaryRow('Owner Father Name', owner?.fatherName),
+                        _buildSummaryRow('Owner Father Name', owner?.fatherName, isLanguageSensitive: true),
                       ],
                     ),
                   ),
@@ -1596,7 +1656,8 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
     );
   }
 
-  Widget _buildSummaryRow(String label, String? value) {
+  Widget _buildSummaryRow(String label, String? value, {bool isLanguageSensitive = false}) {
+    final useKrutidev = isLanguageSensitive && _isKrutidev;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Row(
@@ -1619,11 +1680,18 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
             child: Text(
               value ?? "N/A",
               textAlign: TextAlign.right,
-              style: GoogleFonts.poppins(
-                fontSize: 13,
-                color: const Color(0xFF444444),
-                fontWeight: FontWeight.w600,
-              ),
+              style: useKrutidev
+                  ? const TextStyle(
+                      fontFamily: UlbLanguageHelper.krutidevFontFamily,
+                      fontSize: 13,
+                      color: Color(0xFF444444),
+                      fontWeight: FontWeight.w600,
+                    )
+                  : GoogleFonts.poppins(
+                      fontSize: 13,
+                      color: const Color(0xFF444444),
+                      fontWeight: FontWeight.w600,
+                    ),
             ),
           ),
         ],

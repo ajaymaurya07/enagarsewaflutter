@@ -7,7 +7,7 @@ class AppConstants {
   static const int networkTimeout = 30; // Seconds
 
   // App Info
-  static const String appName = 'e-Nagarseva';
+  static const String appName = 'eNagarSewa';
 
   // Populated once at startup via AppConstants.init().
   // Accessing these before init() throws a LateInitializationError — by design.

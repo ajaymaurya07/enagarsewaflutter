@@ -188,26 +188,26 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: 28),
 
-                        // Email Field
+                        // Email / Mobile Number Field
                         const InfoLabel(
-                          label: 'Email',
+                          label: 'Email / Mobile Number',
                           helpTitle: LoginHelp.emailTitle,
                           helpMessage: LoginHelp.emailMessage,
                         ),
                         const SizedBox(height: 8),
                         TextField(
                           controller: _emailController,
-                          keyboardType: TextInputType.emailAddress,
+                          keyboardType: TextInputType.text,
                           maxLength: 50,
                           inputFormatters: [
                             FilteringTextInputFormatter.deny(RegExp(r'[<>"\\]')),
                           ],
                           style: GoogleFonts.poppins(fontSize: 14),
                           decoration: InputDecoration(
-                            hintText: 'Enter email',
+                            hintText: 'Enter email or mobile number',
                             counterText: '',
                             hintStyle: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade400),
-                            prefixIcon: const Icon(Icons.email_outlined, color: Color(0xFFE67514), size: 20),
+                            prefixIcon: const Icon(Icons.person_outline_rounded, color: Color(0xFFE67514), size: 20),
                             filled: true,
                             fillColor: const Color(0xFFF8F9FB),
                             border: OutlineInputBorder(

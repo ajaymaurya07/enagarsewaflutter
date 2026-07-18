@@ -554,6 +554,7 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
                           _buildTextField(
                             'Carpet Area (sq. ft.)',
                             _carpetAreaController,
+                            fieldKey: const ValueKey('carpet_area_field'),
                             keyboardType: TextInputType.number,
                             isRequired: true,
                             digitsOnly: true,
@@ -562,6 +563,7 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
                           _buildTextField(
                             'Rooms & Porch Area (sq. ft.)',
                             _roomsPorchAreaController,
+                            fieldKey: const ValueKey('rooms_porch_area_field'),
                             keyboardType: TextInputType.number,
                             isRequired: true,
                             digitsOnly: true,
@@ -570,6 +572,7 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
                           _buildTextField(
                             'Kitchen, Balcony, Corridor & Store Area (sq. ft.)',
                             _kitchenBalconyAreaController,
+                            fieldKey: const ValueKey('kitchen_balcony_area_field'),
                             keyboardType: TextInputType.number,
                             digitsOnly: true,
                           ),
@@ -577,6 +580,7 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
                           _buildTextField(
                             'Garage Area (sq. ft.)',
                             _garageAreaController,
+                            fieldKey: const ValueKey('garage_area_field'),
                             keyboardType: TextInputType.number,
                             digitsOnly: true,
                           ),
@@ -855,6 +859,7 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
     final floorNumber = floor.floorNumber;
     final isDeleting = _deletingFloorNumber == floorNumber;
     return Container(
+      key: ValueKey('floor_card_$floorNumber'),
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
@@ -1011,12 +1016,14 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
   Widget _buildTextField(
     String label,
     TextEditingController controller, {
+    Key? fieldKey,
     TextInputType keyboardType = TextInputType.text,
     bool isRequired = false,
     bool digitsOnly = false,
     String? hintText,
   }) {
     return TextFormField(
+      key: fieldKey,
       controller: controller,
       keyboardType: keyboardType,
       inputFormatters:

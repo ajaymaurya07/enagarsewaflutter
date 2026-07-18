@@ -725,6 +725,40 @@ class ApiService {
     }
   }
 
+  // Property Assessment - Reassessment - List: Fetch all reassessments for the user
+  static Future<ReassessmentListResponse> getReassessmentList() async {
+    debugPrint('[ReassessmentList] Request -> getReassessmentList');
+
+    try {
+      final response = await _makeAuthenticatedRequest(
+        (headers) {
+          debugPrint('[ReassessmentList] Authorization -> ${headers['Authorization']}');
+          debugPrint('[ReassessmentList] Device Id -> ${headers['X-Device-Id']}');
+          return _post(
+                Uri.parse('${AppConstants.baseUrl}api/house_tax/getReassessmentList'),
+                headers: headers,
+                body: json.encode({}),
+              )
+              .timeout(Duration(seconds: AppConstants.networkTimeout));
+        },
+      );
+
+      debugPrint(
+        '[ReassessmentList] Response (${response.statusCode}) -> ${response.body}',
+      );
+
+      if (response.statusCode == 200) {
+        return ReassessmentListResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('[ReassessmentList] Error -> $e');
+      throw _userSafeException(e);
+    }
+  }
+
+
   // Property Assessment - Reassessment - Step 1: Initialize Reassessment
   static Future<ReassessmentStep1Response> initializeReassessment({
     required String propertyId,
@@ -1030,6 +1064,30 @@ class ApiService {
         return [];
       } else {
         throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw _userSafeException(e);
+    }
+  }
+
+  // Fetch ULB Language (English / Krutidev) configured for the logged-in
+  // citizen's ULB. The ULB ID is resolved server-side from the auth token
+  // and echoed back inside the `message` string, e.g.
+  // "ULB Language fetched successfully for ULB ID :- 997".
+  static Future<UlbLanguageResponse> getUlbLanguage() async {
+    try {
+      final response = await _makeAuthenticatedRequest(
+        (headers) => _get(
+              Uri.parse('${AppConstants.baseUrl}api/House_tax/getUlbLanguage'),
+              headers: headers,
+            )
+            .timeout(Duration(seconds: AppConstants.networkTimeout)),
+      );
+
+      if (response.statusCode == 200) {
+        return UlbLanguageResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Failed to load ULB language: ${response.statusCode}');
       }
     } catch (e) {
       throw _userSafeException(e);
@@ -2427,6 +2485,92 @@ class ReassessmentGetS1Data {
   }
 }
 
+class ReassessmentListResponse {
+  final bool? success;
+  final String? message;
+  final int? responseCode;
+  final List<ReassessmentListItem> data;
+
+  ReassessmentListResponse({
+    this.success,
+    this.message,
+    this.responseCode,
+    this.data = const [],
+  });
+
+  factory ReassessmentListResponse.fromJson(Map<String, dynamic> json) {
+    return ReassessmentListResponse(
+      success: json['success'],
+      message: json['message'],
+      responseCode: json['responseCode'],
+      data: json['data'] is List
+          ? (json['data'] as List)
+                .map((e) => ReassessmentListItem.fromJson(e))
+                .toList()
+          : const [],
+    );
+  }
+}
+
+class ReassessmentListItem {
+  final String? propertyId;
+  final String? ackNo;
+  final String? assessType;
+  final String? assessDate;
+  final String? ownerName;
+  final String? fatherName;
+  final String? houseNo;
+  final String? address;
+  final String? totalArv;
+  final int? currentStage;
+  final String? isCompleted;
+  final String? createdAt;
+  final String? updatedAt;
+  final int? nextStage;
+
+  ReassessmentListItem({
+    this.propertyId,
+    this.ackNo,
+    this.assessType,
+    this.assessDate,
+    this.ownerName,
+    this.fatherName,
+    this.houseNo,
+    this.address,
+    this.totalArv,
+    this.currentStage,
+    this.isCompleted,
+    this.createdAt,
+    this.updatedAt,
+    this.nextStage,
+  });
+
+  bool get isCompletedFlag => (isCompleted ?? '').toUpperCase() == 'YES';
+
+  factory ReassessmentListItem.fromJson(Map<String, dynamic> json) {
+    return ReassessmentListItem(
+      propertyId: json['property_id']?.toString(),
+      ackNo: json['ack_no']?.toString(),
+      assessType: json['assess_type']?.toString(),
+      assessDate: json['assess_date']?.toString(),
+      ownerName: json['owner_name']?.toString(),
+      fatherName: json['father_name']?.toString(),
+      houseNo: json['house_no']?.toString(),
+      address: json['address']?.toString(),
+      totalArv: json['total_arv']?.toString(),
+      currentStage: json['current_stage'] is int
+          ? json['current_stage']
+          : int.tryParse('${json['current_stage']}'),
+      isCompleted: json['is_completed']?.toString(),
+      createdAt: json['created_at']?.toString(),
+      updatedAt: json['updated_at']?.toString(),
+      nextStage: json['next_stage'] is int
+          ? json['next_stage']
+          : int.tryParse('${json['next_stage']}'),
+    );
+  }
+}
+
 class ReassessmentStep1Response {
   final bool? success;
   final String? message;
@@ -2705,6 +2849,34 @@ class UlbData {
 
   @override
   String toString() => '${ulbName ?? ""} (${ulbType ?? ""})';
+}
+
+class UlbLanguageResponse {
+  final bool success;
+  final String message;
+  final int? responseCode;
+  final String? language;
+  final String? ulbId;
+
+  UlbLanguageResponse({
+    required this.success,
+    required this.message,
+    this.responseCode,
+    this.language,
+    this.ulbId,
+  });
+
+  factory UlbLanguageResponse.fromJson(Map<String, dynamic> json) {
+    final message = json['message']?.toString() ?? '';
+    final ulbIdMatch = RegExp(r'ULB ID\s*:-\s*(\S+)').firstMatch(message);
+    return UlbLanguageResponse(
+      success: json['success'] == true,
+      message: message,
+      responseCode: json['responseCode'] is int ? json['responseCode'] : null,
+      language: json['data']?.toString(),
+      ulbId: ulbIdMatch?.group(1),
+    );
+  }
 }
 
 class ZoneData {
@@ -3006,6 +3178,9 @@ class PropertyInfo {
   final String? zoneName;
   final String? mohallaName;
   final String? totalArea;
+  final String? chukNo;
+  final String? propertyUseAs;
+  final String? propertyType;
 
   PropertyInfo({
     this.address,
@@ -3014,6 +3189,9 @@ class PropertyInfo {
     this.zoneName,
     this.mohallaName,
     this.totalArea,
+    this.chukNo,
+    this.propertyUseAs,
+    this.propertyType,
   });
 
   factory PropertyInfo.fromJson(Map<String, dynamic> json) {
@@ -3024,6 +3202,9 @@ class PropertyInfo {
       zoneName: json['zoneName'],
       mohallaName: json['mohallaName'],
       totalArea: json['totalArea']?.toString(),
+      chukNo: json['chukNo']?.toString(),
+      propertyUseAs: json['propertyUseAs']?.toString(),
+      propertyType: json['propertyType']?.toString(),
     );
   }
 }

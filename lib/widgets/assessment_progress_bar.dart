@@ -17,7 +17,8 @@ class AssessmentProgressBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final progress = (currentStep / totalSteps).clamp(0.0, 1.0);
+    final denominator = totalSteps > 1 ? totalSteps - 1 : 1;
+    final progress = ((currentStep - 1) / denominator).clamp(0.0, 1.0);
     final percent = (progress * 100).round();
 
     return Container(

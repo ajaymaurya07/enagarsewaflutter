@@ -66,6 +66,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _loadUserInfo();
     _startPaymentAutoScroll();
     _loadPropertyDetails();
+    _loadUlbLanguage();
+  }
+
+  // Fetches and caches the citizen's ULB language (English / Krutidev) once.
+  // Skipped entirely if a value is already cached in secure storage.
+  Future<void> _loadUlbLanguage() async {
+    final cachedLanguage = await StorageService.getLanguageCache();
+    final cachedUlbId = await StorageService.getUlbCache();
+    if (cachedLanguage != null &&
+        cachedLanguage.isNotEmpty &&
+        cachedUlbId != null &&
+        cachedUlbId.isNotEmpty) {
+      return;
+    }
+
+    try {
+      final response = await ApiService.getUlbLanguage();
+      if (response.success &&
+          response.language != null &&
+          response.language!.isNotEmpty &&
+          response.ulbId != null &&
+          response.ulbId!.isNotEmpty) {
+        await StorageService.saveLanguageCache(response.language!);
+        await StorageService.saveUlbCache(response.ulbId!);
+      }
+    } catch (_) {
+      // Non-blocking: dashboard should still work if this call fails.
+    }
   }
 
   @override

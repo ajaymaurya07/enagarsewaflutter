@@ -20,7 +20,13 @@ class StorageService {
       await prefs.remove(_refreshTokenKey);
     }
     if (data.emailId != null) await prefs.setString('email_id', data.emailId!);
-    if (data.userType != null) await prefs.setString('user_type', data.userType!);
+    if (data.userType != null) {
+      // Backend "citizen" is treated as "admin" in-app; "admin" stays "admin".
+      final userType = data.userType!.trim().toLowerCase() == 'citizen'
+          ? 'admin'
+          : data.userType!;
+      await prefs.setString('user_type', userType);
+    }
   }
 
   static Future<void> updateAccessToken(String token) async {
@@ -94,6 +100,7 @@ class StorageService {
     await prefs.remove('selected_ulb_id');
     await prefs.remove('selected_property_total_arv');
     await clearIntegrityToken();
+    await clearUlbLanguageCache();
   }
 
   static Future<bool> isLoggedIn() async {
@@ -169,6 +176,34 @@ class StorageService {
 
   static Future<void> clearPayuMobileTransactionId() async {
     await _secureStorage.delete(key: _payuMobileTxnIdKey);
+  }
+
+  // ── ULB Language (English / Krutidev) cache ────────────────────────────────
+  // Cached after the dashboard's getUlbLanguage call so it isn't re-fetched
+  // on every app open.
+
+  static const String _languageCacheKey = 'ulb_language';
+  static const String _ulbIdCacheKey = 'ulb_id_cache';
+
+  static Future<void> saveLanguageCache(String language) async {
+    await _secureStorage.write(key: _languageCacheKey, value: language);
+  }
+
+  static Future<String?> getLanguageCache() async {
+    return _secureStorage.read(key: _languageCacheKey);
+  }
+
+  static Future<void> saveUlbCache(String ulbId) async {
+    await _secureStorage.write(key: _ulbIdCacheKey, value: ulbId);
+  }
+
+  static Future<String?> getUlbCache() async {
+    return _secureStorage.read(key: _ulbIdCacheKey);
+  }
+
+  static Future<void> clearUlbLanguageCache() async {
+    await _secureStorage.delete(key: _languageCacheKey);
+    await _secureStorage.delete(key: _ulbIdCacheKey);
   }
 
   static Future<void> _writeSecureToken(String key, String value) async {

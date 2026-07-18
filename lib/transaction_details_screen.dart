@@ -254,7 +254,7 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
                     ),
                     pw.SizedBox(height: 4),
                     pw.Text(
-                      'This receipt is printed through EODB,e-nagarsewa portal GoUP.',
+                      'This receipt is printed through EODB, eNagarSewa portal GoUP.',
                       textAlign: pw.TextAlign.center,
                       style: pw.TextStyle(fontSize: 10, fontStyle: pw.FontStyle.italic),
                     ),
@@ -475,7 +475,7 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'This receipt is printed through EODB, e-nagarsewa portal GoUP.',
+                  'This receipt is printed through EODB, eNagarSewa portal GoUP.',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.poppins(
                     fontSize: 11,

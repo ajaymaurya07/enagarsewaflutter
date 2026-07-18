@@ -5,6 +5,8 @@ import 'services/database_service.dart';
 import 'services/otp_gate_service.dart';
 import 'apply_grievance_screen.dart' show SelectionSheet;
 import 'assessment_step3_screen.dart';
+import 'reassessment_list_screen.dart';
+import 'utils/ulb_language_helper.dart';
 
 class ReassessmentScreen extends StatefulWidget {
   const ReassessmentScreen({super.key});
@@ -25,14 +27,24 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
 
   bool _isInitializing = false;
   ReassessmentStep1Data? _step1Data;
+  bool _showFloorEntrySection = false;
 
   bool _isFetchingFloorConfig = false;
   final TextEditingController _fileNoController = TextEditingController();
+
+  bool _isKrutidev = false;
 
   @override
   void initState() {
     super.initState();
     _loadSavedProperties();
+    _loadUlbLanguagePreference();
+  }
+
+  Future<void> _loadUlbLanguagePreference() async {
+    final isKrutidev = await UlbLanguageHelper.isKrutidev();
+    if (!mounted) return;
+    setState(() => _isKrutidev = isKrutidev);
   }
 
   @override
@@ -73,6 +85,7 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
       _selectedProperty = property;
       _preCheckData = null;
       _step1Data = null;
+      _showFloorEntrySection = false;
       _isFetchingPreCheck = true;
     });
     try {
@@ -85,13 +98,16 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
         mobileNo: property.phoneNumber,
       );
       if (!mounted) return;
-      setState(() => _isFetchingPreCheck = false);
 
       if (response.success != true || response.data == null) {
+        setState(() => _isFetchingPreCheck = false);
         _showSnackBar(response.message ?? 'Failed to fetch assessment details');
         return;
       }
-      setState(() => _preCheckData = response.data);
+      setState(() {
+        _preCheckData = response.data;
+        _isFetchingPreCheck = false;
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() => _isFetchingPreCheck = false);
@@ -103,6 +119,8 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
       );
     }
   }
+
+  String? get _activeAckNo => _step1Data?.ackNo ?? _preCheckData?.ackNo;
 
   Future<void> _handleInitialize() async {
     if (_selectedProperty == null || _preCheckData?.ackNo == null) return;
@@ -139,7 +157,7 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
   }
 
   Future<void> _handleContinueToFloors() async {
-    if (_selectedProperty == null || _step1Data?.ackNo == null) return;
+    if (_selectedProperty == null || _activeAckNo == null) return;
     if (_fileNoController.text.trim().isEmpty) {
       _showSnackBar('Please enter Zonal File No.');
       return;
@@ -150,7 +168,7 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
       final response = await OtpGateService.guard(
         call: () => ApiService.fetchReassessmentFloorConfig(
           propertyId: _selectedProperty!.propertyId,
-          ackNo: _step1Data!.ackNo!,
+          ackNo: _activeAckNo!,
           fileNo: _fileNoController.text.trim(),
         ),
         responseCode: (r) => r.responseCode,
@@ -170,7 +188,7 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
         context,
         MaterialPageRoute(
           builder: (_) => AssessmentStep3Screen(
-            ackNo: data.ackNo ?? _step1Data!.ackNo!,
+            ackNo: data.ackNo ?? _activeAckNo!,
             floorNoList: data.floorNoList,
             floorUsageList: data.floorUsageList,
             constructionTypeList: data.constructionTypeList,
@@ -215,6 +233,18 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
             color: const Color(0xFF333333),
           ),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.receipt_long_rounded, color: _primaryColor),
+            tooltip: 'My Reassessments',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const ReassessmentListScreen(),
+              ),
+            ),
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -254,10 +284,10 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
               _sectionTitle('Property Details'),
               const SizedBox(height: 12),
               _buildInfoCard([
-                _InfoRow('Owner Name', _step1Data!.ownerName ?? '-'),
-                _InfoRow('Father/Husband Name', _step1Data!.fatherName ?? '-'),
+                _InfoRow('Owner Name', _step1Data!.ownerName ?? '-', isLanguageSensitive: true),
+                _InfoRow('Father/Husband Name', _step1Data!.fatherName ?? '-', isLanguageSensitive: true),
                 _InfoRow('House No.', _step1Data!.houseNo ?? '-'),
-                _InfoRow('Address', _step1Data!.address ?? '-'),
+                _InfoRow('Address', _step1Data!.address ?? '-', isLanguageSensitive: true),
                 _InfoRow('Zone', _step1Data!.zoneName ?? '-'),
                 _InfoRow('Ward', _step1Data!.wardName ?? '-'),
                 _InfoRow('Mohalla', _step1Data!.mohallaName ?? '-'),
@@ -271,6 +301,9 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
                 ),
                 _InfoRow('Old ARV', _step1Data!.oldArv ?? '-'),
               ]),
+            ],
+
+            if (_step1Data != null || _showFloorEntrySection) ...[
               const SizedBox(height: 16),
               Text(
                 'Zonal File No.',
@@ -370,11 +403,18 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
                   flex: 6,
                   child: Text(
                     rows[i].value,
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF333333),
-                    ),
+                    style: (rows[i].isLanguageSensitive && _isKrutidev)
+                        ? const TextStyle(
+                            fontFamily: UlbLanguageHelper.krutidevFontFamily,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF333333),
+                          )
+                        : GoogleFonts.poppins(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF333333),
+                          ),
                     textAlign: TextAlign.right,
                   ),
                 ),
@@ -461,6 +501,7 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
 class _InfoRow {
   final String label;
   final String value;
+  final bool isLanguageSensitive;
 
-  _InfoRow(this.label, this.value);
+  _InfoRow(this.label, this.value, {this.isLanguageSensitive = false});
 }

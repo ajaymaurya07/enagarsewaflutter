@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'services/api_service.dart';
-import 'services/database_service.dart';
 import 'services/otp_gate_service.dart';
+import 'services/storage_service.dart';
 import 'services/assessment_exit_guard.dart';
 import 'widgets/assessment_progress_bar.dart';
 import 'apply_grievance_screen.dart' show SelectionSheet;
@@ -24,9 +24,8 @@ class _PropertyTaxAssessmentScreenState
   final _formKey = GlobalKey<FormState>();
   bool _isSubmitting = false;
 
-  bool _isLoadingProperties = true;
-  List<PropertyEntity> _savedProperties = [];
-  PropertyEntity? _selectedProperty;
+  bool _isLoadingUlbId = true;
+  String? _ulbId;
 
   bool _isLoadingZones = false;
   bool _isLoadingWards = false;
@@ -43,6 +42,7 @@ class _PropertyTaxAssessmentScreenState
   final TextEditingController _fatherNameController = TextEditingController();
   final TextEditingController _mobileController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _oldPropertyIdController = TextEditingController();
 
   // Location Details (manual entry)
   final TextEditingController _addressController = TextEditingController();
@@ -55,49 +55,22 @@ class _PropertyTaxAssessmentScreenState
   @override
   void initState() {
     super.initState();
-    _loadSavedProperties();
+    _loadUlbId();
   }
 
-  Future<void> _loadSavedProperties() async {
-    final properties = await DatabaseService.getAllProperties();
+  Future<void> _loadUlbId() async {
+    final ulbId = await StorageService.getUlbCache();
     if (!mounted) return;
     setState(() {
-      _savedProperties = properties;
-      _isLoadingProperties = false;
+      _ulbId = ulbId;
+      _isLoadingUlbId = false;
     });
-    if (properties.length == 1) {
-      _onPropertySelected(properties.first);
+    if (ulbId != null && ulbId.isNotEmpty) {
+      await _fetchZones(ulbId);
     }
   }
 
-  void _onPropertySelected(PropertyEntity property) {
-    setState(() {
-      _selectedProperty = property;
-      _selectedZone = null;
-      _selectedWard = null;
-      _selectedMohalla = null;
-      _zoneList = [];
-      _wardList = [];
-      _mohallaList = [];
-
-      _fullNameController.text = property.ownerName;
-      _fatherNameController.text = property.fatherName ?? '';
-      _mobileController.text = property.phoneNumber;
-      _emailController.text = '';
-
-      _addressController.text = property.address ?? '';
-      _houseNoController.text = property.houseNo ?? '';
-      _totalAreaController.text = property.totalArea ?? '';
-      _landmarkController.text = '';
-      _popularPropertyNameController.text = '';
-    });
-    _autoFillLocation(property);
-  }
-
-  Future<void> _autoFillLocation(PropertyEntity property) async {
-    final ulbId = property.ulbId;
-    if (ulbId == null || ulbId.isEmpty) return;
-
+  Future<void> _fetchZones(String ulbId) async {
     setState(() => _isLoadingZones = true);
     final List<ZoneData> zones;
     try {
@@ -107,22 +80,14 @@ class _PropertyTaxAssessmentScreenState
       return;
     }
     if (!mounted) return;
-
-    final matchedZone = zones
-        .where((z) => z.zoneName.trim() == (property.zone ?? '').trim())
-        .firstOrNull;
     setState(() {
       _zoneList = zones;
       _isLoadingZones = false;
-      _selectedZone = matchedZone;
     });
-    if (matchedZone == null) return;
-
-    await _fetchWards(matchedZone.zoneId, matchWardName: property.ward);
   }
 
-  Future<void> _fetchWards(String zoneId, {String? matchWardName}) async {
-    final ulbId = _selectedProperty?.ulbId;
+  Future<void> _fetchWards(String zoneId) async {
+    final ulbId = _ulbId;
     if (ulbId == null) return;
 
     setState(() => _isLoadingWards = true);
@@ -134,32 +99,14 @@ class _PropertyTaxAssessmentScreenState
       return;
     }
     if (!mounted) return;
-
-    final matchedWard = matchWardName == null
-        ? null
-        : wards
-            .where((w) => w.wardName.trim() == matchWardName.trim())
-            .firstOrNull;
     setState(() {
       _wardList = wards;
       _isLoadingWards = false;
-      _selectedWard = matchedWard;
     });
-    if (matchedWard == null) return;
-
-    await _fetchMohallas(
-      zoneId,
-      matchedWard.wardId,
-      matchMohallaName: _selectedProperty?.mohalla,
-    );
   }
 
-  Future<void> _fetchMohallas(
-    String zoneId,
-    String wardId, {
-    String? matchMohallaName,
-  }) async {
-    final ulbId = _selectedProperty?.ulbId;
+  Future<void> _fetchMohallas(String zoneId, String wardId) async {
+    final ulbId = _ulbId;
     if (ulbId == null) return;
 
     setState(() => _isLoadingMohallas = true);
@@ -171,16 +118,9 @@ class _PropertyTaxAssessmentScreenState
       return;
     }
     if (!mounted) return;
-
-    final matchedMohalla = matchMohallaName == null
-        ? null
-        : mohallas
-            .where((m) => m.mohallaName.trim() == matchMohallaName.trim())
-            .firstOrNull;
     setState(() {
       _mohallaList = mohallas;
       _isLoadingMohallas = false;
-      _selectedMohalla = matchedMohalla;
     });
   }
 
@@ -221,7 +161,7 @@ class _PropertyTaxAssessmentScreenState
           zoneId: int.tryParse(_selectedZone!.zoneId) ?? 0,
           wardId: int.tryParse(_selectedWard!.wardId) ?? 0,
           mohallaId: int.tryParse(_selectedMohalla!.mohallaId) ?? 0,
-          oldPropertyId: _selectedProperty!.propertyId,
+          oldPropertyId: _oldPropertyIdController.text.trim(),
           totalArea: int.tryParse(_totalAreaController.text.trim()) ??
               (double.tryParse(_totalAreaController.text.trim())?.round() ??
                   0),
@@ -235,7 +175,7 @@ class _PropertyTaxAssessmentScreenState
           popularPropertyName: _popularPropertyNameController.text.trim(),
         ),
         responseCode: (r) => r.responseCode,
-        propertyId: _selectedProperty!.propertyId,
+        propertyId: '',
         mobileNo: _mobileController.text.trim(),
       );
 
@@ -269,7 +209,7 @@ class _PropertyTaxAssessmentScreenState
             roadLocationList: data.roadLocationList,
             propertyTypeList: data.propertyTypeList,
             propertyUsesList: data.propertyUsesList,
-            propertyId: _selectedProperty!.propertyId,
+            propertyId: '',
             mobileNo: _mobileController.text.trim(),
           ),
         ),
@@ -331,174 +271,140 @@ class _PropertyTaxAssessmentScreenState
           child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _sectionTitle('Select Property'),
+            _sectionTitle('Personal Details'),
             const SizedBox(height: 12),
-            _buildPropertySection(),
+            _buildTextField(
+              'Full Name',
+              _fullNameController,
+              isRequired: true,
+            ),
+            const SizedBox(height: 12),
+            _buildTextField(
+              'Father/Husband Name',
+              _fatherNameController,
+              isRequired: true,
+            ),
+            const SizedBox(height: 12),
+            _buildTextField(
+              'Mobile Number',
+              _mobileController,
+              keyboardType: TextInputType.phone,
+              isRequired: true,
+            ),
+            const SizedBox(height: 12),
+            _buildTextField(
+              'Email ID',
+              _emailController,
+              keyboardType: TextInputType.emailAddress,
+            ),
+            const SizedBox(height: 12),
+            _buildTextField(
+              'Old Property ID (if any)',
+              _oldPropertyIdController,
+            ),
 
-            if (_selectedProperty != null) ...[
-              const SizedBox(height: 24),
-              _sectionTitle('Personal Details'),
-              const SizedBox(height: 12),
-              _buildTextField(
-                'Full Name',
-                _fullNameController,
-                isRequired: true,
-                enabled: false,
-              ),
-              const SizedBox(height: 12),
-              _buildTextField(
-                'Father/Husband Name',
-                _fatherNameController,
-                isRequired: true,
-                enabled: false,
-              ),
-              const SizedBox(height: 12),
-              _buildTextField(
-                'Mobile Number',
-                _mobileController,
-                keyboardType: TextInputType.phone,
-                isRequired: true,
-                enabled: false,
-              ),
-              const SizedBox(height: 12),
-              _buildTextField(
-                'Email ID',
-                _emailController,
-                keyboardType: TextInputType.emailAddress,
-              ),
-
-              const SizedBox(height: 24),
-              _sectionTitle('Location Details'),
-              const SizedBox(height: 12),
-              _buildSelectableField(
-                label: 'Zone',
-                hint: _isLoadingZones
-                    ? 'Loading Zones...'
-                    : (_selectedZone?.zoneName ?? 'Select Zone'),
-                onTap: _isLoadingZones
-                    ? null
-                    : () => _showSelectionSheet(
-                        title: 'Select Zone',
-                        items: _zoneList.map((e) => e.zoneName).toList(),
-                        onSelected: (index) {
-                          setState(() {
-                            _selectedZone = _zoneList[index];
-                            _selectedWard = null;
-                            _selectedMohalla = null;
-                            _wardList = [];
-                            _mohallaList = [];
-                          });
-                          _fetchWards(_selectedZone!.zoneId);
-                        },
-                      ),
-              ),
-              const SizedBox(height: 16),
-              _buildSelectableField(
-                label: 'Ward',
-                hint: _isLoadingWards
-                    ? 'Loading Wards...'
-                    : (_selectedWard?.wardName ?? 'Select Ward'),
-                onTap: (_selectedZone == null || _isLoadingWards)
-                    ? null
-                    : () => _showSelectionSheet(
-                        title: 'Select Ward',
-                        items: _wardList.map((e) => e.wardName).toList(),
-                        onSelected: (index) {
-                          setState(() {
-                            _selectedWard = _wardList[index];
-                            _selectedMohalla = null;
-                            _mohallaList = [];
-                          });
-                          _fetchMohallas(
-                            _selectedZone!.zoneId,
-                            _selectedWard!.wardId,
-                          );
-                        },
-                      ),
-              ),
-              const SizedBox(height: 16),
-              _buildSelectableField(
-                label: 'Mohalla',
-                hint: _isLoadingMohallas
-                    ? 'Loading Mohallas...'
-                    : (_selectedMohalla?.mohallaName ?? 'Select Mohalla'),
-                onTap: (_selectedWard == null || _isLoadingMohallas)
-                    ? null
-                    : () => _showSelectionSheet(
-                        title: 'Select Mohalla',
-                        items:
-                            _mohallaList.map((e) => e.mohallaName).toList(),
-                        onSelected: (index) {
-                          setState(() {
-                            _selectedMohalla = _mohallaList[index];
-                          });
-                        },
-                      ),
-              ),
-              const SizedBox(height: 16),
-              _buildTextField(
-                'House Number',
-                _houseNoController,
-                isRequired: true,
-                enabled: false,
-              ),
-              const SizedBox(height: 12),
-              _buildTextField(
-                'Total Area (sq. ft.)',
-                _totalAreaController,
-                keyboardType: TextInputType.number,
-                isRequired: true,
-                digitsOnly: true,
-                enabled: false,
-              ),
-              const SizedBox(height: 12),
-              _buildTextField(
-                'Address',
-                _addressController,
-                maxLines: 2,
-                isRequired: true,
-                enabled: false,
-              ),
-              const SizedBox(height: 12),
-              _buildTextField('Landmark', _landmarkController, isRequired: true),
-              const SizedBox(height: 12),
-              _buildTextField('Popular Property Name', _popularPropertyNameController),
-            ],
-            ],
+            const SizedBox(height: 24),
+            _sectionTitle('Location Details'),
+            const SizedBox(height: 12),
+            _buildSelectableField(
+              label: 'Zone',
+              hint: _isLoadingUlbId
+                  ? 'Loading...'
+                  : (_ulbId == null || _ulbId!.isEmpty)
+                      ? 'ULB not found. Please open Dashboard first.'
+                      : _isLoadingZones
+                          ? 'Loading Zones...'
+                          : (_selectedZone?.zoneName ?? 'Select Zone'),
+              onTap: (_isLoadingUlbId || _ulbId == null || _ulbId!.isEmpty || _isLoadingZones)
+                  ? null
+                  : () => _showSelectionSheet(
+                      title: 'Select Zone',
+                      items: _zoneList.map((e) => e.zoneName).toList(),
+                      onSelected: (index) {
+                        setState(() {
+                          _selectedZone = _zoneList[index];
+                          _selectedWard = null;
+                          _selectedMohalla = null;
+                          _wardList = [];
+                          _mohallaList = [];
+                        });
+                        _fetchWards(_selectedZone!.zoneId);
+                      },
+                    ),
+            ),
+            const SizedBox(height: 16),
+            _buildSelectableField(
+              label: 'Ward',
+              hint: _isLoadingWards
+                  ? 'Loading Wards...'
+                  : (_selectedWard?.wardName ?? 'Select Ward'),
+              onTap: (_selectedZone == null || _isLoadingWards)
+                  ? null
+                  : () => _showSelectionSheet(
+                      title: 'Select Ward',
+                      items: _wardList.map((e) => e.wardName).toList(),
+                      onSelected: (index) {
+                        setState(() {
+                          _selectedWard = _wardList[index];
+                          _selectedMohalla = null;
+                          _mohallaList = [];
+                        });
+                        _fetchMohallas(
+                          _selectedZone!.zoneId,
+                          _selectedWard!.wardId,
+                        );
+                      },
+                    ),
+            ),
+            const SizedBox(height: 16),
+            _buildSelectableField(
+              label: 'Mohalla',
+              hint: _isLoadingMohallas
+                  ? 'Loading Mohallas...'
+                  : (_selectedMohalla?.mohallaName ?? 'Select Mohalla'),
+              onTap: (_selectedWard == null || _isLoadingMohallas)
+                  ? null
+                  : () => _showSelectionSheet(
+                      title: 'Select Mohalla',
+                      items:
+                          _mohallaList.map((e) => e.mohallaName).toList(),
+                      onSelected: (index) {
+                        setState(() {
+                          _selectedMohalla = _mohallaList[index];
+                        });
+                      },
+                    ),
+            ),
+            const SizedBox(height: 16),
+            _buildTextField(
+              'House Number',
+              _houseNoController,
+              isRequired: true,
+            ),
+            const SizedBox(height: 12),
+            _buildTextField(
+              'Total Area (sq. ft.)',
+              _totalAreaController,
+              keyboardType: TextInputType.number,
+              isRequired: true,
+              digitsOnly: true,
+            ),
+            const SizedBox(height: 12),
+            _buildTextField(
+              'Address',
+              _addressController,
+              maxLines: 2,
+              isRequired: true,
+            ),
+            const SizedBox(height: 12),
+            _buildTextField('Landmark', _landmarkController, isRequired: true),
+            const SizedBox(height: 12),
+            _buildTextField('Popular Property Name', _popularPropertyNameController),
+          ],
           ),
         ),
       ),
-      bottomNavigationBar:
-          _selectedProperty == null ? null : _buildBottomBar(),
-      ),
-    );
-  }
-
-  Widget _buildPropertySection() {
-    if (_isLoadingProperties) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: CircularProgressIndicator(color: _primaryColor),
-        ),
-      );
-    }
-
-    if (_savedProperties.isEmpty) {
-      return _buildSelectableField(
-        label: null,
-        hint: 'No saved property found',
-        onTap: null,
-      );
-    }
-
-    return _buildSelectableField(
-      label: null,
-      hint: _selectedProperty?.propertyId ?? 'Select Property ID',
-      onTap: () => _showSelectionSheet(
-        title: 'Select Property',
-        items: _savedProperties.map((e) => e.propertyId).toList(),
-        onSelected: (index) => _onPropertySelected(_savedProperties[index]),
+      bottomNavigationBar: _buildBottomBar(),
       ),
     );
   }
