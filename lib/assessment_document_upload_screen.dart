@@ -162,6 +162,7 @@ class _AssessmentDocumentUploadScreenState
   }
 
   Future<void> _handleSubmit() async {
+    FocusManager.instance.primaryFocus?.unfocus();
     if (_selectedFile == null) {
       _showSnackBar('Please attach a supporting document');
       return;
@@ -220,7 +221,7 @@ class _AssessmentDocumentUploadScreenState
         await handleAssessmentBack(context);
       },
       child: GestureDetector(
-        onTap: () => FocusScope.of(context).unfocus(),
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
         child: Scaffold(
         backgroundColor: const Color(0xFFF8F9FB),
         appBar: AppBar(

@@ -71,6 +71,7 @@ class _NewReassessmentScreenState extends State<NewReassessmentScreen> {
     required List<String> items,
     required Function(int) onSelected,
   }) {
+    FocusManager.instance.primaryFocus?.unfocus();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -123,6 +124,7 @@ class _NewReassessmentScreenState extends State<NewReassessmentScreen> {
   String? get _activeAckNo => _step1Data?.ackNo ?? _preCheckData?.ackNo;
 
   Future<void> _handleInitialize() async {
+    FocusManager.instance.primaryFocus?.unfocus();
     if (_selectedProperty == null || _preCheckData?.ackNo == null) return;
 
     setState(() => _isInitializing = true);
@@ -160,6 +162,7 @@ class _NewReassessmentScreenState extends State<NewReassessmentScreen> {
   }
 
   Future<void> _handleContinueToFloors() async {
+    FocusManager.instance.primaryFocus?.unfocus();
     if (_selectedProperty == null || _activeAckNo == null) return;
     if (_fileNoController.text.trim().isEmpty) {
       _showSnackBar('Please enter Zonal File No.');
@@ -222,7 +225,7 @@ class _NewReassessmentScreenState extends State<NewReassessmentScreen> {
       canPop: true,
       onPopInvokedWithResult: (didPop, result) {},
       child: GestureDetector(
-        onTap: () => FocusScope.of(context).unfocus(),
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
         child: Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
       appBar: AppBar(

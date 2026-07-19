@@ -17,8 +17,10 @@ class AssessmentProgressBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final denominator = totalSteps > 1 ? totalSteps - 1 : 1;
-    final progress = ((currentStep - 1) / denominator).clamp(0.0, 1.0);
+    // Denominator is totalSteps (not totalSteps - 1) so the last step never
+    // shows 100% — that would wrongly suggest the assessment is already
+    // submitted when the user still has to tap the final submit button.
+    final progress = ((currentStep - 1) / totalSteps).clamp(0.0, 1.0);
     final percent = (progress * 100).round();
 
     return Container(

@@ -65,7 +65,7 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
   Map<String, String> _rebateFinancialYearList = {};
 
   String? _selectedRebateFinyear;
-  String _isRebateClaimed = 'N';
+  final String _isRebateClaimed = 'Y';
   bool _isLoadingRebateTypes = false;
   List<RebateType> _rebateTypeList = [];
   RebateType? _selectedRebateType;
@@ -81,6 +81,7 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
     required List<String> items,
     required Function(int) onSelected,
   }) {
+    FocusManager.instance.primaryFocus?.unfocus();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -130,6 +131,7 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
   }
 
   Future<void> _handleSaveFloor() async {
+    FocusManager.instance.primaryFocus?.unfocus();
     if (!(_floorFormKey.currentState?.validate() ?? false)) return;
     if (_selectedFloorNumberKey == null) {
       _showSnackBar('Please select Floor Number');
@@ -220,6 +222,7 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
         _kitchenBalconyAreaController.clear();
         _garageAreaController.clear();
       });
+      _loadRebateTypes();
       _showSnackBar(response.message ?? 'Floor details saved successfully');
     } catch (e) {
       if (!mounted) return;
@@ -276,34 +279,30 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
     }
   }
 
-  Future<void> _onRebateClaimedChanged(String value) async {
-    setState(() {
-      _isRebateClaimed = value;
-      _selectedRebateType = null;
-    });
-    if (value == 'Y' && _rebateTypeList.isEmpty) {
-      setState(() => _isLoadingRebateTypes = true);
-      try {
-        final rebates = await ApiService.getRebateTypeList();
-        if (!mounted) return;
-        setState(() {
-          _rebateTypeList = rebates;
-          _isLoadingRebateTypes = false;
-        });
-      } catch (e) {
-        if (!mounted) return;
-        setState(() => _isLoadingRebateTypes = false);
-        _showSnackBar(
-          ApiService.getUserFriendlyErrorMessage(
-            e,
-            fallbackMessage: 'Unable to load rebate types.',
-          ),
-        );
-      }
+  Future<void> _loadRebateTypes() async {
+    if (_rebateTypeList.isNotEmpty || _isLoadingRebateTypes) return;
+    setState(() => _isLoadingRebateTypes = true);
+    try {
+      final rebates = await ApiService.getRebateTypeList();
+      if (!mounted) return;
+      setState(() {
+        _rebateTypeList = rebates;
+        _isLoadingRebateTypes = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoadingRebateTypes = false);
+      _showSnackBar(
+        ApiService.getUserFriendlyErrorMessage(
+          e,
+          fallbackMessage: 'Unable to load rebate types.',
+        ),
+      );
     }
   }
 
   Future<void> _handleFinalize() async {
+    FocusManager.instance.primaryFocus?.unfocus();
     if (!(_rebateFormKey.currentState?.validate() ?? false)) return;
     if (_floorList.isEmpty) {
       _showSnackBar('Please add at least one floor before finalizing');
@@ -355,7 +354,6 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
       }
 
       setState(() => _finalResult = response.data);
-      _showSnackBar(response.message ?? 'Assessment details Stage 3 saved successfully');
     } catch (e) {
       if (!mounted) return;
       setState(() => _isFinalizing = false);
@@ -385,7 +383,7 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
         await handleAssessmentBack(context);
       },
       child: GestureDetector(
-        onTap: () => FocusScope.of(context).unfocus(),
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
         child: Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
       appBar: AppBar(
@@ -420,7 +418,7 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (_floorList.isNotEmpty) ...[
-                    _sectionTitle('Saved Floors'),
+                    _sectionTitle('Saved Floors', icon: Icons.layers_outlined),
                     const SizedBox(height: 12),
                     ..._floorList.map(_buildFloorCard),
                     if (_totalArv != null) ...[
@@ -437,196 +435,241 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
                     const SizedBox(height: 24),
                   ],
 
-                  _sectionTitle('Add Floor'),
+                  _sectionTitle('Add Floor', icon: Icons.add_home_work_outlined),
                   const SizedBox(height: 12),
-                  Form(
-                    key: _floorFormKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildSelectableField(
-                          label: 'Floor Number',
-                          hint: _selectedFloorNumberKey == null
-                              ? 'Select Floor Number'
-                              : widget.floorNoList[_selectedFloorNumberKey]!,
-                          onTap: floorNoEntries.isEmpty
-                              ? null
-                              : () => _showSelectionSheet(
-                                  title: 'Select Floor Number',
-                                  items: floorNoEntries.map((e) => e.value).toList(),
-                                  onSelected: (index) {
-                                    setState(() {
-                                      _selectedFloorNumberKey = floorNoEntries[index].key;
-                                    });
-                                  },
-                                ),
-                        ),
-                        const SizedBox(height: 16),
-                        _buildSelectableField(
-                          label: 'Floor Usage',
-                          hint: _selectedFloorUsageCode == null
-                              ? 'Select Floor Usage'
-                              : widget.floorUsageList[_selectedFloorUsageCode]!,
-                          onTap: floorUsageEntries.isEmpty
-                              ? null
-                              : () => _showSelectionSheet(
-                                  title: 'Select Floor Usage',
-                                  items: floorUsageEntries.map((e) => e.value).toList(),
-                                  onSelected: (index) {
-                                    _onFloorUsageSelected(floorUsageEntries[index].key);
-                                  },
-                                ),
-                        ),
-                        const SizedBox(height: 16),
-                        _buildSelectableField(
-                          label: 'Floor Type',
-                          hint: _isLoadingFloorTypes
-                              ? 'Loading Floor Types...'
-                              : (_selectedFloorType?.name ?? 'Select Floor Type'),
-                          onTap: (_selectedFloorUsageCode == null ||
-                                  _isLoadingFloorTypes ||
-                                  _floorTypeList.isEmpty)
-                              ? null
-                              : () => _showSelectionSheet(
-                                  title: 'Select Floor Type',
-                                  items: _floorTypeList
-                                      .map((e) => e.name ?? '-')
-                                      .toList(),
-                                  onSelected: (index) {
-                                    setState(() {
-                                      _selectedFloorType = _floorTypeList[index];
-                                    });
-                                  },
-                                ),
-                        ),
-                        const SizedBox(height: 16),
-                        _buildSelectableField(
-                          label: 'Construction Type',
-                          hint: _selectedConstructionTypeId == null
-                              ? 'Select Construction Type'
-                              : widget.constructionTypeList[_selectedConstructionTypeId]!,
-                          onTap: constructionTypeEntries.isEmpty
-                              ? null
-                              : () => _showSelectionSheet(
-                                  title: 'Select Construction Type',
-                                  items: constructionTypeEntries
-                                      .map((e) => e.value)
-                                      .toList(),
-                                  onSelected: (index) {
-                                    setState(() {
-                                      _selectedConstructionTypeId =
-                                          constructionTypeEntries[index].key;
-                                    });
-                                  },
-                                ),
-                        ),
-                        const SizedBox(height: 16),
-                        GestureDetector(
-                          onTap: _pickConstructionDate,
-                          child: AbsorbPointer(
-                            child: _buildTextField(
-                              'Construction Date',
-                              _constructionDateController,
-                              isRequired: true,
-                              hintText: 'DD-MM-YYYY',
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        _buildSelectableField(
-                          label: 'How do you want to enter the area?',
-                          hint: _areaEnterModeLabel(_areaEnterMode),
-                          onTap: () => _showSelectionSheet(
-                            title: 'Select Area Entry Mode',
-                            items: const ['Carpet Area', 'Measure by Room'],
-                            onSelected: (index) => _onAreaEnterModeSelected(
-                              index == 0 ? 'CA' : 'MR',
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          _areaEnterMode == 'CA'
-                              ? 'Enter the total carpet area of the floor directly.'
-                              : 'Enter the area of each part of the floor separately — rooms/porch is required, kitchen/balcony and garage are optional.',
-                          style: GoogleFonts.poppins(fontSize: 11.5, color: Colors.grey.shade500),
-                        ),
-                        const SizedBox(height: 12),
-                        if (_areaEnterMode == 'CA')
-                          _buildTextField(
-                            'Carpet Area (sq. ft.)',
-                            _carpetAreaController,
-                            fieldKey: const ValueKey('carpet_area_field'),
-                            keyboardType: TextInputType.number,
-                            isRequired: true,
-                            digitsOnly: true,
-                          )
-                        else ...[
-                          _buildTextField(
-                            'Rooms & Porch Area (sq. ft.)',
-                            _roomsPorchAreaController,
-                            fieldKey: const ValueKey('rooms_porch_area_field'),
-                            keyboardType: TextInputType.number,
-                            isRequired: true,
-                            digitsOnly: true,
-                          ),
-                          const SizedBox(height: 12),
-                          _buildTextField(
-                            'Kitchen, Balcony, Corridor & Store Area (sq. ft.)',
-                            _kitchenBalconyAreaController,
-                            fieldKey: const ValueKey('kitchen_balcony_area_field'),
-                            keyboardType: TextInputType.number,
-                            digitsOnly: true,
-                          ),
-                          const SizedBox(height: 12),
-                          _buildTextField(
-                            'Garage Area (sq. ft.)',
-                            _garageAreaController,
-                            fieldKey: const ValueKey('garage_area_field'),
-                            keyboardType: TextInputType.number,
-                            digitsOnly: true,
-                          ),
-                        ],
-                        const SizedBox(height: 20),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 46,
-                          child: OutlinedButton(
-                            onPressed: _isSavingFloor ? null : _handleSaveFloor,
-                            style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: _primaryColor),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: _isSavingFloor
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      color: _primaryColor,
-                                      strokeWidth: 2.5,
-                                    ),
-                                  )
-                                : Text(
-                                    'Save Floor',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: _primaryColor,
-                                    ),
-                                  ),
-                          ),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey.shade200),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.03),
+                          blurRadius: 14,
+                          offset: const Offset(0, 4),
                         ),
                       ],
+                    ),
+                    child: Form(
+                      key: _floorFormKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _subLabel('Floor Information'),
+                          const SizedBox(height: 12),
+                          _buildSelectableField(
+                            label: 'Floor Number',
+                            hint: _selectedFloorNumberKey == null
+                                ? 'Select Floor Number'
+                                : widget.floorNoList[_selectedFloorNumberKey]!,
+                            onTap: floorNoEntries.isEmpty
+                                ? null
+                                : () => _showSelectionSheet(
+                                    title: 'Select Floor Number',
+                                    items: floorNoEntries.map((e) => e.value).toList(),
+                                    onSelected: (index) {
+                                      setState(() {
+                                        _selectedFloorNumberKey = floorNoEntries[index].key;
+                                      });
+                                    },
+                                  ),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildSelectableField(
+                            label: 'Floor Usage',
+                            hint: _selectedFloorUsageCode == null
+                                ? 'Select Floor Usage'
+                                : widget.floorUsageList[_selectedFloorUsageCode]!,
+                            onTap: floorUsageEntries.isEmpty
+                                ? null
+                                : () => _showSelectionSheet(
+                                    title: 'Select Floor Usage',
+                                    items: floorUsageEntries.map((e) => e.value).toList(),
+                                    onSelected: (index) {
+                                      _onFloorUsageSelected(floorUsageEntries[index].key);
+                                    },
+                                  ),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildSelectableField(
+                            label: 'Floor Type',
+                            hint: _isLoadingFloorTypes
+                                ? 'Loading Floor Types...'
+                                : (_selectedFloorType?.name ?? 'Select Floor Type'),
+                            onTap: (_selectedFloorUsageCode == null ||
+                                    _isLoadingFloorTypes ||
+                                    _floorTypeList.isEmpty)
+                                ? null
+                                : () => _showSelectionSheet(
+                                    title: 'Select Floor Type',
+                                    items: _floorTypeList
+                                        .map((e) => e.name ?? '-')
+                                        .toList(),
+                                    onSelected: (index) {
+                                      setState(() {
+                                        _selectedFloorType = _floorTypeList[index];
+                                      });
+                                    },
+                                  ),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildSelectableField(
+                            label: 'Construction Type',
+                            hint: _selectedConstructionTypeId == null
+                                ? 'Select Construction Type'
+                                : widget.constructionTypeList[_selectedConstructionTypeId]!,
+                            onTap: constructionTypeEntries.isEmpty
+                                ? null
+                                : () => _showSelectionSheet(
+                                    title: 'Select Construction Type',
+                                    items: constructionTypeEntries
+                                        .map((e) => e.value)
+                                        .toList(),
+                                    onSelected: (index) {
+                                      setState(() {
+                                        _selectedConstructionTypeId =
+                                            constructionTypeEntries[index].key;
+                                      });
+                                    },
+                                  ),
+                          ),
+
+                          _formDivider(),
+
+                          _subLabel('Construction Date'),
+                          const SizedBox(height: 12),
+                          GestureDetector(
+                            onTap: _pickConstructionDate,
+                            child: AbsorbPointer(
+                              child: _buildTextField(
+                                'Construction Date',
+                                _constructionDateController,
+                                isRequired: true,
+                                hintText: 'DD-MM-YYYY',
+                              ),
+                            ),
+                          ),
+
+                          _formDivider(),
+
+                          _subLabel('Area Details'),
+                          const SizedBox(height: 12),
+                          _buildSelectableField(
+                            label: 'How do you want to enter the area?',
+                            hint: _areaEnterModeLabel(_areaEnterMode),
+                            onTap: () => _showSelectionSheet(
+                              title: 'Select Area Entry Mode',
+                              items: const ['Carpet Area', 'Measure by Room'],
+                              onSelected: (index) => _onAreaEnterModeSelected(
+                                index == 0 ? 'CA' : 'MR',
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            _areaEnterMode == 'CA'
+                                ? 'Enter the total carpet area of the floor directly.'
+                                : 'Enter the area of each part of the floor separately — rooms/porch is required, kitchen/balcony and garage are optional.',
+                            style: GoogleFonts.poppins(fontSize: 11.5, color: Colors.grey.shade500),
+                          ),
+                          const SizedBox(height: 12),
+                          if (_areaEnterMode == 'CA')
+                            _buildTextField(
+                              'Carpet Area (sq. ft.)',
+                              _carpetAreaController,
+                              fieldKey: const ValueKey('carpet_area_field'),
+                              keyboardType: TextInputType.number,
+                              isRequired: true,
+                              digitsOnly: true,
+                            )
+                          else ...[
+                            _buildTextField(
+                              'Rooms & Porch Area (sq. ft.)',
+                              _roomsPorchAreaController,
+                              fieldKey: const ValueKey('rooms_porch_area_field'),
+                              keyboardType: TextInputType.number,
+                              isRequired: true,
+                              digitsOnly: true,
+                            ),
+                            const SizedBox(height: 12),
+                            _buildTextField(
+                              'Kitchen, Balcony, Corridor & Store Area (sq. ft.)',
+                              _kitchenBalconyAreaController,
+                              fieldKey: const ValueKey('kitchen_balcony_area_field'),
+                              keyboardType: TextInputType.number,
+                              digitsOnly: true,
+                            ),
+                            const SizedBox(height: 12),
+                            _buildTextField(
+                              'Garage Area (sq. ft.)',
+                              _garageAreaController,
+                              fieldKey: const ValueKey('garage_area_field'),
+                              keyboardType: TextInputType.number,
+                              digitsOnly: true,
+                            ),
+                          ],
+                          const SizedBox(height: 24),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 48,
+                            child: ElevatedButton.icon(
+                              onPressed: _isSavingFloor ? null : _handleSaveFloor,
+                              icon: _isSavingFloor
+                                  ? const SizedBox.shrink()
+                                  : const Icon(Icons.add_rounded, size: 18, color: Colors.white),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _primaryColor,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              label: _isSavingFloor
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2.5,
+                                      ),
+                                    )
+                                  : Text(
+                                      'Save Floor',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
 
                   if (_floorList.isNotEmpty) ...[
                     const SizedBox(height: 28),
-                    _sectionTitle('Rebate Details'),
+                    _sectionTitle('Rebate Details', icon: Icons.percent_rounded),
                     const SizedBox(height: 12),
-                    Form(
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.grey.shade200),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.03),
+                            blurRadius: 14,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Form(
                       key: _rebateFormKey,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -652,25 +695,7 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
                                   ),
                           ),
                           const SizedBox(height: 16),
-                          Text(
-                            'Claim Rebate?',
-                            style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade700),
-                          ),
-                          const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildYesNoOption('Yes', 'Y', _isRebateClaimed == 'Y'),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _buildYesNoOption('No', 'N', _isRebateClaimed == 'N'),
-                              ),
-                            ],
-                          ),
-                          if (_isRebateClaimed == 'Y') ...[
-                            const SizedBox(height: 16),
-                            _buildSelectableField(
+                          _buildSelectableField(
                               label: 'Rebate Type',
                               hint: _isLoadingRebateTypes
                                   ? 'Loading Rebate Types...'
@@ -688,8 +713,7 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
                                         });
                                       },
                                     ),
-                            ),
-                          ],
+                          ),
                           const SizedBox(height: 20),
                           SizedBox(
                             width: double.infinity,
@@ -723,6 +747,7 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
                           ),
                         ],
                       ),
+                    ),
                     ),
                   ],
                   const SizedBox(height: 32),
@@ -865,7 +890,7 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
       key: ValueKey('floor_card_$floorNumber'),
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -927,41 +952,56 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
     });
   }
 
-  Widget _buildYesNoOption(String label, String value, bool isSelected, {VoidCallback? onTap}) {
-    return GestureDetector(
-      onTap: onTap ?? () => _onRebateClaimedChanged(value),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFFFF4E8) : Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: isSelected ? _primaryColor : Colors.grey.shade300,
-            width: isSelected ? 1.5 : 1,
+  Widget _sectionTitle(String text, {IconData? icon}) {
+    if (icon == null) {
+      return Text(
+        text,
+        style: GoogleFonts.poppins(
+          fontSize: 16,
+          fontWeight: FontWeight.w700,
+          color: const Color(0xFF333333),
+        ),
+      );
+    }
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF4E8),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, size: 16, color: _primaryColor),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          text,
+          style: GoogleFonts.poppins(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF333333),
           ),
         ),
-        child: Center(
-          child: Text(
-            label,
-            style: GoogleFonts.poppins(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: isSelected ? _primaryColor : Colors.grey.shade700,
-            ),
-          ),
-        ),
+      ],
+    );
+  }
+
+  Widget _subLabel(String text) {
+    return Text(
+      text.toUpperCase(),
+      style: GoogleFonts.poppins(
+        fontSize: 11,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.4,
+        color: Colors.grey.shade500,
       ),
     );
   }
 
-  Widget _sectionTitle(String text) {
-    return Text(
-      text,
-      style: GoogleFonts.poppins(
-        fontSize: 16,
-        fontWeight: FontWeight.w700,
-        color: const Color(0xFF333333),
-      ),
+  Widget _formDivider() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 20),
+      child: Divider(height: 1, color: Colors.grey.shade200),
     );
   }
 

@@ -59,6 +59,7 @@ class _AssessmentStep2ScreenState extends State<AssessmentStep2Screen> {
     required List<String> items,
     required Function(int) onSelected,
   }) {
+    FocusManager.instance.primaryFocus?.unfocus();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -69,6 +70,7 @@ class _AssessmentStep2ScreenState extends State<AssessmentStep2Screen> {
   }
 
   Future<void> _handleContinue() async {
+    FocusManager.instance.primaryFocus?.unfocus();
     if (!(_formKey.currentState?.validate() ?? false)) return;
     if (!widget.isReassessment &&
         (_selectedRoadLocationId == null ||
@@ -105,8 +107,6 @@ class _AssessmentStep2ScreenState extends State<AssessmentStep2Screen> {
         _showSnackBar(response.message ?? 'Failed to submit assessment');
         return;
       }
-
-      _showSnackBar(response.message ?? 'Assessment Step 2 saved successfully');
 
       final data = response.data!;
       final result = await Navigator.push(
@@ -201,7 +201,7 @@ class _AssessmentStep2ScreenState extends State<AssessmentStep2Screen> {
         await handleAssessmentBack(context);
       },
       child: GestureDetector(
-        onTap: () => FocusScope.of(context).unfocus(),
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
         child: Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
       appBar: AppBar(

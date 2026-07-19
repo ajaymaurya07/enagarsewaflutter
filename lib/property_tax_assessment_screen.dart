@@ -129,6 +129,7 @@ class _PropertyTaxAssessmentScreenState
     required List<String> items,
     required Function(int) onSelected,
   }) {
+    FocusManager.instance.primaryFocus?.unfocus();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -148,6 +149,7 @@ class _PropertyTaxAssessmentScreenState
   }
 
   Future<void> _handleContinue() async {
+    FocusManager.instance.primaryFocus?.unfocus();
     if (!(_formKey.currentState?.validate() ?? false)) return;
     if (_selectedZone == null || _selectedWard == null || _selectedMohalla == null) {
       _showSnackBar('Please select Zone, Ward and Mohalla');
@@ -201,8 +203,6 @@ class _PropertyTaxAssessmentScreenState
         _showSnackBar('Assessment saved but no Ack No. was returned');
         return;
       }
-      _showSnackBar(response.message ?? 'Assessment Step 1 saved with Ack No. $ackNo');
-
       final result = await Navigator.push(
         context,
         MaterialPageRoute(
@@ -240,7 +240,7 @@ class _PropertyTaxAssessmentScreenState
         await handleAssessmentBack(context);
       },
       child: GestureDetector(
-        onTap: () => FocusScope.of(context).unfocus(),
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
         child: Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
       appBar: AppBar(
@@ -529,7 +529,7 @@ class _PropertyTaxAssessmentScreenState
     // showing for, otherwise the cursor appears stuck on the last-focused
     // editable field.
     return GestureDetector(
-      onTap: () => FocusScope.of(context).unfocus(),
+      onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
       child: AbsorbPointer(child: field),
     );
   }
