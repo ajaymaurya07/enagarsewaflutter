@@ -44,10 +44,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String _userType = "";
   String _displayName = "";
 
-  bool get _canSearchProperty {
-    final normalizedType = _userType.toLowerCase();
-    return normalizedType == "admin" || normalizedType == "citizen";
-  }
+  bool get _canSearchProperty => _userType.toLowerCase() == "admin";
   final PageController _paymentPageController = PageController(
     viewportFraction: 0.95,
   );
@@ -477,7 +474,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       ),
 
-                      // Refined "Search Property" Card - Admin and Citizen
+                      // Refined "Search Property" Card - Admin only
                       if (_canSearchProperty) ...[
                         const SizedBox(height: 24),
                         GestureDetector(

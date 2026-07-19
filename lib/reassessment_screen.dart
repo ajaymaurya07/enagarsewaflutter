@@ -6,6 +6,7 @@ import 'assessment_document_upload_screen.dart';
 import 'assessment_step2_screen.dart';
 import 'assessment_step3_screen.dart';
 import 'new_reassessment_screen.dart';
+import 'reassessment_details_screen.dart';
 
 class ReassessmentScreen extends StatefulWidget {
   const ReassessmentScreen({super.key});
@@ -76,7 +77,7 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
   //   2 -> reassessmentFetchFloorConfig (Zonal File No. + floor config)
   //   3 -> reassessmentSubmitS3 (floor entry + finalize, same screen as 2)
   //   4 -> reassessmentSubmitS4 (document upload)
-  //   null -> nothing left to do; mark as complete
+  //   null + completed -> getReassessmentDetails (See Details)
   Future<void> _handleCardTap(ReassessmentListItem item) async {
     final propertyId = item.propertyId;
     final ackNo = item.ackNo;
@@ -84,11 +85,14 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
 
     final nextStage = item.nextStage;
     if (nextStage == null) {
-      _showSnackBar(
-        item.isCompletedFlag
-            ? 'This reassessment is already complete.'
-            : 'No further action is available for this reassessment right now.',
-      );
+      if (item.isCompletedFlag) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => ReassessmentDetailsScreen(ackNo: ackNo)),
+        );
+      } else {
+        _showSnackBar('No further action is available for this reassessment right now.');
+      }
       return;
     }
 
@@ -168,13 +172,6 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
             color: _textColor,
           ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: _primaryColor),
-            tooltip: 'Refresh',
-            onPressed: _isLoading ? null : _fetchList,
-          ),
-        ],
       ),
       body: RefreshIndicator(
         color: _primaryColor,
@@ -390,51 +387,42 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                 child: Column(
                   children: [
-                    _buildDetailRow(Icons.badge_outlined, 'Property ID', item.propertyId ?? '-'),
+                    _buildDetailRow('Property ID', item.propertyId ?? '-'),
                     _buildDetailRow(
-                        Icons.home_outlined,
                         'House No.',
                         (item.houseNo?.trim().isNotEmpty == true) ? item.houseNo!.trim() : '-'),
                     _buildDetailRow(
-                        Icons.location_on_outlined,
                         'Address',
                         (item.address?.trim().isNotEmpty == true) ? item.address!.trim() : '-'),
-                    _buildDetailRow(Icons.calendar_today_outlined, 'Assess Date', item.assessDate ?? '-'),
+                    _buildDetailRow('Assess Date', item.assessDate ?? '-'),
                   ],
                 ),
               ),
-              // Footer: ARV + stage
+              // Footer: See Details (completed) or stage progress
               Container(
                 margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8F9FB),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Total ARV',
-                          style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey.shade600),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '₹ ${_formatArv(item.totalArv)}',
-                          style: GoogleFonts.poppins(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: _primaryColor,
+                child: item.isCompletedFlag
+                    ? SizedBox(
+                        width: double.infinity,
+                        height: 40,
+                        child: OutlinedButton.icon(
+                          onPressed: () => _handleCardTap(item),
+                          icon: const Icon(Icons.visibility_outlined, size: 16),
+                          label: Text(
+                            'See Details',
+                            style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: _primaryColor,
+                            side: const BorderSide(color: _primaryColor),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
                         ),
-                      ],
-                    ),
-                    const Spacer(),
-                    _buildStageBadge(item),
-                  ],
-                ),
+                      )
+                    : Align(
+                        alignment: Alignment.centerRight,
+                        child: _buildStageBadge(item),
+                      ),
               ),
             ],
           ),
@@ -491,14 +479,12 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
     );
   }
 
-  Widget _buildDetailRow(IconData icon, String label, String value) {
+  Widget _buildDetailRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 16, color: Colors.grey.shade500),
-          const SizedBox(width: 10),
           SizedBox(
             width: 88,
             child: Text(
@@ -516,20 +502,5 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
         ],
       ),
     );
-  }
-
-  String _formatArv(String? arv) {
-    if (arv == null || arv.trim().isEmpty) return '0';
-    final value = double.tryParse(arv);
-    if (value == null) return arv;
-    final whole = value.toStringAsFixed(2);
-    final parts = whole.split('.');
-    final intPart = parts[0];
-    final buffer = StringBuffer();
-    for (int i = 0; i < intPart.length; i++) {
-      if (i > 0 && (intPart.length - i) % 3 == 0) buffer.write(',');
-      buffer.write(intPart[i]);
-    }
-    return '$buffer.${parts[1]}';
   }
 }

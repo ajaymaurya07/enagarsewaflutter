@@ -758,6 +758,38 @@ class ApiService {
     }
   }
 
+  // Property Assessment - Reassessment - Full Details: Fetch complete
+  // details (floors + tax breakdown) for a completed reassessment by Ack No.
+  static Future<ReassessmentFullDetailsResponse> getReassessmentFullDetails({
+    required String ackNo,
+  }) async {
+    final requestBody = {'ackNo': ackNo};
+    debugPrint('[ReassessmentFullDetails] Request -> ${json.encode(requestBody)}');
+
+    try {
+      final response = await _makeAuthenticatedRequest(
+        (headers) => _post(
+              Uri.parse('${AppConstants.baseUrl}api/house_tax/getReassessmentDetails'),
+              headers: headers,
+              body: json.encode(requestBody),
+            )
+            .timeout(Duration(seconds: AppConstants.networkTimeout)),
+      );
+
+      debugPrint(
+        '[ReassessmentFullDetails] Response (${response.statusCode}) -> ${response.body}',
+      );
+
+      if (response.statusCode == 200) {
+        return ReassessmentFullDetailsResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('[ReassessmentFullDetails] Error -> $e');
+      throw _userSafeException(e);
+    }
+  }
 
   // Property Assessment - Reassessment - Step 1: Initialize Reassessment
   static Future<ReassessmentStep1Response> initializeReassessment({
@@ -2567,6 +2599,315 @@ class ReassessmentListItem {
       nextStage: json['next_stage'] is int
           ? json['next_stage']
           : int.tryParse('${json['next_stage']}'),
+    );
+  }
+}
+
+class ReassessmentFullDetailsResponse {
+  final bool? success;
+  final String? message;
+  final int? responseCode;
+  final ReassessmentFullDetailsData? data;
+
+  ReassessmentFullDetailsResponse({
+    this.success,
+    this.message,
+    this.responseCode,
+    this.data,
+  });
+
+  factory ReassessmentFullDetailsResponse.fromJson(Map<String, dynamic> json) {
+    return ReassessmentFullDetailsResponse(
+      success: json['success'],
+      message: json['message'],
+      responseCode: json['responseCode'],
+      data: json['data'] != null
+          ? ReassessmentFullDetailsData.fromJson(json['data'])
+          : null,
+    );
+  }
+}
+
+class ReassessmentFullDetailsData {
+  final String? userId;
+  final String? mobileNo;
+  final String? propertyId;
+  final String? ackNo;
+  final String? assessType;
+  final String? assessDate;
+  final String? ownerName;
+  final String? fatherName;
+  final String? houseNo;
+  final String? address;
+  final String? totalArv;
+  final List<ReassessmentFloorDetail> floorDetails;
+  final ReassessmentTaxDetails? taxDetails;
+  final int? currentStage;
+  final String? isCompleted;
+  final String? createdAt;
+  final String? updatedAt;
+  final int? nextStage;
+
+  ReassessmentFullDetailsData({
+    this.userId,
+    this.mobileNo,
+    this.propertyId,
+    this.ackNo,
+    this.assessType,
+    this.assessDate,
+    this.ownerName,
+    this.fatherName,
+    this.houseNo,
+    this.address,
+    this.totalArv,
+    this.floorDetails = const [],
+    this.taxDetails,
+    this.currentStage,
+    this.isCompleted,
+    this.createdAt,
+    this.updatedAt,
+    this.nextStage,
+  });
+
+  bool get isCompletedFlag => (isCompleted ?? '').toUpperCase() == 'YES';
+
+  factory ReassessmentFullDetailsData.fromJson(Map<String, dynamic> json) {
+    return ReassessmentFullDetailsData(
+      userId: json['user_id']?.toString(),
+      mobileNo: json['mobile_no']?.toString(),
+      propertyId: json['property_id']?.toString(),
+      ackNo: json['ack_no']?.toString(),
+      assessType: json['assess_type']?.toString(),
+      assessDate: json['assess_date']?.toString(),
+      ownerName: json['owner_name']?.toString(),
+      fatherName: json['father_name']?.toString(),
+      houseNo: json['house_no']?.toString(),
+      address: json['address']?.toString(),
+      totalArv: json['total_arv']?.toString(),
+      floorDetails: json['floor_details'] is List
+          ? (json['floor_details'] as List)
+              .map((e) => ReassessmentFloorDetail.fromJson(e))
+              .toList()
+          : const [],
+      taxDetails: json['tax_details'] != null
+          ? ReassessmentTaxDetails.fromJson(json['tax_details'])
+          : null,
+      currentStage: json['current_stage'] is int
+          ? json['current_stage']
+          : int.tryParse('${json['current_stage']}'),
+      isCompleted: json['is_completed']?.toString(),
+      createdAt: json['created_at']?.toString(),
+      updatedAt: json['updated_at']?.toString(),
+      nextStage: json['next_stage'] is int
+          ? json['next_stage']
+          : int.tryParse('${json['next_stage']}'),
+    );
+  }
+}
+
+class ReassessmentFloorDetail {
+  final int? floorNumber;
+  final String? floorName;
+  final double? carpetArea;
+  final String? floorTypeName;
+  final String? constructionTypeName;
+  final String? constructionDate;
+  final double? mrate;
+  final double? multiplier;
+  final double? rentalValue;
+  final double? arv;
+  final double? arvAfterRebate;
+
+  ReassessmentFloorDetail({
+    this.floorNumber,
+    this.floorName,
+    this.carpetArea,
+    this.floorTypeName,
+    this.constructionTypeName,
+    this.constructionDate,
+    this.mrate,
+    this.multiplier,
+    this.rentalValue,
+    this.arv,
+    this.arvAfterRebate,
+  });
+
+  static double? _toDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    return double.tryParse(value.toString());
+  }
+
+  factory ReassessmentFloorDetail.fromJson(Map<String, dynamic> json) {
+    return ReassessmentFloorDetail(
+      floorNumber: json['floorNumber'] is int
+          ? json['floorNumber']
+          : int.tryParse('${json['floorNumber']}'),
+      floorName: json['floorName']?.toString(),
+      carpetArea: _toDouble(json['carpetArea']),
+      floorTypeName: json['floorTypeName']?.toString(),
+      constructionTypeName: json['constructionTypeName']?.toString(),
+      constructionDate: json['constructionDate']?.toString(),
+      mrate: _toDouble(json['mrate']),
+      multiplier: _toDouble(json['multiplier']),
+      rentalValue: _toDouble(json['rentalValue']),
+      arv: _toDouble(json['arv']),
+      arvAfterRebate: _toDouble(json['arvAfterRebate']),
+    );
+  }
+}
+
+class ReassessmentTaxDetails {
+  final List<ReassessmentPwsItem> pwsList;
+  final String? ulbId;
+  final String? propertyId;
+  final String? acknowledgementId;
+  final double? totalArea;
+  final String? ownerName;
+  final String? fatherName;
+  final String? houseNo;
+  final String? address;
+  final String? zoneId;
+  final String? wardId;
+  final String? mohallaId;
+  final String? mobile;
+  final String? assessmentType;
+  final String? fileNo;
+  final String? propertyUse;
+  final String? roadLocation;
+  final String? propertyType;
+  final String? assessmentDate;
+  final String? oldArv;
+  final String? existingPropertyId;
+  final double? totalArv;
+  final String? rebateFinancialYear;
+  final String? taxRebateTypeName;
+
+  ReassessmentTaxDetails({
+    this.pwsList = const [],
+    this.ulbId,
+    this.propertyId,
+    this.acknowledgementId,
+    this.totalArea,
+    this.ownerName,
+    this.fatherName,
+    this.houseNo,
+    this.address,
+    this.zoneId,
+    this.wardId,
+    this.mohallaId,
+    this.mobile,
+    this.assessmentType,
+    this.fileNo,
+    this.propertyUse,
+    this.roadLocation,
+    this.propertyType,
+    this.assessmentDate,
+    this.oldArv,
+    this.existingPropertyId,
+    this.totalArv,
+    this.rebateFinancialYear,
+    this.taxRebateTypeName,
+  });
+
+  factory ReassessmentTaxDetails.fromJson(Map<String, dynamic> json) {
+    return ReassessmentTaxDetails(
+      pwsList: json['pwsList'] is List
+          ? (json['pwsList'] as List)
+              .map((e) => ReassessmentPwsItem.fromJson(e))
+              .toList()
+          : const [],
+      ulbId: json['ulbId']?.toString(),
+      propertyId: json['propertyId']?.toString(),
+      acknowledgementId: json['acknowledgementId']?.toString(),
+      totalArea: ReassessmentFloorDetail._toDouble(json['totalArea']),
+      ownerName: json['ownerName']?.toString(),
+      fatherName: json['fatherName']?.toString(),
+      houseNo: json['houseNo']?.toString(),
+      address: json['address']?.toString(),
+      zoneId: json['zoneId']?.toString(),
+      wardId: json['wardId']?.toString(),
+      mohallaId: json['mohallaId']?.toString(),
+      mobile: json['mobile']?.toString(),
+      assessmentType: json['assessmentType']?.toString(),
+      fileNo: json['fileNo']?.toString(),
+      propertyUse: json['propertyUse']?.toString(),
+      roadLocation: json['roadLocation']?.toString(),
+      propertyType: json['propertyType']?.toString(),
+      assessmentDate: json['assessmentDate']?.toString(),
+      oldArv: json['oldArv']?.toString(),
+      existingPropertyId: json['existingPropertyId']?.toString(),
+      totalArv: ReassessmentFloorDetail._toDouble(json['totalArv']),
+      rebateFinancialYear: json['rebateFinancialYear']?.toString(),
+      taxRebateTypeName: json['taxRebateTypeName']?.toString(),
+    );
+  }
+}
+
+class ReassessmentPwsItem {
+  final String? finYear;
+  final double? propertyTax;
+  final double? propertyArrear;
+  final double? propertyInterest;
+  final double? waterTax;
+  final double? waterArrear;
+  final double? waterInterest;
+  final double? sewerageTax;
+  final double? sewerageArrear;
+  final double? sewerageInterest;
+  final double? otherTax;
+  final double? otherArrear;
+  final double? otherInterest;
+  final double? waterCharge;
+  final double? waterChargeArrear;
+  final double? waterChargeInterest;
+  final double? totalTax;
+  final double? totalInterest;
+  final double? grandTotal;
+
+  ReassessmentPwsItem({
+    this.finYear,
+    this.propertyTax,
+    this.propertyArrear,
+    this.propertyInterest,
+    this.waterTax,
+    this.waterArrear,
+    this.waterInterest,
+    this.sewerageTax,
+    this.sewerageArrear,
+    this.sewerageInterest,
+    this.otherTax,
+    this.otherArrear,
+    this.otherInterest,
+    this.waterCharge,
+    this.waterChargeArrear,
+    this.waterChargeInterest,
+    this.totalTax,
+    this.totalInterest,
+    this.grandTotal,
+  });
+
+  factory ReassessmentPwsItem.fromJson(Map<String, dynamic> json) {
+    return ReassessmentPwsItem(
+      finYear: json['finYear']?.toString(),
+      propertyTax: ReassessmentFloorDetail._toDouble(json['propertyTax']),
+      propertyArrear: ReassessmentFloorDetail._toDouble(json['propertyArrear']),
+      propertyInterest: ReassessmentFloorDetail._toDouble(json['propertyInterest']),
+      waterTax: ReassessmentFloorDetail._toDouble(json['waterTax']),
+      waterArrear: ReassessmentFloorDetail._toDouble(json['waterArrear']),
+      waterInterest: ReassessmentFloorDetail._toDouble(json['waterInterest']),
+      sewerageTax: ReassessmentFloorDetail._toDouble(json['sewerageTax']),
+      sewerageArrear: ReassessmentFloorDetail._toDouble(json['sewerageArrear']),
+      sewerageInterest: ReassessmentFloorDetail._toDouble(json['sewerageInterest']),
+      otherTax: ReassessmentFloorDetail._toDouble(json['otherTax']),
+      otherArrear: ReassessmentFloorDetail._toDouble(json['otherArrear']),
+      otherInterest: ReassessmentFloorDetail._toDouble(json['otherInterest']),
+      waterCharge: ReassessmentFloorDetail._toDouble(json['waterCharge']),
+      waterChargeArrear: ReassessmentFloorDetail._toDouble(json['waterChargeArrear']),
+      waterChargeInterest: ReassessmentFloorDetail._toDouble(json['waterChargeInterest']),
+      totalTax: ReassessmentFloorDetail._toDouble(json['totalTax']),
+      totalInterest: ReassessmentFloorDetail._toDouble(json['totalInterest']),
+      grandTotal: ReassessmentFloorDetail._toDouble(json['grandTotal']),
     );
   }
 }
