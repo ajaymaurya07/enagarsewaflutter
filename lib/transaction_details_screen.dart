@@ -32,9 +32,6 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
   TutorialCoachMark? _tutorialCoachMark;
   bool _isTourActive = false;
 
-  bool get _isSuccess =>
-      (widget.transaction.transactionStatus?.toUpperCase() ?? '') == 'SUCCESS';
-
   @override
   void initState() {
     super.initState();
@@ -341,37 +338,35 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
                 controller: _screenshotController,
                 child: _buildReceiptCard(),
               ),
-              if (_isSuccess) ...[
-                const SizedBox(height: 24),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        key: _shareButtonKey,
-                        child: _buildActionButton(
-                          'Share Receipt',
-                          Icons.share_outlined,
-                          const Color(0xFF0E3B90),
-                          _shareReceipt,
-                        ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      key: _shareButtonKey,
+                      child: _buildActionButton(
+                        'Share Receipt',
+                        Icons.share_outlined,
+                        const Color(0xFF0E3B90),
+                        _shareReceipt,
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Container(
-                        key: _downloadButtonKey,
-                        child: _buildActionButton(
-                          'Download',
-                          Icons.file_download_outlined,
-                          Colors.white,
-                          _downloadReceipt,
-                          isOutlined: true,
-                        ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Container(
+                      key: _downloadButtonKey,
+                      child: _buildActionButton(
+                        'Download',
+                        Icons.file_download_outlined,
+                        Colors.white,
+                        _downloadReceipt,
+                        isOutlined: true,
                       ),
                     ),
-                  ],
-                ),
-              ],
+                  ),
+                ],
+              ),
               const SizedBox(height: 40),
             ],
           ),

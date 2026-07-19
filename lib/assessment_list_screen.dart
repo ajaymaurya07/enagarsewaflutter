@@ -2,20 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'services/api_service.dart';
 import 'services/database_service.dart';
+import 'assessment_details_screen.dart';
 import 'assessment_document_upload_screen.dart';
-import 'assessment_step2_screen.dart';
 import 'assessment_step3_screen.dart';
-import 'new_reassessment_screen.dart';
-import 'reassessment_details_screen.dart';
+import 'property_tax_assessment_screen.dart';
 
-class ReassessmentScreen extends StatefulWidget {
-  const ReassessmentScreen({super.key});
+/// Home screen for the fresh (non-reassessment) property tax assessment
+/// flow: shows all in-progress/completed assessments via getAssessmentList,
+/// and a "+ New Assessment" entry point. Mirrors reassessment_screen.dart.
+class AssessmentListScreen extends StatefulWidget {
+  const AssessmentListScreen({super.key});
 
   @override
-  State<ReassessmentScreen> createState() => _ReassessmentScreenState();
+  State<AssessmentListScreen> createState() => _AssessmentListScreenState();
 }
 
-class _ReassessmentScreenState extends State<ReassessmentScreen> {
+class _AssessmentListScreenState extends State<AssessmentListScreen> {
   static const Color _primaryColor = Color(0xFFE67514);
   static const Color _textColor = Color(0xFF333333);
 
@@ -35,12 +37,12 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
       _errorMessage = null;
     });
     try {
-      final response = await ApiService.getReassessmentList();
+      final response = await ApiService.getAssessmentList();
       if (!mounted) return;
       if (response.success != true) {
         setState(() {
           _isLoading = false;
-          _errorMessage = response.message ?? 'Failed to fetch reassessment list';
+          _errorMessage = response.message ?? 'Failed to fetch assessment list';
         });
         return;
       }
@@ -54,7 +56,7 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
         _isLoading = false;
         _errorMessage = ApiService.getUserFriendlyErrorMessage(
           e,
-          fallbackMessage: 'Unable to fetch reassessment list. Please try again.',
+          fallbackMessage: 'Unable to fetch assessment list. Please try again.',
         );
       });
     }
@@ -64,26 +66,25 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  Future<void> _handleNewReassessment() async {
+  Future<void> _handleNewAssessment() async {
     final result = await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const NewReassessmentScreen()),
+      MaterialPageRoute(builder: (_) => const PropertyTaxAssessmentScreen()),
     );
     if (result != null && mounted) _fetchList();
   }
 
-  // Routes to the next screen based on `next_stage` from getReassessmentList:
-  //   1 -> reassessmentSubmitS1 (initialize)
-  //   2 -> reassessmentFetchFloorConfig (Zonal File No. + floor config)
-  //   3 -> reassessmentSubmitS3 (floor entry + finalize, same screen as 2)
-  //   4 -> reassessmentSubmitS4 (document upload)
-  //   null + completed -> getReassessmentDetails (See Details)
+  // next_stage 4 -> document upload screen.
+  // next_stage 1/2/3 -> straight to Floor Entry (Road Location/Property
+  // Type/Property Uses can't be resumed without a dedicated fetch-by-ackNo
+  // API, so those steps can't be safely re-shown here).
+  // null + completed -> getAssessmentDetails (See Details).
   Future<void> _handleCardTap(ReassessmentListItem item) async {
     final propertyId = item.propertyId;
     final ackNo = item.ackNo;
-    if (propertyId == null || ackNo == null) return;
+    if (ackNo == null) return;
 
-    final property = await DatabaseService.getPropertyById(propertyId);
+    final property = propertyId != null ? await DatabaseService.getPropertyById(propertyId) : null;
     final mobileNo = property?.phoneNumber ?? '';
 
     if (!mounted) return;
@@ -94,15 +95,15 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => ReassessmentDetailsScreen(
+            builder: (_) => AssessmentDetailsScreen(
               ackNo: ackNo,
-              propertyId: propertyId,
+              propertyId: propertyId ?? '',
               mobileNo: mobileNo,
             ),
           ),
         );
       } else {
-        _showSnackBar('No further action is available for this reassessment right now.');
+        _showSnackBar('No further action is available for this assessment right now.');
       }
       return;
     }
@@ -113,8 +114,8 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
         MaterialPageRoute(
           builder: (_) => AssessmentDocumentUploadScreen(
             ackNo: ackNo,
-            isReassessment: true,
-            propertyId: propertyId,
+            isReassessment: false,
+            propertyId: propertyId ?? '',
             mobileNo: mobileNo,
           ),
         ),
@@ -123,35 +124,17 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
       return;
     }
 
-    if (nextStage == 3) {
-      final result = await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => AssessmentStep3Screen(
-            ackNo: ackNo,
-            floorNoList: const {},
-            floorUsageList: const {},
-            constructionTypeList: const {},
-            isReassessment: true,
-            propertyId: propertyId,
-            mobileNo: mobileNo,
-          ),
-        ),
-      );
-      if (result != null && mounted) _fetchList();
-      return;
-    }
-
-    // next_stage 1/2 -> Step 2 screen (File No. + Road Location/Property
-    // Type), no dedicated Step 1 screen exists for a reassessment resume.
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => AssessmentStep2Screen(
+        builder: (_) => AssessmentStep3Screen(
           ackNo: ackNo,
-          propertyId: propertyId,
+          floorNoList: const {},
+          floorUsageList: const {},
+          constructionTypeList: const {},
+          isReassessment: false,
+          propertyId: propertyId ?? '',
           mobileNo: mobileNo,
-          isReassessment: true,
         ),
       ),
     );
@@ -171,12 +154,8 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Property Reassessment',
-          style: GoogleFonts.poppins(
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-            color: _textColor,
-          ),
+          'Property Tax Assessment',
+          style: GoogleFonts.poppins(fontSize: 17, fontWeight: FontWeight.w600, color: _textColor),
         ),
       ),
       body: RefreshIndicator(
@@ -192,15 +171,11 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       children: [
-        _buildNewReassessmentButton(),
+        _buildNewAssessmentButton(),
         const SizedBox(height: 24),
         Text(
           'Assessment Summary',
-          style: GoogleFonts.poppins(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: _textColor,
-          ),
+          style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w700, color: _textColor),
         ),
         const SizedBox(height: 12),
         _buildListContent(),
@@ -208,15 +183,15 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
     );
   }
 
-  Widget _buildNewReassessmentButton() {
+  Widget _buildNewAssessmentButton() {
     return SizedBox(
       width: double.infinity,
       height: 50,
       child: ElevatedButton.icon(
-        onPressed: _handleNewReassessment,
+        onPressed: _handleNewAssessment,
         icon: const Icon(Icons.add_circle_outline_rounded, size: 20),
         label: Text(
-          'New Reassessment',
+          'New Assessment',
           style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600),
         ),
         style: ElevatedButton.styleFrom(
@@ -249,8 +224,8 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
     if (_items.isEmpty) {
       return _buildMessageState(
         icon: Icons.description_outlined,
-        title: 'No reassessments yet',
-        subtitle: 'Reassessments you start will appear here so you can track their progress.',
+        title: 'No assessments yet',
+        subtitle: 'Assessments you start will appear here so you can track their progress.',
         showRetry: false,
       );
     }
@@ -287,21 +262,13 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
           Text(
             title,
             textAlign: TextAlign.center,
-            style: GoogleFonts.poppins(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: _textColor,
-            ),
+            style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w700, color: _textColor),
           ),
           const SizedBox(height: 8),
           Text(
             subtitle,
             textAlign: TextAlign.center,
-            style: GoogleFonts.poppins(
-              fontSize: 13,
-              color: Colors.grey.shade600,
-              height: 1.5,
-            ),
+            style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade600, height: 1.5),
           ),
           if (showRetry) ...[
             const SizedBox(height: 20),
@@ -349,7 +316,6 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
                 child: Row(
@@ -363,21 +329,14 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
                             item.ownerName?.trim().isNotEmpty == true
                                 ? item.ownerName!.trim()
                                 : 'Unknown Owner',
-                            style: GoogleFonts.poppins(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: _textColor,
-                            ),
+                            style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w700, color: _textColor),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 2),
                           Text(
                             'Ack: ${item.ackNo ?? '-'}',
-                            style: GoogleFonts.poppins(
-                              fontSize: 12,
-                              color: Colors.grey.shade600,
-                            ),
+                            style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey.shade600),
                           ),
                         ],
                       ),
@@ -388,23 +347,18 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
                 ),
               ),
               const Divider(height: 1),
-              // Details
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                 child: Column(
                   children: [
-                    _buildDetailRow('Property ID', item.propertyId ?? '-'),
-                    _buildDetailRow(
-                        'House No.',
+                    _buildDetailRow('House No.',
                         (item.houseNo?.trim().isNotEmpty == true) ? item.houseNo!.trim() : '-'),
-                    _buildDetailRow(
-                        'Address',
+                    _buildDetailRow('Address',
                         (item.address?.trim().isNotEmpty == true) ? item.address!.trim() : '-'),
                     _buildDetailRow('Assess Date', item.assessDate ?? '-'),
                   ],
                 ),
               ),
-              // Footer: See Details (completed) or stage progress
               Container(
                 margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                 child: item.isCompletedFlag
@@ -453,10 +407,7 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
         children: [
           Icon(icon, size: 13, color: color),
           const SizedBox(width: 4),
-          Text(
-            label,
-            style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w600, color: color),
-          ),
+          Text(label, style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
         ],
       ),
     );
@@ -493,10 +444,7 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
         children: [
           SizedBox(
             width: 88,
-            child: Text(
-              label,
-              style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey.shade600),
-            ),
+            child: Text(label, style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey.shade600)),
           ),
           Expanded(
             child: Text(

@@ -46,7 +46,8 @@ class _FloorUsageAssessmentScreenState
       '[FloorUsageAssessment] Fetching floor types for floorUsageId=$floorUsageId...',
     );
     try {
-      final floorTypes = await ApiService.getFloorTypeList(floorUsageId);
+      final response = await ApiService.getFloorTypeList(floorUsageId);
+      final floorTypes = response.data;
       debugPrint(
         '[FloorUsageAssessment] getFloorTypeList($floorUsageId) -> ${floorTypes.length} item(s): '
         '${floorTypes.map((f) => '${f.id}:${f.name}').join(', ')}',

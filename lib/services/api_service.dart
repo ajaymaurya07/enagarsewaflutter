@@ -34,15 +34,23 @@ class ApiService {
     };
   }
 
-  static Future<void> _handleSessionExpired() async {
-    await DatabaseService.clearDatabase();
-    await StorageService.logout();
+  static bool _isHandlingSessionExpiry = false;
 
-    if (navigatorKey.currentState != null) {
-      navigatorKey.currentState!.pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-        (route) => false,
-      );
+  static Future<void> _handleSessionExpired() async {
+    if (_isHandlingSessionExpiry) return;
+    _isHandlingSessionExpiry = true;
+    try {
+      await DatabaseService.clearDatabase();
+      await StorageService.logout();
+
+      if (navigatorKey.currentState != null) {
+        navigatorKey.currentState!.pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          (route) => false,
+        );
+      }
+    } finally {
+      _isHandlingSessionExpiry = false;
     }
   }
 
@@ -143,6 +151,22 @@ class ApiService {
   }) =>
       PinnedHttpClient.getInstance()
           .then((c) => c.post(url, headers: headers, body: body, encoding: encoding));
+
+  // http.Client's get() doesn't allow a request body, but some backend
+  // endpoints here are declared as GET while still expecting a JSON body
+  // (e.g. getAssessmentDetails). Build the request manually to support that.
+  static Future<http.Response> _getWithBody(
+    Uri url, {
+    Map<String, String>? headers,
+    String? body,
+  }) async {
+    final client = await PinnedHttpClient.getInstance();
+    final request = http.Request('GET', url);
+    if (headers != null) request.headers.addAll(headers);
+    if (body != null) request.body = body;
+    final streamedResponse = await client.send(request);
+    return http.Response.fromStream(streamedResponse);
+  }
 
   // ─── Integrity-protected request helper ────────────────────────────────────────────
 
@@ -304,7 +328,7 @@ class ApiService {
   }
 
   // Fetch Property Rebate Types
-  static Future<List<RebateType>> getRebateTypeList() async {
+  static Future<RebateTypeListResponse> getRebateTypeList() async {
     try {
       final response = await _makeAuthenticatedRequest(
         (headers) => _get(
@@ -319,11 +343,18 @@ class ApiService {
       if (response.statusCode == 200) {
         final decodedData = json.decode(response.body);
         if (decodedData['success'] == true && decodedData['data'] != null) {
-          return (decodedData['data'] as List)
-              .map((item) => RebateType.fromJson(item))
-              .toList();
+          return RebateTypeListResponse(
+            responseCode: decodedData['responseCode'],
+            data: (decodedData['data'] as List)
+                .map((item) => RebateType.fromJson(item))
+                .toList(),
+          );
         }
-        throw Exception(decodedData['message'] ?? 'Failed to load rebate types');
+        return RebateTypeListResponse(
+          responseCode: decodedData['responseCode'],
+          data: const [],
+          message: decodedData['message'],
+        );
       } else {
         throw Exception('Server error: ${response.statusCode}');
       }
@@ -333,7 +364,7 @@ class ApiService {
   }
 
   // Fetch Floor Type List for a given floor usage category (RS, RR, MIS, COM)
-  static Future<List<FloorType>> getFloorTypeList(String floorUsageId) async {
+  static Future<FloorTypeListResponse> getFloorTypeList(String floorUsageId) async {
     try {
       final response = await _makeAuthenticatedRequest(
         (headers) => _post(
@@ -349,11 +380,18 @@ class ApiService {
       if (response.statusCode == 200) {
         final decodedData = json.decode(response.body);
         if (decodedData['success'] == true && decodedData['data'] != null) {
-          return (decodedData['data'] as List)
-              .map((item) => FloorType.fromJson(item))
-              .toList();
+          return FloorTypeListResponse(
+            responseCode: decodedData['responseCode'],
+            data: (decodedData['data'] as List)
+                .map((item) => FloorType.fromJson(item))
+                .toList(),
+          );
         }
-        throw Exception(decodedData['message'] ?? 'Failed to load floor types');
+        return FloorTypeListResponse(
+          responseCode: decodedData['responseCode'],
+          data: const [],
+          message: decodedData['message'],
+        );
       } else {
         throw Exception('Server error: ${response.statusCode}');
       }
@@ -787,6 +825,75 @@ class ApiService {
       }
     } catch (e) {
       debugPrint('[ReassessmentFullDetails] Error -> $e');
+      throw _userSafeException(e);
+    }
+  }
+
+  // Property Assessment (fresh, not reassessment) - List: Fetch all
+  // assessments for the user. Response shape is identical to
+  // getReassessmentList, so the same model classes are reused.
+  static Future<ReassessmentListResponse> getAssessmentList() async {
+    debugPrint('[AssessmentList] Request -> getAssessmentList');
+
+    try {
+      final response = await _makeAuthenticatedRequest(
+        (headers) {
+          debugPrint('[AssessmentList] Authorization -> ${headers['Authorization']}');
+          debugPrint('[AssessmentList] Device Id -> ${headers['X-Device-Id']}');
+          return _post(
+                Uri.parse('${AppConstants.baseUrl}api/House_tax/getAssessmentList'),
+                headers: headers,
+                body: json.encode({}),
+              )
+              .timeout(Duration(seconds: AppConstants.networkTimeout));
+        },
+      );
+
+      debugPrint(
+        '[AssessmentList] Response (${response.statusCode}) -> ${response.body}',
+      );
+
+      if (response.statusCode == 200) {
+        return ReassessmentListResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('[AssessmentList] Error -> $e');
+      throw _userSafeException(e);
+    }
+  }
+
+  // Property Assessment (fresh, not reassessment) - Full Details: Fetch
+  // complete details (floors + tax breakdown) for an assessment by Ack No.
+  // Declared as GET by the backend but still expects a JSON body.
+  static Future<ReassessmentFullDetailsResponse> getAssessmentFullDetails({
+    required String ackNo,
+  }) async {
+    final requestBody = {'ackNo': ackNo};
+    debugPrint('[AssessmentFullDetails] Request -> ${json.encode(requestBody)}');
+
+    try {
+      final response = await _makeAuthenticatedRequest(
+        (headers) => _getWithBody(
+              Uri.parse('${AppConstants.baseUrl}api/House_tax/getAssessmentDetails'),
+              headers: headers,
+              body: json.encode(requestBody),
+            )
+            .timeout(Duration(seconds: AppConstants.networkTimeout)),
+      );
+
+      debugPrint(
+        '[AssessmentFullDetails] Response (${response.statusCode}) -> ${response.body}',
+      );
+
+      if (response.statusCode == 200) {
+        return ReassessmentFullDetailsResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('[AssessmentFullDetails] Error -> $e');
       throw _userSafeException(e);
     }
   }
@@ -2175,6 +2282,22 @@ class FloorType {
       name: json['name'],
     );
   }
+}
+
+class RebateTypeListResponse {
+  final int? responseCode;
+  final List<RebateType> data;
+  final String? message;
+
+  RebateTypeListResponse({this.responseCode, this.data = const [], this.message});
+}
+
+class FloorTypeListResponse {
+  final int? responseCode;
+  final List<FloorType> data;
+  final String? message;
+
+  FloorTypeListResponse({this.responseCode, this.data = const [], this.message});
 }
 
 class AssessmentStep1Response {

@@ -30,7 +30,7 @@ class OtpGateService {
     required String mobileNo,
   }) async {
     final context = ApiService.navigatorKey.currentContext;
-    if (context == null || mobileNo.isEmpty) return false;
+    if (context == null || mobileNo.isEmpty || propertyId.isEmpty) return false;
 
     try {
       final sendRes = await ApiService.sendOtp(mobileNo, propertyId);

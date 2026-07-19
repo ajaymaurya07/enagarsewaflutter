@@ -5,14 +5,14 @@ import 'services/otp_gate_service.dart';
 import 'utils/ulb_language_helper.dart';
 
 /// Shows the full details (owner/property info, floor breakdown, tax
-/// breakdown) of a completed reassessment, fetched via
-/// api/house_tax/getReassessmentDetails.
-class ReassessmentDetailsScreen extends StatefulWidget {
+/// breakdown) of a completed (fresh, non-reassessment) assessment, fetched
+/// via api/House_tax/getAssessmentDetails.
+class AssessmentDetailsScreen extends StatefulWidget {
   final String ackNo;
   final String propertyId;
   final String mobileNo;
 
-  const ReassessmentDetailsScreen({
+  const AssessmentDetailsScreen({
     super.key,
     required this.ackNo,
     this.propertyId = '',
@@ -20,10 +20,10 @@ class ReassessmentDetailsScreen extends StatefulWidget {
   });
 
   @override
-  State<ReassessmentDetailsScreen> createState() => _ReassessmentDetailsScreenState();
+  State<AssessmentDetailsScreen> createState() => _AssessmentDetailsScreenState();
 }
 
-class _ReassessmentDetailsScreenState extends State<ReassessmentDetailsScreen> {
+class _AssessmentDetailsScreenState extends State<AssessmentDetailsScreen> {
   static const Color _primaryColor = Color(0xFFE67514);
   static const Color _textColor = Color(0xFF333333);
 
@@ -52,7 +52,7 @@ class _ReassessmentDetailsScreenState extends State<ReassessmentDetailsScreen> {
     });
     try {
       final response = await OtpGateService.guard(
-        call: () => ApiService.getReassessmentFullDetails(ackNo: widget.ackNo),
+        call: () => ApiService.getAssessmentFullDetails(ackNo: widget.ackNo),
         responseCode: (r) => r.responseCode,
         propertyId: widget.propertyId,
         mobileNo: widget.mobileNo,
@@ -61,7 +61,7 @@ class _ReassessmentDetailsScreenState extends State<ReassessmentDetailsScreen> {
       if (response.success != true || response.data == null) {
         setState(() {
           _isLoading = false;
-          _errorMessage = response.message ?? 'Failed to fetch reassessment details';
+          _errorMessage = response.message ?? 'Failed to fetch assessment details';
         });
         return;
       }
@@ -75,7 +75,7 @@ class _ReassessmentDetailsScreenState extends State<ReassessmentDetailsScreen> {
         _isLoading = false;
         _errorMessage = ApiService.getUserFriendlyErrorMessage(
           e,
-          fallbackMessage: 'Unable to fetch reassessment details. Please try again.',
+          fallbackMessage: 'Unable to fetch assessment details. Please try again.',
         );
       });
     }
@@ -94,7 +94,7 @@ class _ReassessmentDetailsScreenState extends State<ReassessmentDetailsScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Reassessment Details',
+          'Assessment Details',
           style: GoogleFonts.poppins(fontSize: 17, fontWeight: FontWeight.w600, color: _textColor),
         ),
       ),
@@ -175,7 +175,6 @@ class _ReassessmentDetailsScreenState extends State<ReassessmentDetailsScreen> {
             if (tax != null) ...[
               _InfoRow('File No.', tax.fileNo ?? '-'),
               _InfoRow('Total Area', tax.totalArea != null ? '${tax.totalArea} sq.ft.' : '-'),
-              _InfoRow('Old ARV', tax.oldArv ?? '-'),
             ],
           ]),
           if (data.floorDetails.isNotEmpty) ...[

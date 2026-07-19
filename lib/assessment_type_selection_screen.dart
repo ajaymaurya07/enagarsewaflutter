@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'property_tax_assessment_screen.dart';
+import 'assessment_list_screen.dart';
 import 'reassessment_screen.dart';
 
 enum _AssessmentType { assessment, reassessment }
@@ -24,7 +24,7 @@ class _AssessmentTypeSelectionScreenState
       context,
       MaterialPageRoute(
         builder: (_) => _selectedType == _AssessmentType.assessment
-            ? const PropertyTaxAssessmentScreen()
+            ? const AssessmentListScreen()
             : const ReassessmentScreen(),
       ),
     );

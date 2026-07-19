@@ -99,10 +99,15 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
       _isLoadingFloorTypes = true;
     });
     try {
-      final floorTypes = await ApiService.getFloorTypeList(code);
+      final response = await OtpGateService.guard(
+        call: () => ApiService.getFloorTypeList(code),
+        responseCode: (r) => r.responseCode,
+        propertyId: widget.propertyId,
+        mobileNo: widget.mobileNo,
+      );
       if (!mounted) return;
       setState(() {
-        _floorTypeList = floorTypes;
+        _floorTypeList = response.data;
         _isLoadingFloorTypes = false;
       });
     } catch (e) {
@@ -283,10 +288,15 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
     if (_rebateTypeList.isNotEmpty || _isLoadingRebateTypes) return;
     setState(() => _isLoadingRebateTypes = true);
     try {
-      final rebates = await ApiService.getRebateTypeList();
+      final response = await OtpGateService.guard(
+        call: () => ApiService.getRebateTypeList(),
+        responseCode: (r) => r.responseCode,
+        propertyId: widget.propertyId,
+        mobileNo: widget.mobileNo,
+      );
       if (!mounted) return;
       setState(() {
-        _rebateTypeList = rebates;
+        _rebateTypeList = response.data;
         _isLoadingRebateTypes = false;
       });
     } catch (e) {
