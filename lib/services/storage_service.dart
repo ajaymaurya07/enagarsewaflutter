@@ -20,13 +20,7 @@ class StorageService {
       await prefs.remove(_refreshTokenKey);
     }
     if (data.emailId != null) await prefs.setString('email_id', data.emailId!);
-    if (data.userType != null) {
-      // Backend "citizen" is treated as "admin" in-app; "admin" stays "admin".
-      final userType = data.userType!.trim().toLowerCase() == 'citizen'
-          ? 'admin'
-          : data.userType!;
-      await prefs.setString('user_type', userType);
-    }
+    if (data.userType != null) await prefs.setString('user_type', data.userType!);
   }
 
   static Future<void> updateAccessToken(String token) async {

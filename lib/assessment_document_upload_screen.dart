@@ -219,7 +219,9 @@ class _AssessmentDocumentUploadScreenState
         if (didPop) return;
         await handleAssessmentBack(context);
       },
-      child: Scaffold(
+      child: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Scaffold(
         backgroundColor: const Color(0xFFF8F9FB),
         appBar: AppBar(
           backgroundColor: Colors.white,
@@ -251,6 +253,7 @@ class _AssessmentDocumentUploadScreenState
                 ),
         ),
         body: _isSuccess ? _buildSuccessView() : _buildUploadForm(),
+      ),
       ),
     );
   }

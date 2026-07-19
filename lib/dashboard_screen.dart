@@ -43,6 +43,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _selectedIndex = 0;
   String _userType = "";
   String _displayName = "";
+
+  bool get _canSearchProperty {
+    final normalizedType = _userType.toLowerCase();
+    return normalizedType == "admin" || normalizedType == "citizen";
+  }
   final PageController _paymentPageController = PageController(
     viewportFraction: 0.95,
   );
@@ -125,7 +130,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     setState(() {
       _userType = type ?? "";
-      _displayName = (_userType.toLowerCase() == "admin") ? "Admin" : _userType;
+      final normalizedType = _userType.toLowerCase();
+      if (normalizedType == "admin") {
+        _displayName = "Admin";
+      } else if (normalizedType == "citizen") {
+        _displayName = "Citizen";
+      } else {
+        _displayName = _userType;
+      }
       if (_displayName.isEmpty) _displayName = "User";
     });
 
@@ -356,8 +368,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       mutationKey: _keyMutation,
       waterSewerageKey: _keyWaterSewerage,
       bottomNavKey: _keyBottomNav,
-      searchPropertyKey:
-          _userType.toLowerCase() == 'admin' ? _keySearchProperty : null,
+      searchPropertyKey: _canSearchProperty ? _keySearchProperty : null,
     );
 
     await _showTourStep(steps, 0);
@@ -466,8 +477,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       ),
 
-                      // Refined "Search Property" Card - Only for Admin
-                      if (_userType.toLowerCase() == "admin") ...[
+                      // Refined "Search Property" Card - Admin and Citizen
+                      if (_canSearchProperty) ...[
                         const SizedBox(height: 24),
                         GestureDetector(
                           key: _keySearchProperty,

@@ -186,6 +186,7 @@ class _ReceiptCard extends StatelessWidget {
                   _buildRow('Father/Husband Name', ownerDetails!.fatherName),
                 ],
                 if (isCurrent && propertyDetails != null) ...[
+                  _buildRow('ULB Name', propertyDetails!.ulbName),
                   _buildRow('Zone', propertyDetails!.zoneName),
                   _buildRow('Ward', propertyDetails!.wardName),
                   _buildRow('Mohalla', propertyDetails!.mohallaName),
@@ -301,6 +302,7 @@ class _ReceiptCard extends StatelessWidget {
       addRow('Father/Husband Name', ownerDetails!.fatherName);
     }
     if (isCurrent && propertyDetails != null) {
+      addRow('ULB Name', propertyDetails!.ulbName);
       addRow('Zone', propertyDetails!.zoneName);
       addRow('Ward', propertyDetails!.wardName);
       addRow('Mohalla', propertyDetails!.mohallaName);

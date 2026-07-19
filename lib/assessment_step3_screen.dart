@@ -384,7 +384,9 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
         if (didPop) return;
         await handleAssessmentBack(context);
       },
-      child: Scaffold(
+      child: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -727,6 +729,7 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
                 ],
               ),
             ),
+      ),
       ),
     );
   }

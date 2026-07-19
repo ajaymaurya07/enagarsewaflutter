@@ -161,7 +161,9 @@ class _PropertyTaxAssessmentScreenState
           zoneId: int.tryParse(_selectedZone!.zoneId) ?? 0,
           wardId: int.tryParse(_selectedWard!.wardId) ?? 0,
           mohallaId: int.tryParse(_selectedMohalla!.mohallaId) ?? 0,
-          oldPropertyId: _oldPropertyIdController.text.trim(),
+          oldPropertyId: _oldPropertyIdController.text.trim().isEmpty
+              ? '0'
+              : _oldPropertyIdController.text.trim(),
           totalArea: int.tryParse(_totalAreaController.text.trim()) ??
               (double.tryParse(_totalAreaController.text.trim())?.round() ??
                   0),
@@ -237,7 +239,9 @@ class _PropertyTaxAssessmentScreenState
         if (didPop) return;
         await handleAssessmentBack(context);
       },
-      child: Scaffold(
+      child: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -405,6 +409,7 @@ class _PropertyTaxAssessmentScreenState
         ),
       ),
       bottomNavigationBar: _buildBottomBar(),
+      ),
       ),
     );
   }

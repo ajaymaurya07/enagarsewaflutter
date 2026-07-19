@@ -175,6 +175,7 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
     rows.add(['Transaction Number', txn.txnId ?? 'null']);
     rows.add(['Property ID.', txn.propertyId ?? 'null']);
     rows.add(['Transaction Date', txn.dateTime ?? 'null']);
+    rows.add(['Payment Status', status.isNotEmpty ? status : 'UNKNOWN']);
     rows.add(['User Code', txn.userCode ?? 'null']);
     rows.add(['Owner Name', txn.ownerName ?? 'null']);
     rows.add(['Father/Husband Name', txn.fatherName ?? 'null']);
@@ -381,6 +382,17 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
     final txn = widget.transaction;
     final status = txn.transactionStatus?.toUpperCase() ?? '';
     final bool isSuccess = status == 'SUCCESS';
+    final bool isPending = status == 'PENDING';
+    final bool isFailed = status == 'FAILED';
+
+    Color statusColor = const Color(0xFF64748B);
+    if (isSuccess) {
+      statusColor = const Color(0xFF4CAF50);
+    } else if (isPending) {
+      statusColor = const Color(0xFFE6A23C);
+    } else if (isFailed) {
+      statusColor = Colors.red;
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -426,16 +438,37 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
             color: const Color(0xFFFAFAFA),
-            child: Text(
-              isSuccess
-                  ? 'Payment for Property Tax Successful for Property ID. [ ${txn.propertyId ?? "N/A"} ]${_ulbLabel(txn)}'
-                  : 'Payment ${status.isNotEmpty ? status : "UNKNOWN"} for Property ID. [ ${txn.propertyId ?? "N/A"} ]${_ulbLabel(txn)}',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.poppins(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: isSuccess ? const Color(0xFF4CAF50) : Colors.red,
-              ),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: statusColor, width: 1),
+                  ),
+                  child: Text(
+                    status.isNotEmpty ? status : 'UNKNOWN',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: statusColor,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  isSuccess
+                      ? 'Payment for Property Tax Successful for Property ID. [ ${txn.propertyId ?? "N/A"} ]${_ulbLabel(txn)}'
+                      : 'Payment ${status.isNotEmpty ? status : "UNKNOWN"} for Property ID. [ ${txn.propertyId ?? "N/A"} ]${_ulbLabel(txn)}',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: statusColor,
+                  ),
+                ),
+              ],
             ),
           ),
 
@@ -445,6 +478,7 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
           _buildReceiptRow('Transaction Number', txn.txnId ?? 'null'),
           _buildReceiptRow('Property ID', txn.propertyId ?? 'null'),
           _buildReceiptRow('Transaction Date', txn.dateTime ?? 'null'),
+          _buildReceiptRow('Payment Status', status.isNotEmpty ? status : 'UNKNOWN'),
           _buildReceiptRow('User Code', txn.userCode ?? 'null'),
           _buildReceiptRow('Owner Name', txn.ownerName ?? 'null'),
           _buildReceiptRow('Father/Husband Name', txn.fatherName ?? 'null'),

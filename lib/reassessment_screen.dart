@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'services/api_service.dart';
 import 'services/database_service.dart';
-import 'services/otp_gate_service.dart';
-import 'apply_grievance_screen.dart' show SelectionSheet;
+import 'assessment_document_upload_screen.dart';
+import 'assessment_step2_screen.dart';
 import 'assessment_step3_screen.dart';
-import 'reassessment_list_screen.dart';
-import 'utils/ulb_language_helper.dart';
+import 'new_reassessment_screen.dart';
 
 class ReassessmentScreen extends StatefulWidget {
   const ReassessmentScreen({super.key});
@@ -17,200 +16,136 @@ class ReassessmentScreen extends StatefulWidget {
 
 class _ReassessmentScreenState extends State<ReassessmentScreen> {
   static const Color _primaryColor = Color(0xFFE67514);
+  static const Color _textColor = Color(0xFF333333);
 
-  bool _isLoadingProperties = true;
-  List<PropertyEntity> _savedProperties = [];
-  PropertyEntity? _selectedProperty;
-
-  bool _isFetchingPreCheck = false;
-  ReassessmentGetS1Data? _preCheckData;
-
-  bool _isInitializing = false;
-  ReassessmentStep1Data? _step1Data;
-  bool _showFloorEntrySection = false;
-
-  bool _isFetchingFloorConfig = false;
-  final TextEditingController _fileNoController = TextEditingController();
-
-  bool _isKrutidev = false;
+  bool _isLoading = true;
+  String? _errorMessage;
+  List<ReassessmentListItem> _items = [];
 
   @override
   void initState() {
     super.initState();
-    _loadSavedProperties();
-    _loadUlbLanguagePreference();
+    _fetchList();
   }
 
-  Future<void> _loadUlbLanguagePreference() async {
-    final isKrutidev = await UlbLanguageHelper.isKrutidev();
-    if (!mounted) return;
-    setState(() => _isKrutidev = isKrutidev);
-  }
-
-  @override
-  void dispose() {
-    _fileNoController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadSavedProperties() async {
-    final properties = await DatabaseService.getAllProperties();
-    if (!mounted) return;
+  Future<void> _fetchList() async {
     setState(() {
-      _savedProperties = properties;
-      _isLoadingProperties = false;
+      _isLoading = true;
+      _errorMessage = null;
     });
+    try {
+      final response = await ApiService.getReassessmentList();
+      if (!mounted) return;
+      if (response.success != true) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = response.message ?? 'Failed to fetch reassessment list';
+        });
+        return;
+      }
+      setState(() {
+        _items = response.data;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _errorMessage = ApiService.getUserFriendlyErrorMessage(
+          e,
+          fallbackMessage: 'Unable to fetch reassessment list. Please try again.',
+        );
+      });
+    }
   }
 
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  void _showSelectionSheet({
-    required String title,
-    required List<String> items,
-    required Function(int) onSelected,
-  }) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) =>
-          SelectionSheet(title: title, items: items, onSelected: onSelected),
+  Future<void> _handleNewReassessment() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const NewReassessmentScreen()),
     );
+    if (result != null && mounted) _fetchList();
   }
 
-  Future<void> _onPropertySelected(PropertyEntity property) async {
-    setState(() {
-      _selectedProperty = property;
-      _preCheckData = null;
-      _step1Data = null;
-      _showFloorEntrySection = false;
-      _isFetchingPreCheck = true;
-    });
-    try {
-      final response = await OtpGateService.guard(
-        call: () => ApiService.getReassessmentDetails(
-          propertyId: property.propertyId,
-        ),
-        responseCode: (r) => r.responseCode,
-        propertyId: property.propertyId,
-        mobileNo: property.phoneNumber,
-      );
-      if (!mounted) return;
+  // Routes to the next screen based on `next_stage` from getReassessmentList:
+  //   1 -> reassessmentSubmitS1 (initialize)
+  //   2 -> reassessmentFetchFloorConfig (Zonal File No. + floor config)
+  //   3 -> reassessmentSubmitS3 (floor entry + finalize, same screen as 2)
+  //   4 -> reassessmentSubmitS4 (document upload)
+  //   null -> nothing left to do; mark as complete
+  Future<void> _handleCardTap(ReassessmentListItem item) async {
+    final propertyId = item.propertyId;
+    final ackNo = item.ackNo;
+    if (propertyId == null || ackNo == null) return;
 
-      if (response.success != true || response.data == null) {
-        setState(() => _isFetchingPreCheck = false);
-        _showSnackBar(response.message ?? 'Failed to fetch assessment details');
-        return;
-      }
-      setState(() {
-        _preCheckData = response.data;
-        _isFetchingPreCheck = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isFetchingPreCheck = false);
+    final nextStage = item.nextStage;
+    if (nextStage == null) {
       _showSnackBar(
-        ApiService.getUserFriendlyErrorMessage(
-          e,
-          fallbackMessage: 'Unable to fetch assessment details. Please try again.',
-        ),
+        item.isCompletedFlag
+            ? 'This reassessment is already complete.'
+            : 'No further action is available for this reassessment right now.',
       );
-    }
-  }
-
-  String? get _activeAckNo => _step1Data?.ackNo ?? _preCheckData?.ackNo;
-
-  Future<void> _handleInitialize() async {
-    if (_selectedProperty == null || _preCheckData?.ackNo == null) return;
-
-    setState(() => _isInitializing = true);
-    try {
-      final response = await OtpGateService.guard(
-        call: () => ApiService.initializeReassessment(
-          propertyId: _selectedProperty!.propertyId,
-          ackNo: _preCheckData!.ackNo!,
-        ),
-        responseCode: (r) => r.responseCode,
-        propertyId: _selectedProperty!.propertyId,
-        mobileNo: _selectedProperty!.phoneNumber,
-      );
-      if (!mounted) return;
-      setState(() => _isInitializing = false);
-
-      if (response.success != true || response.data == null) {
-        _showSnackBar(response.message ?? 'Failed to initialize reassessment');
-        return;
-      }
-      setState(() => _step1Data = response.data);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isInitializing = false);
-      _showSnackBar(
-        ApiService.getUserFriendlyErrorMessage(
-          e,
-          fallbackMessage: 'Unable to initialize reassessment. Please try again.',
-        ),
-      );
-    }
-  }
-
-  Future<void> _handleContinueToFloors() async {
-    if (_selectedProperty == null || _activeAckNo == null) return;
-    if (_fileNoController.text.trim().isEmpty) {
-      _showSnackBar('Please enter Zonal File No.');
       return;
     }
 
-    setState(() => _isFetchingFloorConfig = true);
-    try {
-      final response = await OtpGateService.guard(
-        call: () => ApiService.fetchReassessmentFloorConfig(
-          propertyId: _selectedProperty!.propertyId,
-          ackNo: _activeAckNo!,
-          fileNo: _fileNoController.text.trim(),
+    final property = await DatabaseService.getPropertyById(propertyId);
+    final mobileNo = property?.phoneNumber ?? '';
+
+    if (!mounted) return;
+
+    if (nextStage >= 4) {
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => AssessmentDocumentUploadScreen(
+            ackNo: ackNo,
+            isReassessment: true,
+            propertyId: propertyId,
+            mobileNo: mobileNo,
+          ),
         ),
-        responseCode: (r) => r.responseCode,
-        propertyId: _selectedProperty!.propertyId,
-        mobileNo: _selectedProperty!.phoneNumber,
       );
-      if (!mounted) return;
-      setState(() => _isFetchingFloorConfig = false);
+      if (result != null && mounted) _fetchList();
+      return;
+    }
 
-      if (response.success != true || response.data == null) {
-        _showSnackBar(response.message ?? 'Failed to fetch floor configuration');
-        return;
-      }
-
-      final data = response.data!;
+    if (nextStage == 3) {
       final result = await Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => AssessmentStep3Screen(
-            ackNo: data.ackNo ?? _activeAckNo!,
-            floorNoList: data.floorNoList,
-            floorUsageList: data.floorUsageList,
-            constructionTypeList: data.constructionTypeList,
+            ackNo: ackNo,
+            floorNoList: const {},
+            floorUsageList: const {},
+            constructionTypeList: const {},
             isReassessment: true,
-            propertyId: data.propertyId ?? _selectedProperty!.propertyId,
-            mobileNo: _selectedProperty!.phoneNumber,
+            propertyId: propertyId,
+            mobileNo: mobileNo,
           ),
         ),
       );
-      if (result != null && mounted) {
-        Navigator.pop(context, result);
-      }
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isFetchingFloorConfig = false);
-      _showSnackBar(
-        ApiService.getUserFriendlyErrorMessage(
-          e,
-          fallbackMessage: 'Unable to fetch floor configuration. Please try again.',
-        ),
-      );
+      if (result != null && mounted) _fetchList();
+      return;
     }
+
+    // next_stage 1/2 -> Step 2 screen (File No. + Road Location/Property
+    // Type), no dedicated Step 1 screen exists for a reassessment resume.
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AssessmentStep2Screen(
+          ackNo: ackNo,
+          propertyId: propertyId,
+          mobileNo: mobileNo,
+          isReassessment: true,
+        ),
+      ),
+    );
+    if (result != null && mounted) _fetchList();
   }
 
   @override
@@ -230,278 +165,371 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
           style: GoogleFonts.poppins(
             fontSize: 17,
             fontWeight: FontWeight.w600,
-            color: const Color(0xFF333333),
+            color: _textColor,
           ),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.receipt_long_rounded, color: _primaryColor),
-            tooltip: 'My Reassessments',
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const ReassessmentListScreen(),
+            icon: const Icon(Icons.refresh_rounded, color: _primaryColor),
+            tooltip: 'Refresh',
+            onPressed: _isLoading ? null : _fetchList,
+          ),
+        ],
+      ),
+      body: RefreshIndicator(
+        color: _primaryColor,
+        onRefresh: _fetchList,
+        child: _buildBody(),
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      children: [
+        _buildNewReassessmentButton(),
+        const SizedBox(height: 24),
+        Text(
+          'Assessment Summary',
+          style: GoogleFonts.poppins(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: _textColor,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _buildListContent(),
+      ],
+    );
+  }
+
+  Widget _buildNewReassessmentButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: ElevatedButton.icon(
+        onPressed: _handleNewReassessment,
+        icon: const Icon(Icons.add_circle_outline_rounded, size: 20),
+        label: Text(
+          'New Reassessment',
+          style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _primaryColor,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildListContent() {
+    if (_isLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 60),
+        child: Center(child: CircularProgressIndicator(color: _primaryColor)),
+      );
+    }
+
+    if (_errorMessage != null) {
+      return _buildMessageState(
+        icon: Icons.wifi_off_rounded,
+        title: 'Something went wrong',
+        subtitle: _errorMessage!,
+        showRetry: true,
+      );
+    }
+
+    if (_items.isEmpty) {
+      return _buildMessageState(
+        icon: Icons.description_outlined,
+        title: 'No reassessments yet',
+        subtitle: 'Reassessments you start will appear here so you can track their progress.',
+        showRetry: false,
+      );
+    }
+
+    return Column(
+      children: [
+        for (final item in _items) ...[
+          _buildCard(item),
+          const SizedBox(height: 14),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildMessageState({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool showRetry,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 16),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: const BoxDecoration(
+              color: Color(0xFFFFF4E8),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 44, color: _primaryColor),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: _textColor,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            subtitle,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(
+              fontSize: 13,
+              color: Colors.grey.shade600,
+              height: 1.5,
+            ),
+          ),
+          if (showRetry) ...[
+            const SizedBox(height: 20),
+            SizedBox(
+              height: 46,
+              child: ElevatedButton.icon(
+                onPressed: _fetchList,
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: Text(
+                  'Retry',
+                  style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _primaryColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 28),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
               ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCard(ReassessmentListItem item) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => _handleCardTap(item),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.ownerName?.trim().isNotEmpty == true
+                                ? item.ownerName!.trim()
+                                : 'Unknown Owner',
+                            style: GoogleFonts.poppins(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: _textColor,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Ack: ${item.ackNo ?? '-'}',
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _buildStatusChip(item),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              // Details
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                child: Column(
+                  children: [
+                    _buildDetailRow(Icons.badge_outlined, 'Property ID', item.propertyId ?? '-'),
+                    _buildDetailRow(
+                        Icons.home_outlined,
+                        'House No.',
+                        (item.houseNo?.trim().isNotEmpty == true) ? item.houseNo!.trim() : '-'),
+                    _buildDetailRow(
+                        Icons.location_on_outlined,
+                        'Address',
+                        (item.address?.trim().isNotEmpty == true) ? item.address!.trim() : '-'),
+                    _buildDetailRow(Icons.calendar_today_outlined, 'Assess Date', item.assessDate ?? '-'),
+                  ],
+                ),
+              ),
+              // Footer: ARV + stage
+              Container(
+                margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8F9FB),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Total ARV',
+                          style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey.shade600),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '₹ ${_formatArv(item.totalArv)}',
+                          style: GoogleFonts.poppins(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: _primaryColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Spacer(),
+                    _buildStageBadge(item),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusChip(ReassessmentListItem item) {
+    final completed = item.isCompletedFlag;
+    final color = completed ? const Color(0xFF1E9E5A) : _primaryColor;
+    final label = completed ? 'Completed' : 'In Progress';
+    final icon = completed ? Icons.check_circle_rounded : Icons.hourglass_bottom_rounded;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w600, color: color),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStageBadge(ReassessmentListItem item) {
+    final stage = item.currentStage ?? 0;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.timeline_rounded, size: 14, color: Colors.grey.shade600),
+          const SizedBox(width: 5),
+          Text(
+            'Stage $stage of 4',
+            style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 16, color: Colors.grey.shade500),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 88,
+            child: Text(
+              label,
+              style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey.shade600),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: GoogleFonts.poppins(fontSize: 12.5, fontWeight: FontWeight.w600, color: _textColor),
+              textAlign: TextAlign.right,
             ),
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _sectionTitle('Select Property'),
-            const SizedBox(height: 12),
-            _buildPropertySection(),
-
-            if (_isFetchingPreCheck) ...[
-              const SizedBox(height: 20),
-              Center(child: CircularProgressIndicator(color: _primaryColor)),
-            ],
-
-            if (_preCheckData != null) ...[
-              const SizedBox(height: 24),
-              _sectionTitle('Last Assessment Details'),
-              const SizedBox(height: 12),
-              _buildInfoCard([
-                _InfoRow('Date of Last Assessment', _preCheckData!.dateOfLastAssessment ?? '-'),
-                _InfoRow('No. of Floors', '${_preCheckData!.noOfFloor ?? 0}'),
-                _InfoRow('Ack No.', _preCheckData!.ackNo ?? '-'),
-              ]),
-              if (_step1Data == null) ...[
-                const SizedBox(height: 20),
-                _buildActionButton(
-                  label: 'Continue',
-                  isLoading: _isInitializing,
-                  onPressed: _handleInitialize,
-                ),
-              ],
-            ],
-
-            if (_step1Data != null) ...[
-              const SizedBox(height: 24),
-              _sectionTitle('Property Details'),
-              const SizedBox(height: 12),
-              _buildInfoCard([
-                _InfoRow('Owner Name', _step1Data!.ownerName ?? '-', isLanguageSensitive: true),
-                _InfoRow('Father/Husband Name', _step1Data!.fatherName ?? '-', isLanguageSensitive: true),
-                _InfoRow('House No.', _step1Data!.houseNo ?? '-'),
-                _InfoRow('Address', _step1Data!.address ?? '-', isLanguageSensitive: true),
-                _InfoRow('Zone', _step1Data!.zoneName ?? '-'),
-                _InfoRow('Ward', _step1Data!.wardName ?? '-'),
-                _InfoRow('Mohalla', _step1Data!.mohallaName ?? '-'),
-                _InfoRow('Road Location', _step1Data!.roadLocationName ?? '-'),
-                _InfoRow('Property Type', _step1Data!.propertyTypeName ?? '-'),
-                _InfoRow(
-                  'Total Area',
-                  _step1Data!.totalArea != null
-                      ? '${_step1Data!.totalArea} sq.ft.'
-                      : '-',
-                ),
-                _InfoRow('Old ARV', _step1Data!.oldArv ?? '-'),
-              ]),
-            ],
-
-            if (_step1Data != null || _showFloorEntrySection) ...[
-              const SizedBox(height: 16),
-              Text(
-                'Zonal File No.',
-                style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade700),
-              ),
-              const SizedBox(height: 6),
-              TextField(
-                controller: _fileNoController,
-                keyboardType: TextInputType.number,
-                style: GoogleFonts.poppins(fontSize: 14, color: const Color(0xFF333333)),
-                decoration: InputDecoration(
-                  hintText: 'Enter Zonal File No.',
-                  hintStyle: GoogleFonts.poppins(color: Colors.grey.shade600, fontSize: 14),
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: _primaryColor),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              _buildActionButton(
-                label: 'Continue to Floor Details',
-                isLoading: _isFetchingFloorConfig,
-                onPressed: _handleContinueToFloors,
-              ),
-            ],
-            const SizedBox(height: 32),
-          ],
-        ),
-      ),
     );
   }
 
-  Widget _buildActionButton({
-    required String label,
-    required bool isLoading,
-    required VoidCallback onPressed,
-  }) {
-    return SizedBox(
-      width: double.infinity,
-      height: 48,
-      child: ElevatedButton(
-        onPressed: isLoading ? null : onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: _primaryColor,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-        child: isLoading
-            ? const SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
-              )
-            : Text(
-                label,
-                style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white),
-              ),
-      ),
-    );
-  }
-
-  Widget _buildInfoCard(List<_InfoRow> rows) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          for (int i = 0; i < rows.length; i++) ...[
-            if (i > 0) const Divider(height: 18),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  flex: 4,
-                  child: Text(
-                    rows[i].label,
-                    style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey.shade600),
-                  ),
-                ),
-                Expanded(
-                  flex: 6,
-                  child: Text(
-                    rows[i].value,
-                    style: (rows[i].isLanguageSensitive && _isKrutidev)
-                        ? const TextStyle(
-                            fontFamily: UlbLanguageHelper.krutidevFontFamily,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF333333),
-                          )
-                        : GoogleFonts.poppins(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFF333333),
-                          ),
-                    textAlign: TextAlign.right,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPropertySection() {
-    if (_isLoadingProperties) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: CircularProgressIndicator(color: _primaryColor),
-        ),
-      );
+  String _formatArv(String? arv) {
+    if (arv == null || arv.trim().isEmpty) return '0';
+    final value = double.tryParse(arv);
+    if (value == null) return arv;
+    final whole = value.toStringAsFixed(2);
+    final parts = whole.split('.');
+    final intPart = parts[0];
+    final buffer = StringBuffer();
+    for (int i = 0; i < intPart.length; i++) {
+      if (i > 0 && (intPart.length - i) % 3 == 0) buffer.write(',');
+      buffer.write(intPart[i]);
     }
-
-    if (_savedProperties.isEmpty) {
-      return _buildSelectableField(hint: 'No saved property found', onTap: null);
-    }
-
-    return _buildSelectableField(
-      hint: _selectedProperty?.propertyId ?? 'Select Property ID',
-      onTap: () => _showSelectionSheet(
-        title: 'Select Property',
-        items: _savedProperties.map((e) => e.propertyId).toList(),
-        onSelected: (index) => _onPropertySelected(_savedProperties[index]),
-      ),
-    );
+    return '$buffer.${parts[1]}';
   }
-
-  Widget _buildSelectableField({
-    required String hint,
-    VoidCallback? onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade300),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Text(
-                hint,
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  color: hint.contains('Select') || hint.contains('No saved')
-                      ? Colors.grey.shade600
-                      : const Color(0xFF333333),
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey.shade600),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _sectionTitle(String text) {
-    return Text(
-      text,
-      style: GoogleFonts.poppins(
-        fontSize: 16,
-        fontWeight: FontWeight.w700,
-        color: const Color(0xFF333333),
-      ),
-    );
-  }
-}
-
-class _InfoRow {
-  final String label;
-  final String value;
-  final bool isLanguageSensitive;
-
-  _InfoRow(this.label, this.value, {this.isLanguageSensitive = false});
 }

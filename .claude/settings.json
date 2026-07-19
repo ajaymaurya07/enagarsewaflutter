@@ -5,7 +5,10 @@
       "Bash(dart analyze *)",
       "Bash(grep -v -E \"/build/|/\\\\.dart_tool/\")",
       "WebFetch(domain:gs.statcounter.com)",
-      "Bash(./gradlew.bat :app:checkDebugAarMetadata)"
+      "Bash(./gradlew.bat :app:checkDebugAarMetadata)",
+      "Bash(grep -n \"^      \\),$\\\\|^    \\);$\\\\|^  }$\" /d/flutter-app/lib/assessment_step3_screen.dart)",
+      "Bash(awk 'NR==372,NR==900' /d/flutter-app/lib/assessment_step3_screen.dart)",
+      "Bash(grep -n \"^    \\);$\\\\|^  }$\")"
     ]
   }
 }
