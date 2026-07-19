@@ -32,6 +32,9 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
   TutorialCoachMark? _tutorialCoachMark;
   bool _isTourActive = false;
 
+  bool get _isSuccess =>
+      (widget.transaction.transactionStatus?.toUpperCase() ?? '') == 'SUCCESS';
+
   @override
   void initState() {
     super.initState();
@@ -172,6 +175,10 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
 
     final rows = <List<String>>[];
 
+    rows.add(['ULB Name', txn.ulbName ?? 'null']);
+    rows.add(['ULB Type', txn.ulbType ?? 'null']);
+    rows.add(['Financial Year', txn.financialYear ?? 'null']);
+    rows.add(['Bill Date', txn.billDate ?? 'null']);
     rows.add(['Transaction Number', txn.txnId ?? 'null']);
     rows.add(['Property ID.', txn.propertyId ?? 'null']);
     rows.add(['Transaction Date', txn.dateTime ?? 'null']);
@@ -334,35 +341,37 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
                 controller: _screenshotController,
                 child: _buildReceiptCard(),
               ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      key: _shareButtonKey,
-                      child: _buildActionButton(
-                        'Share Receipt',
-                        Icons.share_outlined,
-                        const Color(0xFF0E3B90),
-                        _shareReceipt,
+              if (_isSuccess) ...[
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        key: _shareButtonKey,
+                        child: _buildActionButton(
+                          'Share Receipt',
+                          Icons.share_outlined,
+                          const Color(0xFF0E3B90),
+                          _shareReceipt,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Container(
-                      key: _downloadButtonKey,
-                      child: _buildActionButton(
-                        'Download',
-                        Icons.file_download_outlined,
-                        Colors.white,
-                        _downloadReceipt,
-                        isOutlined: true,
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Container(
+                        key: _downloadButtonKey,
+                        child: _buildActionButton(
+                          'Download',
+                          Icons.file_download_outlined,
+                          Colors.white,
+                          _downloadReceipt,
+                          isOutlined: true,
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 40),
             ],
           ),
@@ -475,6 +484,10 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
           const Divider(height: 1, thickness: 1, color: Color(0xFF4CAF50)),
 
           // Receipt Table
+          _buildReceiptRow('ULB Name', txn.ulbName ?? 'null'),
+          _buildReceiptRow('ULB Type', txn.ulbType ?? 'null'),
+          _buildReceiptRow('Financial Year', txn.financialYear ?? 'null'),
+          _buildReceiptRow('Bill Date', txn.billDate ?? 'null'),
           _buildReceiptRow('Transaction Number', txn.txnId ?? 'null'),
           _buildReceiptRow('Property ID', txn.propertyId ?? 'null'),
           _buildReceiptRow('Transaction Date', txn.dateTime ?? 'null'),

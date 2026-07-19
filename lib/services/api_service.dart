@@ -3743,6 +3743,7 @@ class TransactionData {
   final String? ulbName;
   final String? ulbType;
   final String? receiptNo;
+  final String? billDate;
 
   TransactionData({
     this.paymentAmount,
@@ -3763,6 +3764,7 @@ class TransactionData {
     this.ulbName,
     this.ulbType,
     this.receiptNo,
+    this.billDate,
   });
 
   factory TransactionData.fromJson(Map<String, dynamic> json) {
@@ -3785,6 +3787,7 @@ class TransactionData {
       ulbName: json['ulb_name']?.toString(),
       ulbType: json['ulb_type']?.toString(),
       receiptNo: json['receiptNo']?.toString(),
+      billDate: json['bill_date']?.toString(),
     );
   }
 }
