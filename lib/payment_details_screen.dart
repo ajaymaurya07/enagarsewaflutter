@@ -91,11 +91,11 @@ class _PayuDelegate implements PayUCheckoutProProtocol {
   }
 
   void _verifyPayment() => _verify(
-        'Payment verification could not be completed. Please check your Current Receipt Details to confirm the status.',
+        'Payment verification could not be completed. Please check your Bill Receipt to confirm the status.',
       );
 
   void _verifyPaymentCancelled() => _verify(
-        'Payment Cancelled. Verification could not be completed. Please check your Current Receipt Details to confirm the status.',
+        'Payment Cancelled. Verification could not be completed. Please check your Bill Receipt to confirm the status.',
       );
 
   void _verify(String unableToVerifyMessage) {
@@ -1540,7 +1540,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: _buildSecondaryButton(
-                      'Current Receipt Details',
+                      'Bill Receipt',
                       Icons.payment_rounded,
                       _showPaymentHistory,
                       key: _keyPaymentHistoryButton,

@@ -66,9 +66,9 @@ class PaymentDetailsTourGuide {
         keyTarget: paymentHistoryButtonKey,
         align: ContentAlign.top,
         icon: Icons.payment_rounded,
-        title: 'Current Receipt Details',
+        title: 'Bill Receipt',
         body:
-            'Tap here to view current receipt details and payment records for this property.',
+            'Tap here to view bill receipt and payment records for this property.',
         radius: 16,
       ),
     ];
