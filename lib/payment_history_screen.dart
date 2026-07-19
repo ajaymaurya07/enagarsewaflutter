@@ -7,8 +7,9 @@ import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'services/api_service.dart';
+import 'services/database_service.dart';
 
-class PaymentHistoryScreen extends StatelessWidget {
+class PaymentHistoryScreen extends StatefulWidget {
   final String propertyId;
   final List<ReceiptDetailsItem> currReceiptDetails;
   final List<ReceiptDetailsItem> prevReceiptDetails;
@@ -24,13 +25,98 @@ class PaymentHistoryScreen extends StatelessWidget {
     this.propertyDetails,
   });
 
+  @override
+  State<PaymentHistoryScreen> createState() => _PaymentHistoryScreenState();
+}
+
+class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
+  String? _ulbName;
+  String? _ulbType;
+  bool _isLoadingUlb = true;
+  String? _ulbError;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUlbInfo();
+  }
+
+  Future<void> _loadUlbInfo() async {
+    setState(() {
+      _isLoadingUlb = true;
+      _ulbError = null;
+    });
+    try {
+      final property = await DatabaseService.getPropertyById(widget.propertyId);
+      final ulbId = property?.ulbId;
+      if (ulbId == null || ulbId.isEmpty) {
+        setState(() => _ulbError = 'ULB details not found for this property.');
+        return;
+      }
+
+      final ulbList = await ApiService.getUlbData();
+      final match = ulbList.where((u) => u.ulbId == ulbId).firstOrNull;
+      if (!mounted) return;
+      if (match == null) {
+        setState(() => _ulbError = 'ULB details not found for this property.');
+        return;
+      }
+
+      setState(() {
+        _ulbName = match.ulbName;
+        _ulbType = match.ulbType;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _ulbError = ApiService.getUserFriendlyErrorMessage(
+          e,
+          fallbackMessage: 'Unable to load ULB details. Please try again.',
+        );
+      });
+    } finally {
+      if (mounted) setState(() => _isLoadingUlb = false);
+    }
+  }
+
   static bool _hasValidBillNo(ReceiptDetailsItem receipt) {
     final billNo = receipt.billNo?.trim();
     return billNo != null && billNo.isNotEmpty && billNo != '-';
   }
 
+  Widget _buildUlbErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline_rounded, color: Colors.red, size: 60),
+            const SizedBox(height: 16),
+            Text(
+              _ulbError!,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(color: Colors.black87),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: _loadUlbInfo,
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE67514)),
+              child: const Text('Retry', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final propertyId = widget.propertyId;
+    final currReceiptDetails = widget.currReceiptDetails;
+    final prevReceiptDetails = widget.prevReceiptDetails;
+    final ownerDetails = widget.ownerDetails;
+    final propertyDetails = widget.propertyDetails;
     final filteredCurrReceipts = currReceiptDetails.where(_hasValidBillNo).toList();
     final filteredPrevReceipts = prevReceiptDetails.where(_hasValidBillNo).toList();
     final allReceipts = [...filteredCurrReceipts, ...filteredPrevReceipts];
@@ -72,7 +158,11 @@ class PaymentHistoryScreen extends StatelessWidget {
           child: Divider(height: 1, color: Colors.grey.shade200),
         ),
       ),
-      body: ListView(
+      body: _isLoadingUlb
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFFE67514)))
+          : _ulbError != null
+              ? _buildUlbErrorState()
+              : ListView(
         padding: const EdgeInsets.all(16),
         children: [
           if (allReceipts.isEmpty)
@@ -100,6 +190,8 @@ class PaymentHistoryScreen extends StatelessWidget {
                 propertyId: propertyId,
                 ownerDetails: ownerDetails,
                 propertyDetails: propertyDetails,
+                ulbName: _ulbName,
+                ulbType: _ulbType,
               );
             }),
         ],
@@ -114,6 +206,8 @@ class _ReceiptCard extends StatelessWidget {
   final String propertyId;
   final OwnerDetails? ownerDetails;
   final PropertyInfo? propertyDetails;
+  final String? ulbName;
+  final String? ulbType;
 
   const _ReceiptCard({
     required this.receipt,
@@ -121,6 +215,8 @@ class _ReceiptCard extends StatelessWidget {
     required this.propertyId,
     this.ownerDetails,
     this.propertyDetails,
+    this.ulbName,
+    this.ulbType,
   });
 
   @override
@@ -185,8 +281,11 @@ class _ReceiptCard extends StatelessWidget {
                   _buildRow('Owner Name', ownerDetails!.ownerName),
                   _buildRow('Father/Husband Name', ownerDetails!.fatherName),
                 ],
+                if (isCurrent) ...[
+                  _buildRow('ULB Name', ulbName),
+                  _buildRow('ULB Type', ulbType),
+                ],
                 if (isCurrent && propertyDetails != null) ...[
-                  _buildRow('ULB Name', propertyDetails!.ulbName),
                   _buildRow('Zone', propertyDetails!.zoneName),
                   _buildRow('Ward', propertyDetails!.wardName),
                   _buildRow('Mohalla', propertyDetails!.mohallaName),
@@ -301,8 +400,11 @@ class _ReceiptCard extends StatelessWidget {
       addRow('Owner Name', ownerDetails!.ownerName);
       addRow('Father/Husband Name', ownerDetails!.fatherName);
     }
+    if (isCurrent) {
+      addRow('ULB Name', ulbName);
+      addRow('ULB Type', ulbType);
+    }
     if (isCurrent && propertyDetails != null) {
-      addRow('ULB Name', propertyDetails!.ulbName);
       addRow('Zone', propertyDetails!.zoneName);
       addRow('Ward', propertyDetails!.wardName);
       addRow('Mohalla', propertyDetails!.mohallaName);
