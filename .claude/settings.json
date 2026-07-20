@@ -11,7 +11,9 @@
       "Bash(grep -n \"^    \\);$\\\\|^  }$\")",
       "Bash(powershell -NoProfile -Command \"[Convert]::ToBase64String\\([IO.File]::ReadAllBytes\\('assets/font/Kruti Dev 010 Regular.ttf'\\)\\)\")",
       "Skill(artifact-design)",
-      "Skill(artifact-design:*)"
+      "Skill(artifact-design:*)",
+      "Bash(find / -iname \"PayUConstantKeys.dart\" 2>/dev/null | head -5)",
+      "Read(//d//**)"
     ]
   }
 }

@@ -3938,6 +3938,7 @@ class Transaction {
   /// Raw value from API: 'p' = production, 't' = testing
   final String? payuEnv;
   final String? merchantName;
+  final String? ulbId;
 
   Transaction({
     this.amount,
@@ -3951,6 +3952,7 @@ class Transaction {
     this.txnid,
     this.payuEnv,
     this.merchantName,
+    this.ulbId,
   });
 
   /// Returns the PayU SDK environment value: '0' for production, '1' for test.
@@ -3968,6 +3970,7 @@ class Transaction {
     txnid: json['txnid']?.toString(),
     payuEnv: json['payu_env']?.toString(),
     merchantName: json['merchantName']?.toString(),
+    ulbId: json['ulbId']?.toString() ?? json['ulb_id']?.toString(),
   );
 }
 

@@ -1114,6 +1114,9 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
           PayUPaymentParamKey.ios_furl: furl,
           PayUPaymentParamKey.environment: txnData.resolvedPayuEnvironment,
           PayUPaymentParamKey.userCredential: '$key:$email',
+          PayUPaymentParamKey.additionalParam: {
+            PayUAdditionalParamKeys.udf1: txnData.ulbId ?? '',
+          },
         };
 
         final payUCheckoutProConfig = <String, dynamic>{
