@@ -327,6 +327,7 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
       return;
     }
 
+    debugPrint('[Step3Finalize] _handleFinalize -> ackNo=${widget.ackNo}, isReassessment=${widget.isReassessment}');
     setState(() => _isFinalizing = true);
     try {
       final response = await OtpGateService.guard(
@@ -355,6 +356,9 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
         mobileNo: widget.mobileNo,
       );
 
+      debugPrint(
+        '[Step3Finalize] response -> success=${response.success}, dataIsNull=${response.data == null}, mounted=$mounted',
+      );
       if (!mounted) return;
       setState(() => _isFinalizing = false);
 
@@ -363,8 +367,10 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
         return;
       }
 
+      debugPrint('[Step3Finalize] Success -> rendering final summary.');
       setState(() => _finalResult = response.data);
     } catch (e) {
+      debugPrint('[Step3Finalize] Error -> $e');
       if (!mounted) return;
       setState(() => _isFinalizing = false);
       _showSnackBar(

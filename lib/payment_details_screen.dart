@@ -27,9 +27,8 @@ class PaymentDetailsScreen extends StatefulWidget {
 
 class _PayuDelegate implements PayUCheckoutProProtocol {
   final BuildContext context;
-  final bool isKrutidev;
   PayUCheckoutProFlutter? _payu;
-  _PayuDelegate(this.context, {this.isKrutidev = false});
+  _PayuDelegate(this.context);
 
   void setPayuInstance(PayUCheckoutProFlutter payu) {
     _payu = payu;
@@ -139,7 +138,6 @@ class _PayuDelegate implements PayUCheckoutProProtocol {
       builder: (_) => PaymentResultScreen(
         status: PaymentStatus.pending,
         message: message,
-        isKrutidev: isKrutidev,
       ),
     ));
   }
@@ -185,7 +183,6 @@ class _PayuDelegate implements PayUCheckoutProProtocol {
         txnId: data.txnid,
         amount: data.netPayable,
         details: details,
-        isKrutidev: isKrutidev,
       ),
     ));
   }
@@ -701,6 +698,11 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
     final String userId = propertyEntity?.userId ?? "0";
     final String? email = await StorageService.getEmailId();
 
+    debugPrint(
+      '[PaymentTxn] propertyId=${widget.propertyId}, propertyFoundInDb=${propertyEntity != null}, '
+      'ulbId=$ulbId, userId=$userId, totalArv=$totalArvValue, email=$email',
+    );
+
     final bill = _details?.billDetails;
     final owner = _details?.ownerDetails;
 
@@ -750,6 +752,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
         );
       }
     } catch (e) {
+      debugPrint('[PaymentTxn] _handlePayuTransaction error -> $e');
       if (!mounted) return;
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1093,7 +1096,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
 
       try {
         // Use the PayU plugin's actual API: PayUCheckoutProFlutter with a delegate.
-        final delegate = _PayuDelegate(context, isKrutidev: _isKrutidev);
+        final delegate = _PayuDelegate(context);
         final payu = PayUCheckoutProFlutter(delegate);
         delegate.setPayuInstance(payu);
 

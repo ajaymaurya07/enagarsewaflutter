@@ -17,6 +17,7 @@ import 'services/database_service.dart';
 import 'services/notification_helper.dart';
 import 'tour_guides/dashboard_tour.dart';
 import 'arv_change_history_screen.dart';
+import 'utils/ulb_language_helper.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -60,6 +61,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _isLoadingPaymentStatus = false;
   bool _isConnectionScreenOpen = false;
 
+  // Krutidev font QA tool — lets internal testers paste Krutidev-encoded
+  // text and see it rendered live in the Krutidev010 font, to verify the
+  // font asset itself renders correctly.
+  final TextEditingController _krutidevTestController = TextEditingController();
+
   static const int _sliderCardCount = 2;
 
   @override
@@ -102,6 +108,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void dispose() {
     _paymentAutoScrollTimer?.cancel();
     _paymentPageController.dispose();
+    _krutidevTestController.dispose();
     super.dispose();
   }
 
@@ -649,6 +656,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ],
                       ),
                       const SizedBox(height: 24),
+                      _buildKrutidevTestCard(),
+                      const SizedBox(height: 24),
                     ],
                   ),
                 ),
@@ -763,6 +772,108 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildKrutidevTestCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF4E5),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.translate_rounded, color: Color(0xFFE67514), size: 20),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Krutidev Font Test (Internal)',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF444444),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Type or paste Krutidev-encoded text below to preview it in the Krutidev010 font.',
+            style: GoogleFonts.poppins(fontSize: 11.5, color: const Color(0xFF777777), height: 1.4),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _krutidevTestController,
+            onChanged: (_) => setState(() {}),
+            maxLines: 2,
+            style: GoogleFonts.poppins(fontSize: 14, color: const Color(0xFF333333)),
+            decoration: InputDecoration(
+              hintText: 'e.g. uxj fuxe',
+              hintStyle: GoogleFonts.poppins(color: Colors.grey.shade500, fontSize: 13),
+              filled: true,
+              fillColor: const Color(0xFFF8F9FB),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFFE67514)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            constraints: const BoxConstraints(minHeight: 60),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8F9FB),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: _krutidevTestController.text.trim().isEmpty
+                ? Text(
+                    'Preview will appear here',
+                    style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade400),
+                  )
+                : Text(
+                    _krutidevTestController.text,
+                    style: const TextStyle(
+                      fontFamily: UlbLanguageHelper.krutidevFontFamily,
+                      fontSize: 22,
+                      color: Color(0xFF222222),
+                    ),
+                  ),
+          ),
+        ],
       ),
     );
   }

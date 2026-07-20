@@ -36,21 +36,36 @@ class ApiService {
 
   static bool _isHandlingSessionExpiry = false;
 
+  /// True while a 403/expired-session teardown is replacing the entire
+  /// navigator stack with LoginScreen. Other code that also performs a
+  /// full-stack navigation (e.g. exiting an assessment/reassessment flow)
+  /// should skip its own navigation while this is true, to avoid two
+  /// concurrent Navigator stack mutations racing each other.
+  static bool get isHandlingSessionExpiry => _isHandlingSessionExpiry;
+
   static Future<void> _handleSessionExpired() async {
-    if (_isHandlingSessionExpiry) return;
+    if (_isHandlingSessionExpiry) {
+      debugPrint('[SessionExpired] Already handling session expiry, skipping duplicate call.');
+      return;
+    }
+    debugPrint('[SessionExpired] Triggered — tearing down session and navigating to LoginScreen.');
     _isHandlingSessionExpiry = true;
     try {
       await DatabaseService.clearDatabase();
       await StorageService.logout();
 
       if (navigatorKey.currentState != null) {
+        debugPrint('[SessionExpired] Calling pushAndRemoveUntil(LoginScreen).');
         navigatorKey.currentState!.pushAndRemoveUntil(
           MaterialPageRoute(builder: (context) => const LoginScreen()),
           (route) => false,
         );
+      } else {
+        debugPrint('[SessionExpired] navigatorKey.currentState is null — could not navigate.');
       }
     } finally {
       _isHandlingSessionExpiry = false;
+      debugPrint('[SessionExpired] Teardown complete.');
     }
   }
 
@@ -1454,6 +1469,7 @@ class ApiService {
     String mobileNo,
     String propertyId,
   ) async {
+    debugPrint('[SendOtp] Request -> mobileNo=$mobileNo, propertyId=$propertyId');
     try {
       final response = await _makeAuthenticatedRequest(
         (headers) => _post(
@@ -1467,12 +1483,15 @@ class ApiService {
             .timeout(Duration(seconds: AppConstants.networkTimeout)),
       );
 
+      debugPrint('[SendOtp] Response (${response.statusCode}) -> ${response.body}');
+
       if (response.statusCode == 200) {
         return SendOtpResponse.fromJson(jsonDecode(response.body));
       } else {
         throw Exception('Failed to send OTP: ${response.statusCode}');
       }
     } catch (e) {
+      debugPrint('[SendOtp] Error -> $e');
       throw _userSafeException(e);
     }
   }
@@ -1482,6 +1501,7 @@ class ApiService {
     String mobileNo,
     String otp,
   ) async {
+    debugPrint('[VerifyOtp] Request -> mobileNo=$mobileNo');
     try {
       final response = await _makeAuthenticatedRequest(
         (headers) => _post(
@@ -1492,12 +1512,15 @@ class ApiService {
             .timeout(Duration(seconds: AppConstants.networkTimeout)),
       );
 
+      debugPrint('[VerifyOtp] Response (${response.statusCode}) -> ${response.body}');
+
       if (response.statusCode == 200) {
         return VerifyOtpResponse.fromJson(jsonDecode(response.body));
       } else {
         throw Exception('OTP verification failed: ${response.statusCode}');
       }
     } catch (e) {
+      debugPrint('[VerifyOtp] Error -> $e');
       throw _userSafeException(e);
     }
   }
@@ -1532,6 +1555,7 @@ class ApiService {
   static Future<CreateTransactionResponse> initiateTransaction(
     InitiateTransactionRequest request,
   ) async {
+    debugPrint('[InitiateTransaction] Request -> ${jsonEncode(request.toJson())}');
     try {
       final response = await _makeIntegrityProtectedRequest(
         (headers) => _post(
@@ -1544,6 +1568,8 @@ class ApiService {
             .timeout(Duration(seconds: AppConstants.networkTimeout)),
       );
 
+      debugPrint('[InitiateTransaction] Response (${response.statusCode}) -> ${response.body}');
+
       if (response.statusCode == 200) {
         return CreateTransactionResponse.fromJson(jsonDecode(response.body));
       } else {
@@ -1552,6 +1578,7 @@ class ApiService {
         );
       }
     } catch (e) {
+      debugPrint('[InitiateTransaction] Error -> $e');
       throw _userSafeException(e);
     }
   }

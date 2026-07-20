@@ -168,6 +168,7 @@ class _AssessmentDocumentUploadScreenState
       return;
     }
 
+    debugPrint('[DocUpload] _handleSubmit -> ackNo=${widget.ackNo}, isReassessment=${widget.isReassessment}');
     setState(() => _isSubmitting = true);
     try {
       final response = await OtpGateService.guard(
@@ -185,6 +186,7 @@ class _AssessmentDocumentUploadScreenState
         mobileNo: widget.mobileNo,
       );
 
+      debugPrint('[DocUpload] finalize response -> success=${response.success}, mounted=$mounted');
       if (!mounted) return;
       setState(() => _isSubmitting = false);
 
@@ -193,11 +195,13 @@ class _AssessmentDocumentUploadScreenState
         return;
       }
 
+      debugPrint('[DocUpload] finalize succeeded -> showing success view.');
       setState(() {
         _isSuccess = true;
         _successMessage = response.message;
       });
     } catch (e) {
+      debugPrint('[DocUpload] _handleSubmit error -> $e');
       if (!mounted) return;
       setState(() => _isSubmitting = false);
       _showSnackBar(
@@ -403,7 +407,12 @@ class _AssessmentDocumentUploadScreenState
               width: double.infinity,
               height: 48,
               child: ElevatedButton(
-                onPressed: () => Navigator.popUntil(context, (route) => route.isFirst),
+                onPressed: () {
+                  
+                  debugPrint('[DocUpload] Done tapped -> popUntil(isFirst).');
+                  Navigator.popUntil(context, (route) => route.isFirst);
+                  debugPrint('[DocUpload] popUntil(isFirst) returned.');
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _primaryColor,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
