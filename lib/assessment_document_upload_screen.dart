@@ -410,7 +410,11 @@ class _AssessmentDocumentUploadScreenState
                 onPressed: () {
                   
                   debugPrint('[DocUpload] Done tapped -> popUntil(isFirst).');
-                  Navigator.popUntil(context, (route) => route.isFirst);
+                 int count = 0;
+
+  Navigator.popUntil(context, (route) {
+    return count++ == 4;
+  });
                   debugPrint('[DocUpload] popUntil(isFirst) returned.');
                 },
                 style: ElevatedButton.styleFrom(
