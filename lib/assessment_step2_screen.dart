@@ -15,11 +15,6 @@ class AssessmentStep2Screen extends StatefulWidget {
   final String propertyId;
   final String mobileNo;
   final bool isReassessment;
-  // For reassessment: Road Location / Property Type are already known from
-  // the initialize (reassessmentSubmitS1) response, so they're shown
-  // read-only instead of asking the user to re-select them.
-  final String? roadLocationDisplay;
-  final String? propertyTypeDisplay;
 
   const AssessmentStep2Screen({
     super.key,
@@ -30,8 +25,6 @@ class AssessmentStep2Screen extends StatefulWidget {
     required this.propertyId,
     required this.mobileNo,
     this.isReassessment = false,
-    this.roadLocationDisplay,
-    this.propertyTypeDisplay,
   });
 
   @override
@@ -239,6 +232,12 @@ class _AssessmentStep2ScreenState extends State<AssessmentStep2Screen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (widget.isReassessment) ...[
+                _sectionTitle('Property ID'),
+                const SizedBox(height: 12),
+                _buildReadOnlyField(widget.propertyId.isNotEmpty ? widget.propertyId : '-'),
+                const SizedBox(height: 24),
+              ],
               _sectionTitle('Ack No.'),
               const SizedBox(height: 12),
               _buildReadOnlyField(widget.ackNo),
@@ -280,49 +279,47 @@ class _AssessmentStep2ScreenState extends State<AssessmentStep2Screen> {
                 ),
               ),
 
-              const SizedBox(height: 24),
-              _sectionTitle('Road Location'),
-              const SizedBox(height: 12),
-              widget.isReassessment
-                  ? _buildReadOnlyField(widget.roadLocationDisplay ?? '-')
-                  : _buildSelectableField(
-                      hint: _selectedRoadLocationId == null
-                          ? 'Select Road Location'
-                          : widget.roadLocationList[_selectedRoadLocationId]!,
-                      onTap: roadLocationEntries.isEmpty
-                          ? null
-                          : () => _showSelectionSheet(
-                              title: 'Select Road Location',
-                              items: roadLocationEntries.map((e) => e.value).toList(),
-                              onSelected: (index) {
-                                setState(() {
-                                  _selectedRoadLocationId = roadLocationEntries[index].key;
-                                });
-                              },
-                            ),
-                    ),
+              if (!widget.isReassessment) ...[
+                const SizedBox(height: 24),
+                _sectionTitle('Road Location'),
+                const SizedBox(height: 12),
+                _buildSelectableField(
+                  hint: _selectedRoadLocationId == null
+                      ? 'Select Road Location'
+                      : widget.roadLocationList[_selectedRoadLocationId]!,
+                  onTap: roadLocationEntries.isEmpty
+                      ? null
+                      : () => _showSelectionSheet(
+                          title: 'Select Road Location',
+                          items: roadLocationEntries.map((e) => e.value).toList(),
+                          onSelected: (index) {
+                            setState(() {
+                              _selectedRoadLocationId = roadLocationEntries[index].key;
+                            });
+                          },
+                        ),
+                ),
 
-              const SizedBox(height: 24),
-              _sectionTitle('Property Type'),
-              const SizedBox(height: 12),
-              widget.isReassessment
-                  ? _buildReadOnlyField(widget.propertyTypeDisplay ?? '-')
-                  : _buildSelectableField(
-                      hint: _selectedPropertyTypeId == null
-                          ? 'Select Property Type'
-                          : widget.propertyTypeList[_selectedPropertyTypeId]!,
-                      onTap: propertyTypeEntries.isEmpty
-                          ? null
-                          : () => _showSelectionSheet(
-                              title: 'Select Property Type',
-                              items: propertyTypeEntries.map((e) => e.value).toList(),
-                              onSelected: (index) {
-                                setState(() {
-                                  _selectedPropertyTypeId = propertyTypeEntries[index].key;
-                                });
-                              },
-                            ),
-                    ),
+                const SizedBox(height: 24),
+                _sectionTitle('Property Type'),
+                const SizedBox(height: 12),
+                _buildSelectableField(
+                  hint: _selectedPropertyTypeId == null
+                      ? 'Select Property Type'
+                      : widget.propertyTypeList[_selectedPropertyTypeId]!,
+                  onTap: propertyTypeEntries.isEmpty
+                      ? null
+                      : () => _showSelectionSheet(
+                          title: 'Select Property Type',
+                          items: propertyTypeEntries.map((e) => e.value).toList(),
+                          onSelected: (index) {
+                            setState(() {
+                              _selectedPropertyTypeId = propertyTypeEntries[index].key;
+                            });
+                          },
+                        ),
+                ),
+              ],
 
               if (!widget.isReassessment) ...[
                 const SizedBox(height: 24),

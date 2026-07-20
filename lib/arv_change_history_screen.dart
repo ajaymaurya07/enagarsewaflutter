@@ -29,18 +29,40 @@ class _ArvChangeHistoryScreenState extends State<ArvChangeHistoryScreen> {
   String? _initError;
   String? _historyError;
   bool _isKrutidev = false;
+  Map<String, String> _ulbNameById = {};
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadProperties());
     _loadUlbLanguagePreference();
+    _loadUlbNames();
   }
 
   Future<void> _loadUlbLanguagePreference() async {
     final isKrutidev = await UlbLanguageHelper.isKrutidev();
     if (!mounted) return;
     setState(() => _isKrutidev = isKrutidev);
+  }
+
+  Future<void> _loadUlbNames() async {
+    try {
+      final ulbList = await ApiService.getUlbData();
+      if (!mounted) return;
+      setState(() {
+        _ulbNameById = {
+          for (final u in ulbList)
+            if (u.ulbId != null && u.ulbName != null) u.ulbId!: u.ulbName!,
+        };
+      });
+    } catch (_) {
+      // ULB name lookup is a display nicety; fall back to showing the raw ID.
+    }
+  }
+
+  String _ulbDisplayName(int? ulbId) {
+    if (ulbId == null) return '—';
+    return _ulbNameById[ulbId.toString()] ?? '$ulbId';
   }
 
   // ─── Flow ─────────────────────────────────────────────────────────────────
@@ -382,7 +404,6 @@ class _ArvChangeHistoryScreenState extends State<ArvChangeHistoryScreen> {
 
     return CustomScrollView(
       slivers: [
-        SliverToBoxAdapter(child: _buildPropertyInfoCard()),
         SliverToBoxAdapter(child: _buildSectionHeader(items.length)),
         if (items.isEmpty)
           SliverFillRemaining(
@@ -422,92 +443,6 @@ class _ArvChangeHistoryScreenState extends State<ArvChangeHistoryScreen> {
     );
   }
 
-  // ── Property info card ─────────────────────────────────────────────────────
-
-  Widget _buildPropertyInfoCard() {
-    final p = _selectedProperty;
-    final first =
-        _historyItems.isNotEmpty ? _historyItems.first : null;
-
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 12,
-              offset: const Offset(0, 4))
-        ],
-      ),
-      child: Column(
-        children: [
-          _infoRow(
-            _infoCell('Property ID',
-                p?.propertyId ?? first?.propertyId ?? '—',
-                isBlue: true),
-            _infoCell('House No.', first?.houseNo ?? '—'),
-          ),
-          const SizedBox(height: 12),
-          _infoRow(
-            _infoCell('Owner Name',
-                p?.ownerName ?? first?.ownerName ?? '—',
-                isLanguageSensitive: true),
-            _infoCell(
-                'Current ARV',
-                first?.currentArv != null
-                    ? '${first!.currentArv}'
-                    : '—'),
-          ),
-          const SizedBox(height: 12),
-          _infoRow(
-            _infoCell('Property Address',
-                p?.address ?? first?.address ?? '—',
-                isLanguageSensitive: true),
-            _infoCell('Language', first?.ulbLanguage ?? '—'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Row _infoRow(Widget l, Widget r) => Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [Expanded(child: l), Expanded(child: r)],
-      );
-
-  Widget _infoCell(String label, String value, {bool isBlue = false, bool isLanguageSensitive = false}) {
-    final useKrutidev = isLanguageSensitive && _isKrutidev;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label,
-            style: GoogleFonts.poppins(
-                fontSize: 10.5, color: Colors.grey.shade500)),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: useKrutidev
-              ? const TextStyle(
-                  fontFamily: UlbLanguageHelper.krutidevFontFamily,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF222222),
-                )
-              : GoogleFonts.poppins(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: isBlue
-                      ? const Color(0xFF1565C0)
-                      : const Color(0xFF222222)),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ],
-    );
-  }
 
   // ── Section header ─────────────────────────────────────────────────────────
 
@@ -686,35 +621,19 @@ class _ArvChangeHistoryScreenState extends State<ArvChangeHistoryScreen> {
                       padding:
                           const EdgeInsets.fromLTRB(14, 2, 14, 0),
                       child: Column(
-                        children: [
-                          _detailRow(
-                              'Old ARV', '${item.oldArv ?? 0}'),
-                          Divider(
-                              height: 1,
-                              color: Colors.grey.shade100),
-                          _detailRow(
-                              'New ARV', '${item.currentArv ?? 0}'),
-                          Divider(
-                              height: 1,
-                              color: Colors.grey.shade100),
-                          _detailRow(
-                              'Changed By',
-                              item.ownerName ?? '—',
-                              isLanguageSensitive: true),
-                          Divider(
-                              height: 1,
-                              color: Colors.grey.shade100),
-                          _detailRow(
-                              'Change Date',
-                              item.arvChangeDate ?? '—'),
-                          Divider(
-                              height: 1,
-                              color: Colors.grey.shade100),
-                          _detailRow(
-                              'ULB ID',
-                              '${item.ulbId ?? "—"}',
-                              highlight: true),
-                        ],
+                        children: _buildDetailRows([
+                          _DetailEntry('Property ID', item.propertyId ?? '—', highlight: true),
+                          _DetailEntry('Old Property ID', item.oldPropertyId ?? '—'),
+                          _DetailEntry('Owner Name', item.ownerName ?? '—', isLanguageSensitive: true),
+                          _DetailEntry('Father/Husband Name', item.fatherHusbandName ?? '—', isLanguageSensitive: true),
+                          _DetailEntry('House No.', item.houseNo ?? '—'),
+                          _DetailEntry('Address', item.address ?? '—', isLanguageSensitive: true),
+                          _DetailEntry('Old ARV', '${item.oldArv ?? 0}'),
+                          _DetailEntry('New ARV', '${item.currentArv ?? 0}'),
+                          _DetailEntry('Change Date', item.arvChangeDate ?? '—'),
+                          _DetailEntry('ULB Name', _ulbDisplayName(item.ulbId), highlight: true),
+                          _DetailEntry('ULB Language', item.ulbLanguage ?? '—'),
+                        ]),
                       ),
                     ),
                   ],
@@ -761,6 +680,22 @@ class _ArvChangeHistoryScreenState extends State<ArvChangeHistoryScreen> {
     );
   }
 
+  List<Widget> _buildDetailRows(List<_DetailEntry> entries) {
+    final rows = <Widget>[];
+    for (var i = 0; i < entries.length; i++) {
+      rows.add(_detailRow(
+        entries[i].label,
+        entries[i].value,
+        highlight: entries[i].highlight,
+        isLanguageSensitive: entries[i].isLanguageSensitive,
+      ));
+      if (i != entries.length - 1) {
+        rows.add(Divider(height: 1, color: Colors.grey.shade100));
+      }
+    }
+    return rows;
+  }
+
   Widget _detailRow(String label, String value, {bool highlight = false, bool isLanguageSensitive = false}) {
     final useKrutidev = isLanguageSensitive && _isKrutidev;
     return Padding(
@@ -799,4 +734,18 @@ class _ArvChangeHistoryScreenState extends State<ArvChangeHistoryScreen> {
       ),
     );
   }
+}
+
+class _DetailEntry {
+  final String label;
+  final String value;
+  final bool highlight;
+  final bool isLanguageSensitive;
+
+  const _DetailEntry(
+    this.label,
+    this.value, {
+    this.highlight = false,
+    this.isLanguageSensitive = false,
+  });
 }
