@@ -27,8 +27,9 @@ class PaymentDetailsScreen extends StatefulWidget {
 
 class _PayuDelegate implements PayUCheckoutProProtocol {
   final BuildContext context;
+  final bool isKrutidev;
   PayUCheckoutProFlutter? _payu;
-  _PayuDelegate(this.context);
+  _PayuDelegate(this.context, {this.isKrutidev = false});
 
   void setPayuInstance(PayUCheckoutProFlutter payu) {
     _payu = payu;
@@ -138,6 +139,7 @@ class _PayuDelegate implements PayUCheckoutProProtocol {
       builder: (_) => PaymentResultScreen(
         status: PaymentStatus.pending,
         message: message,
+        isKrutidev: isKrutidev,
       ),
     ));
   }
@@ -183,6 +185,7 @@ class _PayuDelegate implements PayUCheckoutProProtocol {
         txnId: data.txnid,
         amount: data.netPayable,
         details: details,
+        isKrutidev: isKrutidev,
       ),
     ));
   }
@@ -1090,7 +1093,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
 
       try {
         // Use the PayU plugin's actual API: PayUCheckoutProFlutter with a delegate.
-        final delegate = _PayuDelegate(context);
+        final delegate = _PayuDelegate(context, isKrutidev: _isKrutidev);
         final payu = PayUCheckoutProFlutter(delegate);
         delegate.setPayuInstance(payu);
 

@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'services/api_service.dart';
 import 'services/storage_service.dart';
+import 'utils/ulb_language_helper.dart';
 import 'payment_result_screen.dart';
 
 /// SBI ePay payment screen.
@@ -50,10 +51,19 @@ class _SbiPaymentScreenState extends State<SbiPaymentScreen> {
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
 
+  bool _isKrutidev = false;
+
   @override
   void initState() {
     super.initState();
     _initWebView();
+    _loadUlbLanguagePreference();
+  }
+
+  Future<void> _loadUlbLanguagePreference() async {
+    final isKrutidev = await UlbLanguageHelper.isKrutidev();
+    if (!mounted) return;
+    setState(() => _isKrutidev = isKrutidev);
   }
 
   void _initWebView() {
@@ -276,6 +286,7 @@ class _SbiPaymentScreenState extends State<SbiPaymentScreen> {
           txnId: data.txnid ?? widget.sbiData.txnid,
           amount: data.netPayable,
           details: details,
+          isKrutidev: _isKrutidev,
         ),
       ),
     );
@@ -289,6 +300,7 @@ class _SbiPaymentScreenState extends State<SbiPaymentScreen> {
           status: status ?? PaymentStatus.pending,
           txnId: widget.sbiData.txnid,
           details: const {},
+          isKrutidev: _isKrutidev,
         ),
       ),
     );

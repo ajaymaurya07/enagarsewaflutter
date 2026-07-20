@@ -8,7 +8,10 @@
       "Bash(./gradlew.bat :app:checkDebugAarMetadata)",
       "Bash(grep -n \"^      \\),$\\\\|^    \\);$\\\\|^  }$\" /d/flutter-app/lib/assessment_step3_screen.dart)",
       "Bash(awk 'NR==372,NR==900' /d/flutter-app/lib/assessment_step3_screen.dart)",
-      "Bash(grep -n \"^    \\);$\\\\|^  }$\")"
+      "Bash(grep -n \"^    \\);$\\\\|^  }$\")",
+      "Bash(powershell -NoProfile -Command \"[Convert]::ToBase64String\\([IO.File]::ReadAllBytes\\('assets/font/Kruti Dev 010 Regular.ttf'\\)\\)\")",
+      "Skill(artifact-design)",
+      "Skill(artifact-design:*)"
     ]
   }
 }

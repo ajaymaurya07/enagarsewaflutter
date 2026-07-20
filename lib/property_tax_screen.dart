@@ -6,6 +6,7 @@ import 'services/api_service.dart';
 import 'services/database_service.dart';
 import 'payment_details_screen.dart';
 import 'tour_guides/property_tax_tour.dart';
+import 'utils/ulb_language_helper.dart';
 
 class PropertyTaxScreen extends StatefulWidget {
   const PropertyTaxScreen({super.key});
@@ -20,11 +21,19 @@ class _PropertyTaxScreenState extends State<PropertyTaxScreen> {
   List<PropertyEntity> _savedProperties = [];
   bool _isLoading = true;
   TutorialCoachMark? _tutorialCoachMark;
+  bool _isKrutidev = false;
 
   @override
   void initState() {
     super.initState();
     _loadProperties();
+    _loadUlbLanguagePreference();
+  }
+
+  Future<void> _loadUlbLanguagePreference() async {
+    final isKrutidev = await UlbLanguageHelper.isKrutidev();
+    if (!mounted) return;
+    setState(() => _isKrutidev = isKrutidev);
   }
 
   Future<void> _loadProperties() async {
@@ -290,7 +299,7 @@ class _PropertyTaxScreenState extends State<PropertyTaxScreen> {
               padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
-                  _buildModernDetailRow('Owner', property.ownerName),
+                  _buildModernDetailRow('Owner', property.ownerName, isLanguageSensitive: true),
                   const SizedBox(height: 12),
                   _buildModernDetailRow('Ward', property.ward),
                   const SizedBox(height: 12),
@@ -306,8 +315,9 @@ class _PropertyTaxScreenState extends State<PropertyTaxScreen> {
     );
   }
 
-  Widget _buildModernDetailRow(String label, String value) {
+  Widget _buildModernDetailRow(String label, String value, {bool isLanguageSensitive = false}) {
     final colorScheme = Theme.of(context).colorScheme;
+    final useKrutidev = isLanguageSensitive && _isKrutidev;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -327,11 +337,18 @@ class _PropertyTaxScreenState extends State<PropertyTaxScreen> {
         Expanded(
           child: Text(
             value,
-            style: GoogleFonts.poppins(
-              fontSize: 13,
-              color: colorScheme.onSurface,
-              fontWeight: FontWeight.w600,
-            ),
+            style: useKrutidev
+                ? TextStyle(
+                    fontFamily: UlbLanguageHelper.krutidevFontFamily,
+                    fontSize: 13,
+                    color: colorScheme.onSurface,
+                    fontWeight: FontWeight.w600,
+                  )
+                : GoogleFonts.poppins(
+                    fontSize: 13,
+                    color: colorScheme.onSurface,
+                    fontWeight: FontWeight.w600,
+                  ),
           ),
         ),
       ],

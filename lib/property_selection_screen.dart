@@ -9,6 +9,7 @@ import 'dashboard_screen.dart';
 import 'tour_guides/property_selection_tour.dart';
 import 'widgets/info_label.dart';
 import 'help/property_selection_help.dart';
+import 'utils/ulb_language_helper.dart';
 
 class PropertySelectionScreen extends StatefulWidget {
   final List<PropertyData> properties;
@@ -31,6 +32,7 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
   PropertyDetailsData? _currentPropertyDetails;
   PropertyData? _selectedProperty;
   TutorialCoachMark? _tutorialCoachMark;
+  bool _isKrutidev = false;
 
   @override
   void initState() {
@@ -38,6 +40,13 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => _autoStartTourIfFirstVisit(),
     );
+    _loadUlbLanguagePreference();
+  }
+
+  Future<void> _loadUlbLanguagePreference() async {
+    final isKrutidev = await UlbLanguageHelper.isKrutidev();
+    if (!mounted) return;
+    setState(() => _isKrutidev = isKrutidev);
   }
 
   Future<void> _autoStartTourIfFirstVisit() async {
@@ -586,13 +595,13 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildDetailRow('Owner Name', property.ownerName),
+                _buildDetailRow('Owner Name', property.ownerName, isLanguageSensitive: true),
                 const SizedBox(height: 8),
-                _buildDetailRow('Father/Husband', property.fatherHusbandName),
+                _buildDetailRow('Father/Husband', property.fatherHusbandName, isLanguageSensitive: true),
                 const SizedBox(height: 8),
                 _buildDetailRow('House No', property.houseNo),
                 const SizedBox(height: 8),
-                _buildDetailRow('Address', property.address),
+                _buildDetailRow('Address', property.address, isLanguageSensitive: true),
               ],
             ),
           ),
@@ -601,7 +610,8 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
     );
   }
 
-  Widget _buildDetailRow(String label, String? value) {
+  Widget _buildDetailRow(String label, String? value, {bool isLanguageSensitive = false}) {
+    final useKrutidev = isLanguageSensitive && _isKrutidev;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -616,11 +626,18 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
         Expanded(
           child: Text(
             value ?? 'N/A',
-            style: GoogleFonts.poppins(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: const Color(0xFF333333),
-            ),
+            style: useKrutidev
+                ? const TextStyle(
+                    fontFamily: UlbLanguageHelper.krutidevFontFamily,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF333333),
+                  )
+                : GoogleFonts.poppins(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF333333),
+                  ),
           ),
         ),
       ],

@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'services/api_service.dart';
 import 'services/database_service.dart';
+import 'utils/ulb_language_helper.dart';
 
 class PaymentHistoryScreen extends StatefulWidget {
   final String propertyId;
@@ -34,11 +35,19 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
   String? _ulbType;
   bool _isLoadingUlb = true;
   String? _ulbError;
+  bool _isKrutidev = false;
 
   @override
   void initState() {
     super.initState();
     _loadUlbInfo();
+    _loadUlbLanguagePreference();
+  }
+
+  Future<void> _loadUlbLanguagePreference() async {
+    final isKrutidev = await UlbLanguageHelper.isKrutidev();
+    if (!mounted) return;
+    setState(() => _isKrutidev = isKrutidev);
   }
 
   Future<void> _loadUlbInfo() async {
@@ -192,6 +201,7 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
                 propertyDetails: propertyDetails,
                 ulbName: _ulbName,
                 ulbType: _ulbType,
+                isKrutidev: _isKrutidev,
               );
             }),
         ],
@@ -208,6 +218,7 @@ class _ReceiptCard extends StatelessWidget {
   final PropertyInfo? propertyDetails;
   final String? ulbName;
   final String? ulbType;
+  final bool isKrutidev;
 
   const _ReceiptCard({
     required this.receipt,
@@ -217,6 +228,7 @@ class _ReceiptCard extends StatelessWidget {
     this.propertyDetails,
     this.ulbName,
     this.ulbType,
+    this.isKrutidev = false,
   });
 
   @override
@@ -278,8 +290,8 @@ class _ReceiptCard extends StatelessWidget {
             child: Column(
               children: [
                 if (isCurrent && ownerDetails != null) ...[
-                  _buildRow('Owner Name', ownerDetails!.ownerName),
-                  _buildRow('Father/Husband Name', ownerDetails!.fatherName),
+                  _buildRow('Owner Name', ownerDetails!.ownerName, isLanguageSensitive: true),
+                  _buildRow('Father/Husband Name', ownerDetails!.fatherName, isLanguageSensitive: true),
                 ],
                 if (isCurrent) ...[
                   _buildRow('ULB Name', ulbName),
@@ -290,7 +302,7 @@ class _ReceiptCard extends StatelessWidget {
                   _buildRow('Ward', propertyDetails!.wardName),
                   _buildRow('Mohalla', propertyDetails!.mohallaName),
                   _buildRow('House Number', propertyDetails!.houseNo),
-                  _buildRow('Address', propertyDetails!.address),
+                  _buildRow('Address', propertyDetails!.address, isLanguageSensitive: true),
                 ],
                 _buildRow('Bill Number', receipt.billNo),
                 _buildRow('Receipt Date', receipt.receiptDate),
@@ -355,8 +367,9 @@ class _ReceiptCard extends StatelessWidget {
     );
   }
 
-  Widget _buildRow(String label, String? value, {bool isAmount = false}) {
+  Widget _buildRow(String label, String? value, {bool isAmount = false, bool isLanguageSensitive = false}) {
     if (value == null || value.isEmpty || value == 'null') return const SizedBox.shrink();
+    final useKrutidev = isLanguageSensitive && isKrutidev;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
@@ -372,11 +385,18 @@ class _ReceiptCard extends StatelessWidget {
             child: Text(
               isAmount ? '₹ $value' : value,
               textAlign: TextAlign.right,
-              style: GoogleFonts.poppins(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: isAmount ? const Color(0xFF0E3B90) : const Color(0xFF444444),
-              ),
+              style: useKrutidev
+                  ? const TextStyle(
+                      fontFamily: UlbLanguageHelper.krutidevFontFamily,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF444444),
+                    )
+                  : GoogleFonts.poppins(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: isAmount ? const Color(0xFF0E3B90) : const Color(0xFF444444),
+                    ),
             ),
           ),
         ],

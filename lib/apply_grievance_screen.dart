@@ -12,6 +12,7 @@ import 'services/database_service.dart';
 import 'services/otp_gate_service.dart';
 import 'tour_guides/apply_grievance_tour.dart';
 import 'help/apply_grievance_help.dart';
+import 'utils/ulb_language_helper.dart';
 
 class ApplyGrievanceScreen extends StatefulWidget {
   final String? preselectedPropertyId;
@@ -80,6 +81,7 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
   bool _isLoadingWards = false;
   bool _isLoadingMohallas = false;
   bool _isLoadingCategories = true;
+  bool _isKrutidev = false;
 
   @override
   void initState() {
@@ -87,9 +89,16 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
     _fetchUlbs();
     _fetchGrievanceCategories();
     _loadSavedProperties();
+    _loadUlbLanguagePreference();
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => _autoStartTourIfFirstVisit(),
     );
+  }
+
+  Future<void> _loadUlbLanguagePreference() async {
+    final isKrutidev = await UlbLanguageHelper.isKrutidev();
+    if (!mounted) return;
+    setState(() => _isKrutidev = isKrutidev);
   }
 
   Future<void> _autoStartTourIfFirstVisit() async {
@@ -558,6 +567,7 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
                     'Full Name',
                     _fullNameController,
                     enabled: false,
+                    isLanguageSensitive: true,
                   ),
                   _buildTextField(
                     'Mobile Number',
@@ -569,12 +579,14 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
                     'Father/Husband Name',
                     _fatherNameController,
                     enabled: false,
+                    isLanguageSensitive: true,
                   ),
                   _buildTextField(
                     'Address',
                     _addressController,
                     maxLines: 2,
                     enabled: false,
+                    isLanguageSensitive: true,
                   ),
 
                   const SizedBox(height: 24),
@@ -953,9 +965,11 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
     int? maxLength,
     bool enabled = true,
     bool isRequired = false,
+    bool isLanguageSensitive = false,
     String? helpTitle,
     String? helpMessage,
   }) {
+    final useKrutidev = !enabled && isLanguageSensitive && _isKrutidev;
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: TextFormField(
@@ -967,10 +981,16 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
           FilteringTextInputFormatter.deny(RegExp(r'[<>]')),
         ],
         enabled: enabled,
-        style: GoogleFonts.poppins(
-          fontSize: 14,
-          color: enabled ? _textPrimaryColor : _hintColor,
-        ),
+        style: useKrutidev
+            ? TextStyle(
+                fontFamily: UlbLanguageHelper.krutidevFontFamily,
+                fontSize: 14,
+                color: _hintColor,
+              )
+            : GoogleFonts.poppins(
+                fontSize: 14,
+                color: enabled ? _textPrimaryColor : _hintColor,
+              ),
         validator: isRequired
             ? (value) {
                 if (value == null || value.trim().isEmpty) {

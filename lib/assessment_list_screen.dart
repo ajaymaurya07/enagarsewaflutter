@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'services/api_service.dart';
 import 'services/database_service.dart';
 import 'services/otp_gate_service.dart';
+import 'utils/ulb_language_helper.dart';
 import 'assessment_details_screen.dart';
 import 'assessment_document_upload_screen.dart';
 import 'property_tax_assessment_screen.dart';
@@ -24,11 +25,19 @@ class _AssessmentListScreenState extends State<AssessmentListScreen> {
   bool _isLoading = true;
   String? _errorMessage;
   List<ReassessmentListItem> _items = [];
+  bool _isKrutidev = false;
 
   @override
   void initState() {
     super.initState();
+    _loadUlbLanguagePreference();
     _fetchList();
+  }
+
+  Future<void> _loadUlbLanguagePreference() async {
+    final isKrutidev = await UlbLanguageHelper.isKrutidev();
+    if (!mounted) return;
+    setState(() => _isKrutidev = isKrutidev);
   }
 
   Future<void> _fetchList() async {
@@ -328,7 +337,14 @@ class _AssessmentListScreenState extends State<AssessmentListScreen> {
                             item.ownerName?.trim().isNotEmpty == true
                                 ? item.ownerName!.trim()
                                 : 'Unknown Owner',
-                            style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w700, color: _textColor),
+                            style: _isKrutidev
+                                ? const TextStyle(
+                                    fontFamily: UlbLanguageHelper.krutidevFontFamily,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: _textColor,
+                                  )
+                                : GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w700, color: _textColor),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),

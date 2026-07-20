@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'services/api_service.dart';
 import 'services/database_service.dart';
 import 'services/otp_gate_service.dart';
+import 'utils/ulb_language_helper.dart';
 
 class ArvChangeHistoryScreen extends StatefulWidget {
   const ArvChangeHistoryScreen({super.key});
@@ -27,11 +28,19 @@ class _ArvChangeHistoryScreenState extends State<ArvChangeHistoryScreen> {
 
   String? _initError;
   String? _historyError;
+  bool _isKrutidev = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadProperties());
+    _loadUlbLanguagePreference();
+  }
+
+  Future<void> _loadUlbLanguagePreference() async {
+    final isKrutidev = await UlbLanguageHelper.isKrutidev();
+    if (!mounted) return;
+    setState(() => _isKrutidev = isKrutidev);
   }
 
   // ─── Flow ─────────────────────────────────────────────────────────────────
@@ -300,8 +309,14 @@ class _ArvChangeHistoryScreenState extends State<ArvChangeHistoryScreen> {
                           color: const Color(0xFF222222))),
                   const SizedBox(height: 3),
                   Text(p.ownerName,
-                      style: GoogleFonts.poppins(
-                          fontSize: 12, color: Colors.grey.shade500)),
+                      style: _isKrutidev
+                          ? const TextStyle(
+                              fontFamily: UlbLanguageHelper.krutidevFontFamily,
+                              fontSize: 12,
+                              color: Colors.grey,
+                            )
+                          : GoogleFonts.poppins(
+                              fontSize: 12, color: Colors.grey.shade500)),
                   if (p.ward.isNotEmpty) ...[
                     const SizedBox(height: 2),
                     Text('Ward: ${p.ward}',
@@ -438,7 +453,8 @@ class _ArvChangeHistoryScreenState extends State<ArvChangeHistoryScreen> {
           const SizedBox(height: 12),
           _infoRow(
             _infoCell('Owner Name',
-                p?.ownerName ?? first?.ownerName ?? '—'),
+                p?.ownerName ?? first?.ownerName ?? '—',
+                isLanguageSensitive: true),
             _infoCell(
                 'Current ARV',
                 first?.currentArv != null
@@ -448,7 +464,8 @@ class _ArvChangeHistoryScreenState extends State<ArvChangeHistoryScreen> {
           const SizedBox(height: 12),
           _infoRow(
             _infoCell('Property Address',
-                p?.address ?? first?.address ?? '—'),
+                p?.address ?? first?.address ?? '—',
+                isLanguageSensitive: true),
             _infoCell('Language', first?.ulbLanguage ?? '—'),
           ),
         ],
@@ -461,7 +478,8 @@ class _ArvChangeHistoryScreenState extends State<ArvChangeHistoryScreen> {
         children: [Expanded(child: l), Expanded(child: r)],
       );
 
-  Widget _infoCell(String label, String value, {bool isBlue = false}) {
+  Widget _infoCell(String label, String value, {bool isBlue = false, bool isLanguageSensitive = false}) {
+    final useKrutidev = isLanguageSensitive && _isKrutidev;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -471,12 +489,19 @@ class _ArvChangeHistoryScreenState extends State<ArvChangeHistoryScreen> {
         const SizedBox(height: 2),
         Text(
           value,
-          style: GoogleFonts.poppins(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: isBlue
-                  ? const Color(0xFF1565C0)
-                  : const Color(0xFF222222)),
+          style: useKrutidev
+              ? const TextStyle(
+                  fontFamily: UlbLanguageHelper.krutidevFontFamily,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF222222),
+                )
+              : GoogleFonts.poppins(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: isBlue
+                      ? const Color(0xFF1565C0)
+                      : const Color(0xFF222222)),
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
@@ -674,7 +699,8 @@ class _ArvChangeHistoryScreenState extends State<ArvChangeHistoryScreen> {
                               color: Colors.grey.shade100),
                           _detailRow(
                               'Changed By',
-                              item.ownerName ?? '—'),
+                              item.ownerName ?? '—',
+                              isLanguageSensitive: true),
                           Divider(
                               height: 1,
                               color: Colors.grey.shade100),
@@ -735,7 +761,8 @@ class _ArvChangeHistoryScreenState extends State<ArvChangeHistoryScreen> {
     );
   }
 
-  Widget _detailRow(String label, String value, {bool highlight = false}) {
+  Widget _detailRow(String label, String value, {bool highlight = false, bool isLanguageSensitive = false}) {
+    final useKrutidev = isLanguageSensitive && _isKrutidev;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 9),
       child: Row(
@@ -753,12 +780,19 @@ class _ArvChangeHistoryScreenState extends State<ArvChangeHistoryScreen> {
             child: Text(
               value,
               textAlign: TextAlign.right,
-              style: GoogleFonts.poppins(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                  color: highlight
-                      ? const Color(0xFF1565C0)
-                      : const Color(0xFF222222)),
+              style: useKrutidev
+                  ? const TextStyle(
+                      fontFamily: UlbLanguageHelper.krutidevFontFamily,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF222222),
+                    )
+                  : GoogleFonts.poppins(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: highlight
+                          ? const Color(0xFF1565C0)
+                          : const Color(0xFF222222)),
             ),
           ),
         ],

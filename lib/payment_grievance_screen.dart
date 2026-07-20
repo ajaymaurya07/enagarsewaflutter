@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'services/api_service.dart';
 import 'services/database_service.dart';
 import 'help/payment_grievance_help.dart';
+import 'utils/ulb_language_helper.dart';
 
 class PaymentGrievanceScreen extends StatefulWidget {
   final String propertyId;
@@ -43,10 +44,19 @@ class _PaymentGrievanceScreenState extends State<PaymentGrievanceScreen> {
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
 
+  bool _isKrutidev = false;
+
   @override
   void initState() {
     super.initState();
     _loadSavedProperties();
+    _loadUlbLanguagePreference();
+  }
+
+  Future<void> _loadUlbLanguagePreference() async {
+    final isKrutidev = await UlbLanguageHelper.isKrutidev();
+    if (!mounted) return;
+    setState(() => _isKrutidev = isKrutidev);
   }
 
   @override
@@ -238,9 +248,9 @@ class _PaymentGrievanceScreenState extends State<PaymentGrievanceScreen> {
                   const SizedBox(height: 12),
                   _buildTextField('Zone', _zoneController, enabled: false),
                   _buildTextField('Ward', _wardController, enabled: false),
-                  _buildTextField('Name', _nameController, enabled: false),
+                  _buildTextField('Name', _nameController, enabled: false, isLanguageSensitive: true),
                   _buildTextField('Mobile Number', _mobileController, enabled: false),
-                  _buildTextField('Address', _addressController, maxLines: 2, enabled: false),
+                  _buildTextField('Address', _addressController, maxLines: 2, enabled: false, isLanguageSensitive: true),
 
                   const SizedBox(height: 24),
 
@@ -346,9 +356,11 @@ class _PaymentGrievanceScreenState extends State<PaymentGrievanceScreen> {
     int? maxLength,
     bool enabled = true,
     bool isRequired = false,
+    bool isLanguageSensitive = false,
     String? helpTitle,
     String? helpMessage,
   }) {
+    final useKrutidev = !enabled && isLanguageSensitive && _isKrutidev;
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: TextFormField(
@@ -367,7 +379,9 @@ class _PaymentGrievanceScreenState extends State<PaymentGrievanceScreen> {
           FilteringTextInputFormatter.deny(RegExp(r'[<>]')),
         ],
         enabled: enabled,
-        style: GoogleFonts.poppins(fontSize: 14, color: enabled ? Colors.black : Colors.grey),
+        style: useKrutidev
+            ? const TextStyle(fontFamily: UlbLanguageHelper.krutidevFontFamily, fontSize: 14, color: Colors.grey)
+            : GoogleFonts.poppins(fontSize: 14, color: enabled ? Colors.black : Colors.grey),
         validator: isRequired
             ? (value) {
                 if (value == null || value.trim().isEmpty) {

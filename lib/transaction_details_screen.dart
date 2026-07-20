@@ -13,6 +13,7 @@ import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 
 import 'services/api_service.dart';
 import 'tour_guides/transaction_details_tour.dart';
+import 'utils/ulb_language_helper.dart';
 
 class TransactionDetailsScreen extends StatefulWidget {
   final TransactionData transaction;
@@ -31,13 +32,21 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
 
   TutorialCoachMark? _tutorialCoachMark;
   bool _isTourActive = false;
+  bool _isKrutidev = false;
 
   @override
   void initState() {
     super.initState();
+    _loadUlbLanguagePreference();
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => _autoStartTourIfFirstVisit(),
     );
+  }
+
+  Future<void> _loadUlbLanguagePreference() async {
+    final isKrutidev = await UlbLanguageHelper.isKrutidev();
+    if (!mounted) return;
+    setState(() => _isKrutidev = isKrutidev);
   }
 
   Future<void> _autoStartTourIfFirstVisit() async {
@@ -488,9 +497,9 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
           _buildReceiptRow('Transaction Date', txn.dateTime ?? 'null'),
           _buildReceiptRow('Payment Status', status.isNotEmpty ? status : 'UNKNOWN'),
           _buildReceiptRow('User Code', txn.userCode ?? 'null'),
-          _buildReceiptRow('Owner Name', txn.ownerName ?? 'null'),
-          _buildReceiptRow('Father/Husband Name', txn.fatherName ?? 'null'),
-          _buildReceiptRow('Address', txn.address ?? 'null'),
+          _buildReceiptRow('Owner Name', txn.ownerName ?? 'null', isLanguageSensitive: true),
+          _buildReceiptRow('Father/Husband Name', txn.fatherName ?? 'null', isLanguageSensitive: true),
+          _buildReceiptRow('Address', txn.address ?? 'null', isLanguageSensitive: true),
           _buildReceiptRow('Fees(Rs.)', txn.paymentAmount ?? 'null'),
           _buildReceiptRow('Mobile Number', txn.mobileNo ?? 'null'),
           _buildReceiptRow('Receipt No', txn.receiptNo ?? 'null'),
@@ -540,7 +549,8 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
     );
   }
 
-  Widget _buildReceiptRow(String label, String value) {
+  Widget _buildReceiptRow(String label, String value, {bool isLanguageSensitive = false}) {
+    final useKrutidev = isLanguageSensitive && _isKrutidev;
     return Container(
       decoration: const BoxDecoration(
         border: Border(
@@ -574,11 +584,18 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 child: Text(
                   value,
-                  style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF222222),
-                  ),
+                  style: useKrutidev
+                      ? const TextStyle(
+                          fontFamily: UlbLanguageHelper.krutidevFontFamily,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF222222),
+                        )
+                      : GoogleFonts.poppins(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF222222),
+                        ),
                 ),
               ),
             ),

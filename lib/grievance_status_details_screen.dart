@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'services/api_service.dart';
+import 'utils/ulb_language_helper.dart';
 
 class GrievanceStatusDetailsScreen extends StatefulWidget {
   final String grievanceNo;
@@ -13,11 +14,19 @@ class GrievanceStatusDetailsScreen extends StatefulWidget {
 
 class _GrievanceStatusDetailsScreenState extends State<GrievanceStatusDetailsScreen> {
   late Future<GrievanceStatusResponse> _statusFuture;
+  bool _isKrutidev = false;
 
   @override
   void initState() {
     super.initState();
     _statusFuture = ApiService.getGrievanceStatus(widget.grievanceNo);
+    _loadUlbLanguagePreference();
+  }
+
+  Future<void> _loadUlbLanguagePreference() async {
+    final isKrutidev = await UlbLanguageHelper.isKrutidev();
+    if (!mounted) return;
+    setState(() => _isKrutidev = isKrutidev);
   }
 
   @override
@@ -59,8 +68,8 @@ class _GrievanceStatusDetailsScreenState extends State<GrievanceStatusDetailsScr
                 const SizedBox(height: 16),
                 _buildSectionTitle('Basic Information'),
                 _buildInfoCard([
-                  _buildDetailRow('Name', data.name ?? 'N/A'),
-                  _buildDetailRow('Father Name', data.fatherHusbandName ?? 'N/A'),
+                  _buildDetailRow('Name', data.name ?? 'N/A', isLanguageSensitive: true),
+                  _buildDetailRow('Father Name', data.fatherHusbandName ?? 'N/A', isLanguageSensitive: true),
                   _buildDetailRow('Mobile', data.mobile ?? 'N/A'),
                   _buildDetailRow('Email', data.email ?? 'N/A'),
                 ]),
@@ -72,7 +81,7 @@ class _GrievanceStatusDetailsScreenState extends State<GrievanceStatusDetailsScr
                   _buildDetailRow('Ward', data.wardName ?? 'N/A'),
                   _buildDetailRow('Mohalla', data.mohallaName ?? 'N/A'),
                   _buildDetailRow('Landmark', data.landmark ?? 'N/A'),
-                  _buildDetailRow('Address', '${data.address1 ?? ""} ${data.address2 ?? ""}'.trim() == "" ? "N/A" : '${data.address1 ?? ""} ${data.address2 ?? ""}'.trim()),
+                  _buildDetailRow('Address', '${data.address1 ?? ""} ${data.address2 ?? ""}'.trim() == "" ? "N/A" : '${data.address1 ?? ""} ${data.address2 ?? ""}'.trim(), isLanguageSensitive: true),
                 ]),
                 const SizedBox(height: 16),
                 _buildSectionTitle('Complaint Details'),
@@ -203,7 +212,8 @@ class _GrievanceStatusDetailsScreenState extends State<GrievanceStatusDetailsScr
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
+  Widget _buildDetailRow(String label, String value, {bool isLanguageSensitive = false}) {
+    final useKrutidev = isLanguageSensitive && _isKrutidev;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -223,11 +233,18 @@ class _GrievanceStatusDetailsScreenState extends State<GrievanceStatusDetailsScr
           Expanded(
             child: Text(
               value,
-              style: GoogleFonts.poppins(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF444444),
-              ),
+              style: useKrutidev
+                  ? const TextStyle(
+                      fontFamily: UlbLanguageHelper.krutidevFontFamily,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF444444),
+                    )
+                  : GoogleFonts.poppins(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF444444),
+                    ),
             ),
           ),
         ],

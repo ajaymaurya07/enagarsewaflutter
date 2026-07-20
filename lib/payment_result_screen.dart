@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'utils/ulb_language_helper.dart';
 
 enum PaymentStatus { success, failure, pending }
 
@@ -9,6 +10,15 @@ class PaymentResultScreen extends StatelessWidget {
   final String? amount;
   final String? message;
   final Map<String, String> details;
+  final bool isKrutidev;
+
+  // Detail-row labels that hold a citizen's legacy-record Owner/Father/
+  // Address text (as opposed to transaction/property IDs, dates, amounts).
+  static const _languageSensitiveLabels = {
+    'Owner Name',
+    'Father/Husband Name',
+    'Address',
+  };
 
   const PaymentResultScreen({
     super.key,
@@ -17,6 +27,7 @@ class PaymentResultScreen extends StatelessWidget {
     this.amount,
     this.message,
     this.details = const {},
+    this.isKrutidev = false,
   });
 
   @override
@@ -198,6 +209,7 @@ class PaymentResultScreen extends StatelessWidget {
   }
 
   Widget _buildDetailRow(String label, String value) {
+    final useKrutidev = isKrutidev && _languageSensitiveLabels.contains(label);
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -220,11 +232,18 @@ class PaymentResultScreen extends StatelessWidget {
             child: Text(
               value,
               textAlign: TextAlign.right,
-              style: GoogleFonts.poppins(
-                fontSize: 13,
-                color: const Color(0xFF333333),
-                fontWeight: FontWeight.w600,
-              ),
+              style: useKrutidev
+                  ? const TextStyle(
+                      fontFamily: UlbLanguageHelper.krutidevFontFamily,
+                      fontSize: 13,
+                      color: Color(0xFF333333),
+                      fontWeight: FontWeight.w600,
+                    )
+                  : GoogleFonts.poppins(
+                      fontSize: 13,
+                      color: const Color(0xFF333333),
+                      fontWeight: FontWeight.w600,
+                    ),
             ),
           ),
         ],
