@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'api_service.dart';
+import 'database_service.dart';
 import '../widgets/otp_verification_sheet.dart';
 
 /// Handles the "responseCode: 12" (expired/incorrect session token) recovery
@@ -30,10 +31,27 @@ class OtpGateService {
     required String mobileNo,
   }) async {
     final context = ApiService.navigatorKey.currentContext;
-    if (context == null || mobileNo.isEmpty || propertyId.isEmpty) return false;
+    if (context == null) return false;
+
+    // If the caller doesn't have a clean propertyId/mobileNo pair in
+    // context (e.g. a brand-new assessment before any property exists, or
+    // a list-fetch call with no single property), fall back to the first
+    // property stored locally and use its propertyId + mobile number
+    // together so the OTP flow can still proceed.
+    var resolvedPropertyId = propertyId;
+    var resolvedMobileNo = mobileNo;
+    if (resolvedPropertyId.isEmpty || resolvedMobileNo.isEmpty) {
+      final properties = await DatabaseService.getAllProperties();
+      if (properties.isNotEmpty) {
+        final fallback = properties.first;
+        resolvedPropertyId = fallback.propertyId;
+        resolvedMobileNo = fallback.phoneNumber;
+      }
+    }
+    if (resolvedPropertyId.isEmpty || resolvedMobileNo.isEmpty) return false;
 
     try {
-      final sendRes = await ApiService.sendOtp(mobileNo, propertyId);
+      final sendRes = await ApiService.sendOtp(resolvedMobileNo, resolvedPropertyId);
       if (sendRes.success != true) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -46,9 +64,9 @@ class OtpGateService {
       if (!context.mounted) return false;
       return await showOtpVerificationSheet(
         context: context,
-        propertyId: propertyId,
-        mobileNo: mobileNo,
-        maskedMobile: sendRes.maskedMobile ?? mobileNo,
+        propertyId: resolvedPropertyId,
+        mobileNo: resolvedMobileNo,
+        maskedMobile: sendRes.maskedMobile ?? resolvedMobileNo,
       );
     } catch (e) {
       if (context.mounted) {

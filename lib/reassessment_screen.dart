@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'services/api_service.dart';
 import 'services/database_service.dart';
+import 'services/otp_gate_service.dart';
 import 'assessment_document_upload_screen.dart';
 import 'assessment_step2_screen.dart';
 import 'assessment_step3_screen.dart';
@@ -35,7 +36,12 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
       _errorMessage = null;
     });
     try {
-      final response = await ApiService.getReassessmentList();
+      final response = await OtpGateService.guard(
+        call: () => ApiService.getReassessmentList(),
+        responseCode: (r) => r.responseCode,
+        propertyId: '',
+        mobileNo: '',
+      );
       if (!mounted) return;
       if (response.success != true) {
         setState(() {
@@ -124,21 +130,60 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
     }
 
     if (nextStage == 3) {
-      final result = await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => AssessmentStep3Screen(
-            ackNo: ackNo,
-            floorNoList: const {},
-            floorUsageList: const {},
-            constructionTypeList: const {},
-            isReassessment: true,
-            propertyId: propertyId,
-            mobileNo: mobileNo,
-          ),
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(
+          child: CircularProgressIndicator(color: _primaryColor),
         ),
       );
-      if (result != null && mounted) _fetchList();
+
+      try {
+        final response = await OtpGateService.guard(
+          call: () => ApiService.fetchReassessmentFloorConfig(
+            propertyId: propertyId,
+            ackNo: ackNo,
+            fileNo: '',
+          ),
+          responseCode: (r) => r.responseCode,
+          propertyId: propertyId,
+          mobileNo: mobileNo,
+        );
+
+        if (!mounted) return;
+        Navigator.pop(context);
+
+        if (response.success != true || response.data == null) {
+          _showSnackBar(response.message ?? 'Failed to fetch floor configuration');
+          return;
+        }
+
+        final data = response.data!;
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => AssessmentStep3Screen(
+              ackNo: data.ackNo ?? ackNo,
+              floorNoList: data.floorNoList,
+              floorUsageList: data.floorUsageList,
+              constructionTypeList: data.constructionTypeList,
+              isReassessment: true,
+              propertyId: data.propertyId ?? propertyId,
+              mobileNo: mobileNo,
+            ),
+          ),
+        );
+        if (result != null && mounted) _fetchList();
+      } catch (e) {
+        if (!mounted) return;
+        Navigator.pop(context);
+        _showSnackBar(
+          ApiService.getUserFriendlyErrorMessage(
+            e,
+            fallbackMessage: 'Unable to fetch floor configuration. Please try again.',
+          ),
+        );
+      }
       return;
     }
 

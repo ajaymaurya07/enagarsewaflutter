@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'services/api_service.dart';
 import 'services/database_service.dart';
+import 'services/otp_gate_service.dart';
 import 'assessment_details_screen.dart';
 import 'assessment_document_upload_screen.dart';
-import 'assessment_step3_screen.dart';
 import 'property_tax_assessment_screen.dart';
 
 /// Home screen for the fresh (non-reassessment) property tax assessment
@@ -37,7 +37,12 @@ class _AssessmentListScreenState extends State<AssessmentListScreen> {
       _errorMessage = null;
     });
     try {
-      final response = await ApiService.getAssessmentList();
+      final response = await OtpGateService.guard(
+        call: () => ApiService.getAssessmentList(),
+        responseCode: (r) => r.responseCode,
+        propertyId: '',
+        mobileNo: '',
+      );
       if (!mounted) return;
       if (response.success != true) {
         setState(() {
@@ -74,41 +79,45 @@ class _AssessmentListScreenState extends State<AssessmentListScreen> {
     if (result != null && mounted) _fetchList();
   }
 
-  // next_stage 4 -> document upload screen.
-  // next_stage 1/2/3 -> straight to Floor Entry (Road Location/Property
-  // Type/Property Uses can't be resumed without a dedicated fetch-by-ackNo
-  // API, so those steps can't be safely re-shown here).
-  // null + completed -> getAssessmentDetails (See Details).
+  // Completed -> getAssessmentDetails (See Details).
+  // next_stage 4 -> document upload screen (only needs ackNo, no
+  // dependency on earlier-step dropdown data).
+  // next_stage 1/2/3 -> no dedicated resume-fetch API exists for the
+  // Road Location/Property Type/Floor Config dropdown data needed by
+  // those steps, so restart the full Step 1-4 form instead of trying to
+  // resume mid-flow.
   Future<void> _handleCardTap(ReassessmentListItem item) async {
     final propertyId = item.propertyId;
     final ackNo = item.ackNo;
     if (ackNo == null) return;
 
-    final property = propertyId != null ? await DatabaseService.getPropertyById(propertyId) : null;
-    final mobileNo = property?.phoneNumber ?? '';
-
-    if (!mounted) return;
+    if (item.isCompletedFlag) {
+      final property = propertyId != null ? await DatabaseService.getPropertyById(propertyId) : null;
+      final mobileNo = property?.phoneNumber ?? '';
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => AssessmentDetailsScreen(
+            ackNo: ackNo,
+            propertyId: propertyId ?? '',
+            mobileNo: mobileNo,
+          ),
+        ),
+      );
+      return;
+    }
 
     final nextStage = item.nextStage;
     if (nextStage == null) {
-      if (item.isCompletedFlag) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => AssessmentDetailsScreen(
-              ackNo: ackNo,
-              propertyId: propertyId ?? '',
-              mobileNo: mobileNo,
-            ),
-          ),
-        );
-      } else {
-        _showSnackBar('No further action is available for this assessment right now.');
-      }
+      _showSnackBar('No further action is available for this assessment right now.');
       return;
     }
 
     if (nextStage >= 4) {
+      final property = propertyId != null ? await DatabaseService.getPropertyById(propertyId) : null;
+      final mobileNo = property?.phoneNumber ?? '';
+      if (!mounted) return;
       final result = await Navigator.push(
         context,
         MaterialPageRoute(
@@ -126,17 +135,7 @@ class _AssessmentListScreenState extends State<AssessmentListScreen> {
 
     final result = await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => AssessmentStep3Screen(
-          ackNo: ackNo,
-          floorNoList: const {},
-          floorUsageList: const {},
-          constructionTypeList: const {},
-          isReassessment: false,
-          propertyId: propertyId ?? '',
-          mobileNo: mobileNo,
-        ),
-      ),
+      MaterialPageRoute(builder: (_) => const PropertyTaxAssessmentScreen()),
     );
     if (result != null && mounted) _fetchList();
   }
@@ -359,31 +358,7 @@ class _AssessmentListScreenState extends State<AssessmentListScreen> {
                   ],
                 ),
               ),
-              Container(
-                margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                child: item.isCompletedFlag
-                    ? SizedBox(
-                        width: double.infinity,
-                        height: 40,
-                        child: OutlinedButton.icon(
-                          onPressed: () => _handleCardTap(item),
-                          icon: const Icon(Icons.visibility_outlined, size: 16),
-                          label: Text(
-                            'See Details',
-                            style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: _primaryColor,
-                            side: const BorderSide(color: _primaryColor),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
-                        ),
-                      )
-                    : Align(
-                        alignment: Alignment.centerRight,
-                        child: _buildStageBadge(item),
-                      ),
-              ),
+              const SizedBox(height: 12),
             ],
           ),
         ),
@@ -408,29 +383,6 @@ class _AssessmentListScreenState extends State<AssessmentListScreen> {
           Icon(icon, size: 13, color: color),
           const SizedBox(width: 4),
           Text(label, style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStageBadge(ReassessmentListItem item) {
-    final stage = item.currentStage ?? 0;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.timeline_rounded, size: 14, color: Colors.grey.shade600),
-          const SizedBox(width: 5),
-          Text(
-            'Stage $stage of 4',
-            style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
-          ),
         ],
       ),
     );
