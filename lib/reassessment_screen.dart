@@ -5,7 +5,6 @@ import 'services/database_service.dart';
 import 'services/otp_gate_service.dart';
 import 'assessment_document_upload_screen.dart';
 import 'assessment_step2_screen.dart';
-import 'assessment_step3_screen.dart';
 import 'new_reassessment_screen.dart';
 import 'reassessment_details_screen.dart';
 
@@ -79,9 +78,9 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
   }
 
   // Routes to the next screen based on `next_stage` from getReassessmentList:
-  //   1 -> reassessmentSubmitS1 (initialize)
-  //   2 -> reassessmentFetchFloorConfig (Zonal File No. + floor config)
-  //   3 -> reassessmentSubmitS3 (floor entry + finalize, same screen as 2)
+  //   1/2/3 -> Step 2 screen (File No. + Road Location/Property Type);
+  //            its own "Continue" then calls reassessmentFetchFloorConfig
+  //            and pushes Step 3 (floor entry + finalize).
   //   4 -> reassessmentSubmitS4 (document upload)
   //   null + completed -> getReassessmentDetails (See Details)
   Future<void> _handleCardTap(ReassessmentListItem item) async {
@@ -129,66 +128,11 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
       return;
     }
 
-    if (nextStage == 3) {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => const Center(
-          child: CircularProgressIndicator(color: _primaryColor),
-        ),
-      );
-
-      try {
-        final response = await OtpGateService.guard(
-          call: () => ApiService.fetchReassessmentFloorConfig(
-            propertyId: propertyId,
-            ackNo: ackNo,
-            fileNo: '',
-          ),
-          responseCode: (r) => r.responseCode,
-          propertyId: propertyId,
-          mobileNo: mobileNo,
-        );
-
-        if (!mounted) return;
-        Navigator.pop(context);
-
-        if (response.success != true || response.data == null) {
-          _showSnackBar(response.message ?? 'Failed to fetch floor configuration');
-          return;
-        }
-
-        final data = response.data!;
-        final result = await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => AssessmentStep3Screen(
-              ackNo: data.ackNo ?? ackNo,
-              floorNoList: data.floorNoList,
-              floorUsageList: data.floorUsageList,
-              constructionTypeList: data.constructionTypeList,
-              isReassessment: true,
-              propertyId: data.propertyId ?? propertyId,
-              mobileNo: mobileNo,
-            ),
-          ),
-        );
-        if (result != null && mounted) _fetchList();
-      } catch (e) {
-        if (!mounted) return;
-        Navigator.pop(context);
-        _showSnackBar(
-          ApiService.getUserFriendlyErrorMessage(
-            e,
-            fallbackMessage: 'Unable to fetch floor configuration. Please try again.',
-          ),
-        );
-      }
-      return;
-    }
-
-    // next_stage 1/2 -> Step 2 screen (File No. + Road Location/Property
-    // Type), no dedicated Step 1 screen exists for a reassessment resume.
+    // next_stage 1/2/3 -> Step 2 screen (File No. + Road Location/Property
+    // Type). Step 2's own "Continue" handler calls reassessmentFetchFloorConfig
+    // and pushes Step 3, so stage 3 also goes through Step 2 first instead of
+    // jumping straight to floor entry. No dedicated Step 1 screen exists for
+    // a reassessment resume.
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
