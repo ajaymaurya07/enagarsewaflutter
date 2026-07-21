@@ -1101,6 +1101,42 @@ class _SignUp02ScreenState extends State<SignUp02Screen>
                                         ),
                                 ),
                               ),
+                              const SizedBox(height: 16),
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => SignUpVerifyScreen(
+                                        initialMobile:
+                                            _mobileController.text.trim(),
+                                        email: _emailController.text.trim(),
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: Text.rich(
+                                  TextSpan(
+                                    text:
+                                        'Already registered? Verify your mobile number and email ID. ',
+                                    style: GoogleFonts.poppins(
+                                      color: Colors.grey.shade600,
+                                      fontSize: 13,
+                                    ),
+                                    children: [
+                                      TextSpan(
+                                        text: 'Click here.',
+                                        style: GoogleFonts.poppins(
+                                          color: const Color(0xFFE67514),
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
                             ],
                           ),
                         ),
