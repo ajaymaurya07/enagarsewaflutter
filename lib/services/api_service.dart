@@ -2004,6 +2004,40 @@ class ApiService {
     }
   }
 
+  // Resend Signup OTP API
+  static Future<ResendSignupOtpResponse> resendSignupOtp({
+    required String mobileNo,
+    required String captchaId,
+    required String captcha,
+  }) async {
+    try {
+      final headers = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'X-App-Version': AppConstants.apiVersion,
+      };
+
+      final response = await _post(
+            Uri.parse('${AppConstants.baseUrl}api/Signup_citizen/resend_otp'),
+            headers: headers,
+            body: jsonEncode({
+              'mobileNo': mobileNo,
+              'captchaId': captchaId,
+              'captcha': captcha,
+            }),
+          )
+          .timeout(Duration(seconds: AppConstants.networkTimeout));
+
+      if (response.statusCode == 200) {
+        return ResendSignupOtpResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Resend OTP failed: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw _userSafeException(e);
+    }
+  }
+
   // Verify Citizen OTP (Mobile)
   static Future<CitizenVerifyOtpResponse> verifyCitizenOtp({
     required String mobileNo,
@@ -4645,6 +4679,48 @@ class CitizenRegisterResponse {
       emailOtpSent: data?['email_otp_sent'],
       registrationComplete: data?['registration_complete'],
       alreadyOnEnagarsewa: data?['already_on_enagarsewa'],
+      enagarMessage: data?['enagar_message'],
+    );
+  }
+}
+
+class ResendSignupOtpResponse {
+  final bool? status;
+  final int? responseCode;
+  final String? message;
+  final bool? mobileOtpSent;
+  final bool? emailOtpSent;
+  final String? emailMasked;
+  final bool? mobileOtpRequired;
+  final bool? emailOtpRequired;
+  final bool? registrationComplete;
+  final String? enagarMessage;
+
+  ResendSignupOtpResponse({
+    this.status,
+    this.responseCode,
+    this.message,
+    this.mobileOtpSent,
+    this.emailOtpSent,
+    this.emailMasked,
+    this.mobileOtpRequired,
+    this.emailOtpRequired,
+    this.registrationComplete,
+    this.enagarMessage,
+  });
+
+  factory ResendSignupOtpResponse.fromJson(Map<String, dynamic> json) {
+    final data = json['data'] as Map<String, dynamic>?;
+    return ResendSignupOtpResponse(
+      status: json['status'],
+      responseCode: json['responseCode'],
+      message: json['message'],
+      mobileOtpSent: data?['mobile_otp_sent'],
+      emailOtpSent: data?['email_otp_sent'],
+      emailMasked: data?['email_masked'],
+      mobileOtpRequired: data?['mobile_otp_required'],
+      emailOtpRequired: data?['email_otp_required'],
+      registrationComplete: data?['registration_complete'],
       enagarMessage: data?['enagar_message'],
     );
   }

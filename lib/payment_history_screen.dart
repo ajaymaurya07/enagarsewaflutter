@@ -145,7 +145,7 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Bill Receipt',
+              'Receipt Details',
               style: GoogleFonts.poppins(
                 color: const Color(0xFF333333),
                 fontSize: 18,

@@ -774,7 +774,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
     final fullAmountStr = bill?.netPayble ?? '0';
 
     bool isPartial = false;
-    final amountController = TextEditingController();
+    final amountController = TextEditingController(text: fullAmountStr);
     String? amountError;
 
     showModalBottomSheet(
@@ -928,9 +928,9 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
                     const SizedBox(height: 8),
                     TextField(
                       controller: amountController,
+                      readOnly: true,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600),
-                      onChanged: (_) => setSheetState(() => amountError = null),
                       decoration: InputDecoration(
                         hintText: 'Enter amount',
                         hintStyle: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade400),
@@ -1114,9 +1114,9 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
           PayUPaymentParamKey.ios_furl: furl,
           PayUPaymentParamKey.environment: txnData.resolvedPayuEnvironment,
           PayUPaymentParamKey.userCredential: '$key:$email',
-          PayUPaymentParamKey.additionalParam: {
-            PayUAdditionalParamKeys.udf1: txnData.ulbId ?? '',
-          },
+          // PayUPaymentParamKey.additionalParam: {
+          //   PayUAdditionalParamKeys.udf1: txnData.ulbId ?? '',
+          // },
         };
 
         final payUCheckoutProConfig = <String, dynamic>{
@@ -1549,7 +1549,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: _buildSecondaryButton(
-                      'Bill Receipt',
+                      'Receipt Details',
                       Icons.payment_rounded,
                       _showPaymentHistory,
                       key: _keyPaymentHistoryButton,

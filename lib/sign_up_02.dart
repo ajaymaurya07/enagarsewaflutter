@@ -6,6 +6,8 @@ import 'services/api_service.dart';
 import 'services/rsa_service.dart';
 import 'widgets/info_label.dart';
 import 'help/signup_help.dart';
+import 'widgets/signup_otp_flow.dart';
+import 'sign_up_verify_screen.dart';
 
 class SignUp02Screen extends StatefulWidget {
   const SignUp02Screen({super.key});
@@ -14,7 +16,8 @@ class SignUp02Screen extends StatefulWidget {
   State<SignUp02Screen> createState() => _SignUp02ScreenState();
 }
 
-class _SignUp02ScreenState extends State<SignUp02Screen> {
+class _SignUp02ScreenState extends State<SignUp02Screen>
+    with SignupOtpFlowMixin<SignUp02Screen> {
   final _formKey = GlobalKey<FormState>();
 
   final _nameController = TextEditingController();
@@ -103,9 +106,11 @@ class _SignUp02ScreenState extends State<SignUp02Screen> {
   }
 
   Future<void> _fetchCaptcha() async {
+    debugPrint('[SignUp] Fetching form captcha...');
     setState(() => _loadingCaptcha = true);
     try {
       final captcha = await ApiService.getSignupCaptcha();
+      debugPrint('[SignUp] Form captcha loaded -> captchaId=${captcha.captchaId}');
       if (!mounted) return;
       setState(() {
         _captchaId = captcha.captchaId;
@@ -114,6 +119,7 @@ class _SignUp02ScreenState extends State<SignUp02Screen> {
         _captchaController.clear();
       });
     } catch (e) {
+      debugPrint('[SignUp] Form captcha fetch failed -> $e');
       if (!mounted) return;
       setState(() => _loadingCaptcha = false);
     }
@@ -361,10 +367,11 @@ class _SignUp02ScreenState extends State<SignUp02Screen> {
     required String encryptedPassword,
     required String encryptedConfirmPassword,
   }) async {
+    debugPrint('[SignUp] _doSignUp start -> mobile=$mobile, email=$email');
     setState(() => _isLoading = true);
 
     try {
-      final result = await ApiService.registerCitizen(
+      final registerResult = await ApiService.registerCitizen(
         name: name,
         fatherHusbandName: _fatherNameController.text.trim(),
         address1: _address1Controller.text.trim(),
@@ -379,40 +386,83 @@ class _SignUp02ScreenState extends State<SignUp02Screen> {
         captcha: _captchaController.text.trim(),
       );
 
+      debugPrint(
+        '[SignUp] register response -> status=${registerResult.status}, '
+        'responseCode=${registerResult.responseCode}, message=${registerResult.message}, '
+        'mobileOtpRequired=${registerResult.mobileOtpRequired}, '
+        'emailOtpRequired=${registerResult.emailOtpRequired}',
+      );
+
+      bool? status = registerResult.status;
+      String? message = registerResult.message;
+      bool? mobileOtpRequired = registerResult.mobileOtpRequired;
+      bool? emailOtpRequired = registerResult.emailOtpRequired;
+
+      // responseCode 0 -> register itself needs a captcha-verified OTP
+      // (re)send, so the rest of the flow continues on a dedicated
+      // mobile/captcha verification screen instead of an in-place dialog.
+      if (registerResult.responseCode == 0) {
+        debugPrint('[SignUp] responseCode=0 -> navigating to verify screen.');
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => SignUpVerifyScreen(
+              initialMobile: mobile,
+              email: email,
+              initialMessage: registerResult.message,
+            ),
+          ),
+        );
+        return;
+      }
+
       if (!mounted) return;
       setState(() => _isLoading = false);
 
-      if (result.status != true) {
+      if (status != true) {
+        debugPrint('[SignUp] Registration failed -> $message');
         _fetchCaptcha();
-        _showMessageDialog(
+        showMessageDialog(
           title: 'Registration Failed',
-          message: result.message ?? 'Registration failed. Please try again.',
+          message: message ?? 'Registration failed. Please try again.',
           icon: Icons.error_outline_rounded,
           iconColor: Colors.red.shade600,
         );
         return;
       }
 
-      bool needEmailOtp = result.emailOtpRequired == true;
-      String? nextMessage = result.message;
+      bool needEmailOtp = emailOtpRequired == true;
+      String? nextMessage = message;
 
       // Step 2: Mobile OTP verification
-      if (result.mobileOtpRequired == true) {
+      if (mobileOtpRequired == true) {
+        debugPrint('[SignUp] mobileOtpRequired=true -> showing mobile OTP sheet.');
         if (!mounted) return;
-        final mobileOtpResult = await _showOtpBottomSheet(
+        final mobileOtpResult = await showOtpBottomSheet(
           title: 'Verify Mobile OTP',
-          subtitle: result.message ?? 'OTP sent to your mobile number',
+          subtitle: message ?? 'OTP sent to your mobile number',
           highlightText: mobile,
+          mobileNo: mobile,
           onVerify: (otp) => ApiService.verifyCitizenOtp(
             mobileNo: mobile,
             otp: otp,
           ),
         );
-        if (mobileOtpResult == null) return;
+        if (mobileOtpResult == null) {
+          debugPrint('[SignUp] Mobile OTP sheet cancelled by user.');
+          return;
+        }
+
+        debugPrint(
+          '[SignUp] Mobile OTP verified -> registrationComplete=${mobileOtpResult.registrationComplete}, '
+          'emailOtpRequired=${mobileOtpResult.emailOtpRequired}',
+        );
 
         if (mobileOtpResult.registrationComplete == true) {
           if (!mounted) return;
-          _showSuccessAndGoBack(
+          showSuccessAndGoBack(
             mobileOtpResult.message ?? 'Registration complete!',
           );
           return;
@@ -424,29 +474,36 @@ class _SignUp02ScreenState extends State<SignUp02Screen> {
 
       // Step 3: Email OTP verification
       if (needEmailOtp) {
+        debugPrint('[SignUp] emailOtpRequired=true -> showing email OTP sheet.');
         if (!mounted) return;
-        final emailOtpResult = await _showOtpBottomSheet(
+        final emailOtpResult = await showOtpBottomSheet(
           title: 'Verify Email OTP',
           subtitle: nextMessage ?? 'OTP sent to your email',
           highlightText: email,
+          mobileNo: mobile,
           onVerify: (otp) => ApiService.verifyOtpEmail(
             email: email,
             otp: otp,
           ),
         );
-        if (emailOtpResult == null) return;
+        if (emailOtpResult == null) {
+          debugPrint('[SignUp] Email OTP sheet cancelled by user.');
+          return;
+        }
 
+        debugPrint('[SignUp] Email OTP verified -> registration complete.');
         if (!mounted) return;
-        _showSuccessAndGoBack(
+        showSuccessAndGoBack(
           emailOtpResult.message ?? 'Registration complete!',
         );
         return;
       }
     } catch (e) {
+      debugPrint('[SignUp] _doSignUp error -> $e');
       if (!mounted) return;
       setState(() => _isLoading = false);
       _fetchCaptcha();
-      _showMessageDialog(
+      showMessageDialog(
         title: 'Error',
         message: ApiService.getUserFriendlyErrorMessage(
           e,
@@ -457,297 +514,6 @@ class _SignUp02ScreenState extends State<SignUp02Screen> {
         iconColor: Colors.red.shade600,
       );
     }
-  }
-
-  void _showSuccessAndGoBack(String message) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            const Icon(Icons.check_circle_rounded,
-                color: Color(0xFF4CAF50), size: 28),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text('Registration Complete',
-                  style: GoogleFonts.poppins(
-                      fontWeight: FontWeight.bold, fontSize: 16)),
-            ),
-          ],
-        ),
-        content: Text(
-          message,
-          style: GoogleFonts.poppins(fontSize: 14, height: 1.5),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              Navigator.pop(context);
-            },
-            child: Text('OK',
-                style: GoogleFonts.poppins(
-                    color: const Color(0xFFE67514),
-                    fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<_OtpResult?> _showOtpBottomSheet({
-    required String title,
-    required String subtitle,
-    required String highlightText,
-    required Future<dynamic> Function(String otp) onVerify,
-  }) {
-    final otpController = TextEditingController();
-    String? sheetError;
-    bool isVerifying = false;
-
-    return showModalBottomSheet<_OtpResult>(
-      context: context,
-      isDismissible: false,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheetState) => Padding(
-          padding:
-              EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Text(title,
-                      style: GoogleFonts.poppins(
-                          fontWeight: FontWeight.bold, fontSize: 18)),
-                  const SizedBox(height: 16),
-                  Text(subtitle,
-                      style: GoogleFonts.poppins(
-                          fontSize: 13, color: Colors.grey.shade600)),
-                  const SizedBox(height: 4),
-                  Text(highlightText,
-                      style: GoogleFonts.poppins(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFFE67514))),
-                  const SizedBox(height: 24),
-                  TextField(
-                    controller: otpController,
-                    keyboardType: TextInputType.number,
-                    maxLength: 6,
-                    autofocus: true,
-                    enabled: !isVerifying,
-                    style: GoogleFonts.poppins(
-                        fontSize: 20,
-                        letterSpacing: 6,
-                        fontWeight: FontWeight.bold),
-                    textAlign: TextAlign.center,
-                    decoration: InputDecoration(
-                      hintText: '------',
-                      hintStyle: GoogleFonts.poppins(
-                          fontSize: 20,
-                          letterSpacing: 6,
-                          color: Colors.grey.shade300),
-                      counterText: '',
-                      filled: true,
-                      fillColor: const Color(0xFFF8F9FB),
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none),
-                      enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide:
-                              BorderSide(color: Colors.grey.shade200)),
-                      focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                              color: Color(0xFFE67514), width: 1.5)),
-                    ),
-                  ),
-                  if (sheetError != null) ...[
-                    const SizedBox(height: 8),
-                    Text(sheetError!,
-                        style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            color: Colors.red.shade600,
-                            fontWeight: FontWeight.w500)),
-                  ],
-                  const SizedBox(height: 28),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed: isVerifying
-                          ? null
-                          : () async {
-                              final otp = otpController.text.trim();
-                              if (otp.isEmpty) {
-                                setSheetState(
-                                    () => sheetError = 'Please enter OTP');
-                                return;
-                              }
-                              setSheetState(() {
-                                sheetError = null;
-                                isVerifying = true;
-                              });
-                              try {
-                                final result = await onVerify(otp);
-                                if (!ctx.mounted) return;
-
-                                bool? status;
-                                String? message;
-                                bool? regComplete;
-                                bool? emailReq;
-
-                                if (result is CitizenVerifyOtpResponse) {
-                                  status = result.status;
-                                  message = result.message;
-                                  regComplete = result.registrationComplete;
-                                  emailReq = result.emailOtpRequired;
-                                } else if (result is VerifyOtpMailResponse) {
-                                  status = result.status;
-                                  message = result.message;
-                                  regComplete = true;
-                                  emailReq = false;
-                                }
-
-                                if (status == true) {
-                                  Navigator.pop(
-                                    ctx,
-                                    _OtpResult(
-                                      message: message,
-                                      registrationComplete:
-                                          regComplete ?? false,
-                                      emailOtpRequired:
-                                          emailReq ?? false,
-                                    ),
-                                  );
-                                  return;
-                                }
-
-                                setSheetState(() {
-                                  isVerifying = false;
-                                  sheetError = message ??
-                                      'OTP verification failed.';
-                                });
-                              } catch (e) {
-                                if (!ctx.mounted) return;
-                                setSheetState(() {
-                                  isVerifying = false;
-                                  sheetError =
-                                      ApiService.getUserFriendlyErrorMessage(
-                                          e,
-                                          fallbackMessage:
-                                              'Unable to verify OTP.');
-                                });
-                              }
-                            },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFE67514),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: isVerifying
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2.5,
-                                  valueColor:
-                                      AlwaysStoppedAnimation<Color>(
-                                          Colors.white)))
-                          : Text('Verify OTP',
-                              style: GoogleFonts.poppins(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 16)),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: OutlinedButton(
-                      onPressed:
-                          isVerifying ? null : () => Navigator.pop(ctx),
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: Colors.grey.shade300),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: Text('Cancel',
-                          style: GoogleFonts.poppins(
-                              color: Colors.grey.shade600,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 16)),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showMessageDialog({
-    required String title,
-    required String message,
-    required IconData icon,
-    required Color iconColor,
-  }) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Icon(icon, color: iconColor, size: 28),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(title,
-                  style: GoogleFonts.poppins(
-                      fontWeight: FontWeight.bold, fontSize: 16)),
-            ),
-          ],
-        ),
-        content: Text(
-          message,
-          style: GoogleFonts.poppins(fontSize: 14, height: 1.5),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('OK',
-                style: GoogleFonts.poppins(
-                    color: const Color(0xFFE67514),
-                    fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
-    );
   }
 
   void _showError(String message) {
@@ -1375,16 +1141,4 @@ class _SignUp02ScreenState extends State<SignUp02Screen> {
       ),
     );
   }
-}
-
-class _OtpResult {
-  final String? message;
-  final bool registrationComplete;
-  final bool emailOtpRequired;
-
-  _OtpResult({
-    this.message,
-    required this.registrationComplete,
-    required this.emailOtpRequired,
-  });
 }
