@@ -168,7 +168,7 @@ class _AssessmentDocumentUploadScreenState
       return;
     }
 
-    debugPrint('[DocUpload] _handleSubmit -> ackNo=${widget.ackNo}, isReassessment=${widget.isReassessment}');
+    // debugPrint('[DocUpload] _handleSubmit -> ackNo=${widget.ackNo}, isReassessment=${widget.isReassessment}');
     setState(() => _isSubmitting = true);
     try {
       final response = await OtpGateService.guard(
@@ -186,7 +186,7 @@ class _AssessmentDocumentUploadScreenState
         mobileNo: widget.mobileNo,
       );
 
-      debugPrint('[DocUpload] finalize response -> success=${response.success}, mounted=$mounted');
+      // debugPrint('[DocUpload] finalize response -> success=${response.success}, mounted=$mounted');
       if (!mounted) return;
       setState(() => _isSubmitting = false);
 
@@ -195,13 +195,13 @@ class _AssessmentDocumentUploadScreenState
         return;
       }
 
-      debugPrint('[DocUpload] finalize succeeded -> showing success view.');
+      // debugPrint('[DocUpload] finalize succeeded -> showing success view.');
       setState(() {
         _isSuccess = true;
         _successMessage = response.message;
       });
     } catch (e) {
-      debugPrint('[DocUpload] _handleSubmit error -> $e');
+      // debugPrint('[DocUpload] _handleSubmit error -> $e');
       if (!mounted) return;
       setState(() => _isSubmitting = false);
       _showSnackBar(
@@ -409,13 +409,13 @@ class _AssessmentDocumentUploadScreenState
               child: ElevatedButton(
                 onPressed: () {
                   
-                  debugPrint('[DocUpload] Done tapped -> popUntil(isFirst).');
+                  // debugPrint('[DocUpload] Done tapped -> popUntil(isFirst).');
                  int count = 0;
 
   Navigator.popUntil(context, (route) {
     return count++ == 4;
   });
-                  debugPrint('[DocUpload] popUntil(isFirst) returned.');
+                  // debugPrint('[DocUpload] popUntil(isFirst) returned.');
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _primaryColor,

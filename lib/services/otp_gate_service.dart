@@ -20,12 +20,12 @@ class OtpGateService {
     final response = await call();
     if (responseCode(response) != 12) return response;
 
-    debugPrint('[OtpGate] responseCode=12 -> starting OTP verify flow (propertyId=$propertyId).');
+    // debugPrint('[OtpGate] responseCode=12 -> starting OTP verify flow (propertyId=$propertyId).');
     final verified = await verify(propertyId: propertyId, mobileNo: mobileNo);
-    debugPrint('[OtpGate] verify() -> $verified');
+    // debugPrint('[OtpGate] verify() -> $verified');
     if (!verified) return response;
 
-    debugPrint('[OtpGate] Retrying original call after successful OTP verify.');
+    // debugPrint('[OtpGate] Retrying original call after successful OTP verify.');
     return await call();
   }
 
@@ -65,17 +65,17 @@ class OtpGateService {
       }
 
       if (!context.mounted) return false;
-      debugPrint('[OtpGate] Showing OTP verification sheet.');
+      // debugPrint('[OtpGate] Showing OTP verification sheet.');
       final result = await showOtpVerificationSheet(
         context: context,
         propertyId: resolvedPropertyId,
         mobileNo: resolvedMobileNo,
         maskedMobile: sendRes.maskedMobile ?? resolvedMobileNo,
       );
-      debugPrint('[OtpGate] OTP verification sheet closed -> $result');
+      // debugPrint('[OtpGate] OTP verification sheet closed -> $result');
       return result;
     } catch (e) {
-      debugPrint('[OtpGate] verify() error -> $e');
+      // debugPrint('[OtpGate] verify() error -> $e');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

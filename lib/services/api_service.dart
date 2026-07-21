@@ -45,27 +45,27 @@ class ApiService {
 
   static Future<void> _handleSessionExpired() async {
     if (_isHandlingSessionExpiry) {
-      debugPrint('[SessionExpired] Already handling session expiry, skipping duplicate call.');
+      // debugPrint('[SessionExpired] Already handling session expiry, skipping duplicate call.');
       return;
     }
-    debugPrint('[SessionExpired] Triggered — tearing down session and navigating to LoginScreen.');
+    // debugPrint('[SessionExpired] Triggered — tearing down session and navigating to LoginScreen.');
     _isHandlingSessionExpiry = true;
     try {
       await DatabaseService.clearDatabase();
       await StorageService.logout();
 
       if (navigatorKey.currentState != null) {
-        debugPrint('[SessionExpired] Calling pushAndRemoveUntil(LoginScreen).');
+        // debugPrint('[SessionExpired] Calling pushAndRemoveUntil(LoginScreen).');
         navigatorKey.currentState!.pushAndRemoveUntil(
           MaterialPageRoute(builder: (context) => const LoginScreen()),
           (route) => false,
         );
       } else {
-        debugPrint('[SessionExpired] navigatorKey.currentState is null — could not navigate.');
+        // debugPrint('[SessionExpired] navigatorKey.currentState is null — could not navigate.');
       }
     } finally {
       _isHandlingSessionExpiry = false;
-      debugPrint('[SessionExpired] Teardown complete.');
+      // debugPrint('[SessionExpired] Teardown complete.');
     }
   }
 
@@ -476,13 +476,13 @@ class ApiService {
       'landmark': landmark,
       'popularPropertyName': popularPropertyName,
     };
-    debugPrint('[AssessmentStep1] Request -> ${json.encode(requestBody)}');
+    // debugPrint('[AssessmentStep1] Request -> ${json.encode(requestBody)}');
 
     try {
       final response = await _makeAuthenticatedRequest(
         (headers) {
-          debugPrint('[AssessmentStep1] Authorization -> ${headers['Authorization']}');
-          debugPrint('[AssessmentStep1] Device Id -> ${headers['X-Device-Id']}');
+          // debugPrint('[AssessmentStep1] Authorization -> ${headers['Authorization']}');
+          // debugPrint('[AssessmentStep1] Device Id -> ${headers['X-Device-Id']}');
           return _post(
                 Uri.parse(
                   '${AppConstants.baseUrl}api/house_tax/assessmentSubmitS1',
@@ -494,9 +494,9 @@ class ApiService {
         },
       );
 
-      debugPrint(
-        '[AssessmentStep1] Response (${response.statusCode}) -> ${response.body}',
-      );
+      // debugPrint(
+        // '[AssessmentStep1] Response (${response.statusCode}) -> ${response.body}',
+      // );
 
       if (response.statusCode == 200) {
         return AssessmentStep1Response.fromJson(jsonDecode(response.body));
@@ -504,7 +504,7 @@ class ApiService {
         throw Exception('Server error: ${response.statusCode}');
       }
     } catch (e) {
-      debugPrint('[AssessmentStep1] Error -> $e');
+      // debugPrint('[AssessmentStep1] Error -> $e');
       throw _userSafeException(e);
     }
   }
@@ -524,13 +524,13 @@ class ApiService {
       'propertyTypeId': propertyTypeId,
       'propertyUseasId': propertyUseasId,
     };
-    debugPrint('[AssessmentStep2] Request -> ${json.encode(requestBody)}');
+    // debugPrint('[AssessmentStep2] Request -> ${json.encode(requestBody)}');
 
     try {
       final response = await _makeAuthenticatedRequest(
         (headers) {
-          debugPrint('[AssessmentStep2] Authorization -> ${headers['Authorization']}');
-          debugPrint('[AssessmentStep2] Device Id -> ${headers['X-Device-Id']}');
+          // debugPrint('[AssessmentStep2] Authorization -> ${headers['Authorization']}');
+          // debugPrint('[AssessmentStep2] Device Id -> ${headers['X-Device-Id']}');
           return _post(
                 Uri.parse(
                   '${AppConstants.baseUrl}api/house_tax/assessmentSubmitS2',
@@ -542,9 +542,9 @@ class ApiService {
         },
       );
 
-      debugPrint(
-        '[AssessmentStep2] Response (${response.statusCode}) -> ${response.body}',
-      );
+      // debugPrint(
+        // '[AssessmentStep2] Response (${response.statusCode}) -> ${response.body}',
+      // );
 
       if (response.statusCode == 200) {
         return AssessmentStep2Response.fromJson(jsonDecode(response.body));
@@ -552,7 +552,7 @@ class ApiService {
         throw Exception('Server error: ${response.statusCode}');
       }
     } catch (e) {
-      debugPrint('[AssessmentStep2] Error -> $e');
+      // debugPrint('[AssessmentStep2] Error -> $e');
       throw _userSafeException(e);
     }
   }
@@ -584,13 +584,13 @@ class ApiService {
       'garageArea': garageArea,
       'areaEnterMode': areaEnterMode,
     };
-    debugPrint('[SaveFloorDetails] Request -> ${json.encode(requestBody)}');
+    // debugPrint('[SaveFloorDetails] Request -> ${json.encode(requestBody)}');
 
     try {
       final response = await _makeAuthenticatedRequest(
         (headers) {
-          debugPrint('[SaveFloorDetails] Authorization -> ${headers['Authorization']}');
-          debugPrint('[SaveFloorDetails] Device Id -> ${headers['X-Device-Id']}');
+          // debugPrint('[SaveFloorDetails] Authorization -> ${headers['Authorization']}');
+          // debugPrint('[SaveFloorDetails] Device Id -> ${headers['X-Device-Id']}');
           return _post(
                 Uri.parse(
                   '${AppConstants.baseUrl}api/house_tax/assessmentSaveFloor',
@@ -602,9 +602,9 @@ class ApiService {
         },
       );
 
-      debugPrint(
-        '[SaveFloorDetails] Response (${response.statusCode}) -> ${response.body}',
-      );
+      // debugPrint(
+        // '[SaveFloorDetails] Response (${response.statusCode}) -> ${response.body}',
+      // );
 
       if (response.statusCode == 200) {
         return SaveFloorResponse.fromJson(jsonDecode(response.body));
@@ -612,7 +612,7 @@ class ApiService {
         throw Exception('Server error: ${response.statusCode}');
       }
     } catch (e) {
-      debugPrint('[SaveFloorDetails] Error -> $e');
+      // debugPrint('[SaveFloorDetails] Error -> $e');
       throw _userSafeException(e);
     }
   }
@@ -626,13 +626,13 @@ class ApiService {
       'ackNo': ackNo,
       'floorNumber': floorNumber,
     };
-    debugPrint('[DeleteFloorDetails] Request -> ${json.encode(requestBody)}');
+    // debugPrint('[DeleteFloorDetails] Request -> ${json.encode(requestBody)}');
 
     try {
       final response = await _makeAuthenticatedRequest(
         (headers) {
-          debugPrint('[DeleteFloorDetails] Authorization -> ${headers['Authorization']}');
-          debugPrint('[DeleteFloorDetails] Device Id -> ${headers['X-Device-Id']}');
+          // debugPrint('[DeleteFloorDetails] Authorization -> ${headers['Authorization']}');
+          // debugPrint('[DeleteFloorDetails] Device Id -> ${headers['X-Device-Id']}');
           return _post(
                 Uri.parse(
                   '${AppConstants.baseUrl}api/house_tax/assessmentDeleteFloor',
@@ -644,9 +644,9 @@ class ApiService {
         },
       );
 
-      debugPrint(
-        '[DeleteFloorDetails] Response (${response.statusCode}) -> ${response.body}',
-      );
+      // debugPrint(
+        // '[DeleteFloorDetails] Response (${response.statusCode}) -> ${response.body}',
+      // );
 
       if (response.statusCode == 200) {
         return DeleteFloorResponse.fromJson(jsonDecode(response.body));
@@ -654,7 +654,7 @@ class ApiService {
         throw Exception('Server error: ${response.statusCode}');
       }
     } catch (e) {
-      debugPrint('[DeleteFloorDetails] Error -> $e');
+      // debugPrint('[DeleteFloorDetails] Error -> $e');
       throw _userSafeException(e);
     }
   }
@@ -672,13 +672,13 @@ class ApiService {
       'isRebateClaimed': isRebateClaimed,
       'rebateTypeId': rebateTypeId,
     };
-    debugPrint('[AssessmentStep3] Request -> ${json.encode(requestBody)}');
+    // debugPrint('[AssessmentStep3] Request -> ${json.encode(requestBody)}');
 
     try {
       final response = await _makeAuthenticatedRequest(
         (headers) {
-          debugPrint('[AssessmentStep3] Authorization -> ${headers['Authorization']}');
-          debugPrint('[AssessmentStep3] Device Id -> ${headers['X-Device-Id']}');
+          // debugPrint('[AssessmentStep3] Authorization -> ${headers['Authorization']}');
+          // debugPrint('[AssessmentStep3] Device Id -> ${headers['X-Device-Id']}');
           return _post(
                 Uri.parse(
                   '${AppConstants.baseUrl}api/house_tax/assessmentSubmitS3',
@@ -690,9 +690,9 @@ class ApiService {
         },
       );
 
-      debugPrint(
-        '[AssessmentStep3] Response (${response.statusCode}) -> ${response.body}',
-      );
+      // debugPrint(
+        // '[AssessmentStep3] Response (${response.statusCode}) -> ${response.body}',
+      // );
 
       if (response.statusCode == 200) {
         return AssessmentStep3Response.fromJson(jsonDecode(response.body));
@@ -700,7 +700,7 @@ class ApiService {
         throw Exception('Server error: ${response.statusCode}');
       }
     } catch (e) {
-      debugPrint('[AssessmentStep3] Error -> $e');
+      // debugPrint('[AssessmentStep3] Error -> $e');
       throw _userSafeException(e);
     }
   }
@@ -710,12 +710,12 @@ class ApiService {
     required String ackNo,
     required File applicationFile,
   }) async {
-    debugPrint('[AssessmentStep4] Request -> ackNo=$ackNo, file=${applicationFile.path}');
+    // debugPrint('[AssessmentStep4] Request -> ackNo=$ackNo, file=${applicationFile.path}');
 
     try {
       final response = await _makeAuthenticatedMultipartRequest((headers) async {
-        debugPrint('[AssessmentStep4] Authorization -> ${headers['Authorization']}');
-        debugPrint('[AssessmentStep4] Device Id -> ${headers['X-Device-Id']}');
+        // debugPrint('[AssessmentStep4] Authorization -> ${headers['Authorization']}');
+        // debugPrint('[AssessmentStep4] Device Id -> ${headers['X-Device-Id']}');
         final request = http.MultipartRequest(
           'POST',
           Uri.parse('${AppConstants.baseUrl}api/house_tax/assessmentSubmitS4'),
@@ -727,9 +727,9 @@ class ApiService {
         return request;
       });
 
-      debugPrint(
-        '[AssessmentStep4] Response (${response.statusCode}) -> ${response.body}',
-      );
+      // debugPrint(
+        // '[AssessmentStep4] Response (${response.statusCode}) -> ${response.body}',
+      // );
 
       if (response.statusCode == 200) {
         return DeleteFloorResponse.fromJson(jsonDecode(response.body));
@@ -737,7 +737,7 @@ class ApiService {
         throw Exception('Server error: ${response.statusCode}');
       }
     } catch (e) {
-      debugPrint('[AssessmentStep4] Error -> $e');
+      // debugPrint('[AssessmentStep4] Error -> $e');
       throw _userSafeException(e);
     }
   }
@@ -747,13 +747,13 @@ class ApiService {
     required String propertyId,
   }) async {
     final requestBody = {'propertyId': propertyId};
-    debugPrint('[ReassessmentGetS1] Request -> ${json.encode(requestBody)}');
+    // debugPrint('[ReassessmentGetS1] Request -> ${json.encode(requestBody)}');
 
     try {
       final response = await _makeAuthenticatedRequest(
         (headers) {
-          debugPrint('[ReassessmentGetS1] Authorization -> ${headers['Authorization']}');
-          debugPrint('[ReassessmentGetS1] Device Id -> ${headers['X-Device-Id']}');
+          // debugPrint('[ReassessmentGetS1] Authorization -> ${headers['Authorization']}');
+          // debugPrint('[ReassessmentGetS1] Device Id -> ${headers['X-Device-Id']}');
           return _post(
                 Uri.parse('${AppConstants.baseUrl}api/house_tax/reassessmentGetS1'),
                 headers: headers,
@@ -763,9 +763,9 @@ class ApiService {
         },
       );
 
-      debugPrint(
-        '[ReassessmentGetS1] Response (${response.statusCode}) -> ${response.body}',
-      );
+      // debugPrint(
+        // '[ReassessmentGetS1] Response (${response.statusCode}) -> ${response.body}',
+      // );
 
       if (response.statusCode == 200) {
         return ReassessmentGetS1Response.fromJson(jsonDecode(response.body));
@@ -773,20 +773,20 @@ class ApiService {
         throw Exception('Server error: ${response.statusCode}');
       }
     } catch (e) {
-      debugPrint('[ReassessmentGetS1] Error -> $e');
+      // debugPrint('[ReassessmentGetS1] Error -> $e');
       throw _userSafeException(e);
     }
   }
 
   // Property Assessment - Reassessment - List: Fetch all reassessments for the user
   static Future<ReassessmentListResponse> getReassessmentList() async {
-    debugPrint('[ReassessmentList] Request -> getReassessmentList');
+    // debugPrint('[ReassessmentList] Request -> getReassessmentList');
 
     try {
       final response = await _makeAuthenticatedRequest(
         (headers) {
-          debugPrint('[ReassessmentList] Authorization -> ${headers['Authorization']}');
-          debugPrint('[ReassessmentList] Device Id -> ${headers['X-Device-Id']}');
+          // debugPrint('[ReassessmentList] Authorization -> ${headers['Authorization']}');
+          // debugPrint('[ReassessmentList] Device Id -> ${headers['X-Device-Id']}');
           return _post(
                 Uri.parse('${AppConstants.baseUrl}api/house_tax/getReassessmentList'),
                 headers: headers,
@@ -796,9 +796,9 @@ class ApiService {
         },
       );
 
-      debugPrint(
-        '[ReassessmentList] Response (${response.statusCode}) -> ${response.body}',
-      );
+      // debugPrint(
+        // '[ReassessmentList] Response (${response.statusCode}) -> ${response.body}',
+      // );
 
       if (response.statusCode == 200) {
         return ReassessmentListResponse.fromJson(jsonDecode(response.body));
@@ -806,7 +806,7 @@ class ApiService {
         throw Exception('Server error: ${response.statusCode}');
       }
     } catch (e) {
-      debugPrint('[ReassessmentList] Error -> $e');
+      // debugPrint('[ReassessmentList] Error -> $e');
       throw _userSafeException(e);
     }
   }
@@ -817,7 +817,7 @@ class ApiService {
     required String ackNo,
   }) async {
     final requestBody = {'ackNo': ackNo};
-    debugPrint('[ReassessmentFullDetails] Request -> ${json.encode(requestBody)}');
+    // debugPrint('[ReassessmentFullDetails] Request -> ${json.encode(requestBody)}');
 
     try {
       final response = await _makeAuthenticatedRequest(
@@ -829,9 +829,9 @@ class ApiService {
             .timeout(Duration(seconds: AppConstants.networkTimeout)),
       );
 
-      debugPrint(
-        '[ReassessmentFullDetails] Response (${response.statusCode}) -> ${response.body}',
-      );
+      // debugPrint(
+        // '[ReassessmentFullDetails] Response (${response.statusCode}) -> ${response.body}',
+      // );
 
       if (response.statusCode == 200) {
         return ReassessmentFullDetailsResponse.fromJson(jsonDecode(response.body));
@@ -839,7 +839,7 @@ class ApiService {
         throw Exception('Server error: ${response.statusCode}');
       }
     } catch (e) {
-      debugPrint('[ReassessmentFullDetails] Error -> $e');
+      // debugPrint('[ReassessmentFullDetails] Error -> $e');
       throw _userSafeException(e);
     }
   }
@@ -848,13 +848,13 @@ class ApiService {
   // assessments for the user. Response shape is identical to
   // getReassessmentList, so the same model classes are reused.
   static Future<ReassessmentListResponse> getAssessmentList() async {
-    debugPrint('[AssessmentList] Request -> getAssessmentList');
+    // debugPrint('[AssessmentList] Request -> getAssessmentList');
 
     try {
       final response = await _makeAuthenticatedRequest(
         (headers) {
-          debugPrint('[AssessmentList] Authorization -> ${headers['Authorization']}');
-          debugPrint('[AssessmentList] Device Id -> ${headers['X-Device-Id']}');
+          // debugPrint('[AssessmentList] Authorization -> ${headers['Authorization']}');
+          // debugPrint('[AssessmentList] Device Id -> ${headers['X-Device-Id']}');
           return _post(
                 Uri.parse('${AppConstants.baseUrl}api/House_tax/getAssessmentList'),
                 headers: headers,
@@ -864,9 +864,9 @@ class ApiService {
         },
       );
 
-      debugPrint(
-        '[AssessmentList] Response (${response.statusCode}) -> ${response.body}',
-      );
+      // debugPrint(
+        // '[AssessmentList] Response (${response.statusCode}) -> ${response.body}',
+      // );
 
       if (response.statusCode == 200) {
         return ReassessmentListResponse.fromJson(jsonDecode(response.body));
@@ -874,7 +874,7 @@ class ApiService {
         throw Exception('Server error: ${response.statusCode}');
       }
     } catch (e) {
-      debugPrint('[AssessmentList] Error -> $e');
+      // debugPrint('[AssessmentList] Error -> $e');
       throw _userSafeException(e);
     }
   }
@@ -886,7 +886,7 @@ class ApiService {
     required String ackNo,
   }) async {
     final requestBody = {'ackNo': ackNo};
-    debugPrint('[AssessmentFullDetails] Request -> ${json.encode(requestBody)}');
+    // debugPrint('[AssessmentFullDetails] Request -> ${json.encode(requestBody)}');
 
     try {
       final response = await _makeAuthenticatedRequest(
@@ -898,9 +898,9 @@ class ApiService {
             .timeout(Duration(seconds: AppConstants.networkTimeout)),
       );
 
-      debugPrint(
-        '[AssessmentFullDetails] Response (${response.statusCode}) -> ${response.body}',
-      );
+      // debugPrint(
+        // '[AssessmentFullDetails] Response (${response.statusCode}) -> ${response.body}',
+      // );
 
       if (response.statusCode == 200) {
         return ReassessmentFullDetailsResponse.fromJson(jsonDecode(response.body));
@@ -908,7 +908,7 @@ class ApiService {
         throw Exception('Server error: ${response.statusCode}');
       }
     } catch (e) {
-      debugPrint('[AssessmentFullDetails] Error -> $e');
+      // debugPrint('[AssessmentFullDetails] Error -> $e');
       throw _userSafeException(e);
     }
   }
@@ -919,13 +919,13 @@ class ApiService {
     required String ackNo,
   }) async {
     final requestBody = {'propertyId': propertyId, 'ackNo': ackNo};
-    debugPrint('[ReassessmentStep1] Request -> ${json.encode(requestBody)}');
+    // debugPrint('[ReassessmentStep1] Request -> ${json.encode(requestBody)}');
 
     try {
       final response = await _makeAuthenticatedRequest(
         (headers) {
-          debugPrint('[ReassessmentStep1] Authorization -> ${headers['Authorization']}');
-          debugPrint('[ReassessmentStep1] Device Id -> ${headers['X-Device-Id']}');
+          // debugPrint('[ReassessmentStep1] Authorization -> ${headers['Authorization']}');
+          // debugPrint('[ReassessmentStep1] Device Id -> ${headers['X-Device-Id']}');
           return _post(
                 Uri.parse('${AppConstants.baseUrl}api/house_tax/reassessmentSubmitS1'),
                 headers: headers,
@@ -935,9 +935,9 @@ class ApiService {
         },
       );
 
-      debugPrint(
-        '[ReassessmentStep1] Response (${response.statusCode}) -> ${response.body}',
-      );
+      // debugPrint(
+        // '[ReassessmentStep1] Response (${response.statusCode}) -> ${response.body}',
+      // );
 
       if (response.statusCode == 200) {
         return ReassessmentStep1Response.fromJson(jsonDecode(response.body));
@@ -945,7 +945,7 @@ class ApiService {
         throw Exception('Server error: ${response.statusCode}');
       }
     } catch (e) {
-      debugPrint('[ReassessmentStep1] Error -> $e');
+      // debugPrint('[ReassessmentStep1] Error -> $e');
       throw _userSafeException(e);
     }
   }
@@ -961,13 +961,13 @@ class ApiService {
       'ackNo': ackNo,
       'fileNo': fileNo,
     };
-    debugPrint('[ReassessmentStep2] Request -> ${json.encode(requestBody)}');
+    // debugPrint('[ReassessmentStep2] Request -> ${json.encode(requestBody)}');
 
     try {
       final response = await _makeAuthenticatedRequest(
         (headers) {
-          debugPrint('[ReassessmentStep2] Authorization -> ${headers['Authorization']}');
-          debugPrint('[ReassessmentStep2] Device Id -> ${headers['X-Device-Id']}');
+          // debugPrint('[ReassessmentStep2] Authorization -> ${headers['Authorization']}');
+          // debugPrint('[ReassessmentStep2] Device Id -> ${headers['X-Device-Id']}');
           return _post(
                 Uri.parse('${AppConstants.baseUrl}api/house_tax/reassessmentFetchFloorConfig'),
                 headers: headers,
@@ -977,9 +977,9 @@ class ApiService {
         },
       );
 
-      debugPrint(
-        '[ReassessmentStep2] Response (${response.statusCode}) -> ${response.body}',
-      );
+      // debugPrint(
+        // '[ReassessmentStep2] Response (${response.statusCode}) -> ${response.body}',
+      // );
 
       if (response.statusCode == 200) {
         return AssessmentStep2Response.fromJson(jsonDecode(response.body));
@@ -987,7 +987,7 @@ class ApiService {
         throw Exception('Server error: ${response.statusCode}');
       }
     } catch (e) {
-      debugPrint('[ReassessmentStep2] Error -> $e');
+      // debugPrint('[ReassessmentStep2] Error -> $e');
       throw _userSafeException(e);
     }
   }
@@ -1019,13 +1019,13 @@ class ApiService {
       'garageArea': garageArea,
       'areaEnterMode': areaEnterMode,
     };
-    debugPrint('[ReassessmentSaveFloor] Request -> ${json.encode(requestBody)}');
+    // debugPrint('[ReassessmentSaveFloor] Request -> ${json.encode(requestBody)}');
 
     try {
       final response = await _makeAuthenticatedRequest(
         (headers) {
-          debugPrint('[ReassessmentSaveFloor] Authorization -> ${headers['Authorization']}');
-          debugPrint('[ReassessmentSaveFloor] Device Id -> ${headers['X-Device-Id']}');
+          // debugPrint('[ReassessmentSaveFloor] Authorization -> ${headers['Authorization']}');
+          // debugPrint('[ReassessmentSaveFloor] Device Id -> ${headers['X-Device-Id']}');
           return _post(
                 Uri.parse('${AppConstants.baseUrl}api/house_tax/reassessmentSaveFloor'),
                 headers: headers,
@@ -1035,9 +1035,9 @@ class ApiService {
         },
       );
 
-      debugPrint(
-        '[ReassessmentSaveFloor] Response (${response.statusCode}) -> ${response.body}',
-      );
+      // debugPrint(
+        // '[ReassessmentSaveFloor] Response (${response.statusCode}) -> ${response.body}',
+      // );
 
       if (response.statusCode == 200) {
         return SaveFloorResponse.fromJson(jsonDecode(response.body));
@@ -1045,7 +1045,7 @@ class ApiService {
         throw Exception('Server error: ${response.statusCode}');
       }
     } catch (e) {
-      debugPrint('[ReassessmentSaveFloor] Error -> $e');
+      // debugPrint('[ReassessmentSaveFloor] Error -> $e');
       throw _userSafeException(e);
     }
   }
@@ -1056,13 +1056,13 @@ class ApiService {
     required int floorNumber,
   }) async {
     final requestBody = {'ackNo': ackNo, 'floorNumber': floorNumber};
-    debugPrint('[ReassessmentDeleteFloor] Request -> ${json.encode(requestBody)}');
+    // debugPrint('[ReassessmentDeleteFloor] Request -> ${json.encode(requestBody)}');
 
     try {
       final response = await _makeAuthenticatedRequest(
         (headers) {
-          debugPrint('[ReassessmentDeleteFloor] Authorization -> ${headers['Authorization']}');
-          debugPrint('[ReassessmentDeleteFloor] Device Id -> ${headers['X-Device-Id']}');
+          // debugPrint('[ReassessmentDeleteFloor] Authorization -> ${headers['Authorization']}');
+          // debugPrint('[ReassessmentDeleteFloor] Device Id -> ${headers['X-Device-Id']}');
           return _post(
                 Uri.parse('${AppConstants.baseUrl}api/house_tax/reassessmentDeleteFloor'),
                 headers: headers,
@@ -1072,9 +1072,9 @@ class ApiService {
         },
       );
 
-      debugPrint(
-        '[ReassessmentDeleteFloor] Response (${response.statusCode}) -> ${response.body}',
-      );
+      // debugPrint(
+        // '[ReassessmentDeleteFloor] Response (${response.statusCode}) -> ${response.body}',
+      // );
 
       if (response.statusCode == 200) {
         return DeleteFloorResponse.fromJson(jsonDecode(response.body));
@@ -1082,7 +1082,7 @@ class ApiService {
         throw Exception('Server error: ${response.statusCode}');
       }
     } catch (e) {
-      debugPrint('[ReassessmentDeleteFloor] Error -> $e');
+      // debugPrint('[ReassessmentDeleteFloor] Error -> $e');
       throw _userSafeException(e);
     }
   }
@@ -1102,13 +1102,13 @@ class ApiService {
       'isRebateClaimed': isRebateClaimed,
       'rebateTypeId': rebateTypeId,
     };
-    debugPrint('[ReassessmentStep3] Request -> ${json.encode(requestBody)}');
+    // debugPrint('[ReassessmentStep3] Request -> ${json.encode(requestBody)}');
 
     try {
       final response = await _makeAuthenticatedRequest(
         (headers) {
-          debugPrint('[ReassessmentStep3] Authorization -> ${headers['Authorization']}');
-          debugPrint('[ReassessmentStep3] Device Id -> ${headers['X-Device-Id']}');
+          // debugPrint('[ReassessmentStep3] Authorization -> ${headers['Authorization']}');
+          // debugPrint('[ReassessmentStep3] Device Id -> ${headers['X-Device-Id']}');
           return _post(
                 Uri.parse('${AppConstants.baseUrl}api/house_tax/reassessmentSubmitS3'),
                 headers: headers,
@@ -1118,9 +1118,9 @@ class ApiService {
         },
       );
 
-      debugPrint(
-        '[ReassessmentStep3] Response (${response.statusCode}) -> ${response.body}',
-      );
+      // debugPrint(
+        // '[ReassessmentStep3] Response (${response.statusCode}) -> ${response.body}',
+      // );
 
       if (response.statusCode == 200) {
         return AssessmentStep3Response.fromJson(jsonDecode(response.body));
@@ -1128,7 +1128,7 @@ class ApiService {
         throw Exception('Server error: ${response.statusCode}');
       }
     } catch (e) {
-      debugPrint('[ReassessmentStep3] Error -> $e');
+      // debugPrint('[ReassessmentStep3] Error -> $e');
       throw _userSafeException(e);
     }
   }
@@ -1138,12 +1138,12 @@ class ApiService {
     required String ackNo,
     required File applicationFile,
   }) async {
-    debugPrint('[ReassessmentStep4] Request -> ackNo=$ackNo, file=${applicationFile.path}');
+    // debugPrint('[ReassessmentStep4] Request -> ackNo=$ackNo, file=${applicationFile.path}');
 
     try {
       final response = await _makeAuthenticatedMultipartRequest((headers) async {
-        debugPrint('[ReassessmentStep4] Authorization -> ${headers['Authorization']}');
-        debugPrint('[ReassessmentStep4] Device Id -> ${headers['X-Device-Id']}');
+        // debugPrint('[ReassessmentStep4] Authorization -> ${headers['Authorization']}');
+        // debugPrint('[ReassessmentStep4] Device Id -> ${headers['X-Device-Id']}');
         final request = http.MultipartRequest(
           'POST',
           Uri.parse('${AppConstants.baseUrl}api/house_tax/reassessmentSubmitS4'),
@@ -1155,9 +1155,9 @@ class ApiService {
         return request;
       });
 
-      debugPrint(
-        '[ReassessmentStep4] Response (${response.statusCode}) -> ${response.body}',
-      );
+      // debugPrint(
+        // '[ReassessmentStep4] Response (${response.statusCode}) -> ${response.body}',
+      // );
 
       if (response.statusCode == 200) {
         return DeleteFloorResponse.fromJson(jsonDecode(response.body));
@@ -1165,7 +1165,7 @@ class ApiService {
         throw Exception('Server error: ${response.statusCode}');
       }
     } catch (e) {
-      debugPrint('[ReassessmentStep4] Error -> $e');
+      // debugPrint('[ReassessmentStep4] Error -> $e');
       throw _userSafeException(e);
     }
   }
@@ -1469,7 +1469,7 @@ class ApiService {
     String mobileNo,
     String propertyId,
   ) async {
-    debugPrint('[SendOtp] Request -> mobileNo=$mobileNo, propertyId=$propertyId');
+    // debugPrint('[SendOtp] Request -> mobileNo=$mobileNo, propertyId=$propertyId');
     try {
       final response = await _makeAuthenticatedRequest(
         (headers) => _post(
@@ -1483,7 +1483,7 @@ class ApiService {
             .timeout(Duration(seconds: AppConstants.networkTimeout)),
       );
 
-      debugPrint('[SendOtp] Response (${response.statusCode}) -> ${response.body}');
+      // debugPrint('[SendOtp] Response (${response.statusCode}) -> ${response.body}');
 
       if (response.statusCode == 200) {
         return SendOtpResponse.fromJson(jsonDecode(response.body));
@@ -1491,7 +1491,7 @@ class ApiService {
         throw Exception('Failed to send OTP: ${response.statusCode}');
       }
     } catch (e) {
-      debugPrint('[SendOtp] Error -> $e');
+      // debugPrint('[SendOtp] Error -> $e');
       throw _userSafeException(e);
     }
   }
@@ -1501,7 +1501,7 @@ class ApiService {
     String mobileNo,
     String otp,
   ) async {
-    debugPrint('[VerifyOtp] Request -> mobileNo=$mobileNo');
+    // debugPrint('[VerifyOtp] Request -> mobileNo=$mobileNo');
     try {
       final response = await _makeAuthenticatedRequest(
         (headers) => _post(
@@ -1512,7 +1512,7 @@ class ApiService {
             .timeout(Duration(seconds: AppConstants.networkTimeout)),
       );
 
-      debugPrint('[VerifyOtp] Response (${response.statusCode}) -> ${response.body}');
+      // debugPrint('[VerifyOtp] Response (${response.statusCode}) -> ${response.body}');
 
       if (response.statusCode == 200) {
         return VerifyOtpResponse.fromJson(jsonDecode(response.body));
@@ -1520,7 +1520,7 @@ class ApiService {
         throw Exception('OTP verification failed: ${response.statusCode}');
       }
     } catch (e) {
-      debugPrint('[VerifyOtp] Error -> $e');
+      // debugPrint('[VerifyOtp] Error -> $e');
       throw _userSafeException(e);
     }
   }
@@ -1555,7 +1555,7 @@ class ApiService {
   static Future<CreateTransactionResponse> initiateTransaction(
     InitiateTransactionRequest request,
   ) async {
-    debugPrint('[InitiateTransaction] Request -> ${jsonEncode(request.toJson())}');
+    // debugPrint('[InitiateTransaction] Request -> ${jsonEncode(request.toJson())}');
     try {
       final response = await _makeIntegrityProtectedRequest(
         (headers) => _post(
@@ -1568,7 +1568,7 @@ class ApiService {
             .timeout(Duration(seconds: AppConstants.networkTimeout)),
       );
 
-      debugPrint('[InitiateTransaction] Response (${response.statusCode}) -> ${response.body}');
+      // debugPrint('[InitiateTransaction] Response (${response.statusCode}) -> ${response.body}');
 
       if (response.statusCode == 200) {
         return CreateTransactionResponse.fromJson(jsonDecode(response.body));
@@ -1578,7 +1578,7 @@ class ApiService {
         );
       }
     } catch (e) {
-      debugPrint('[InitiateTransaction] Error -> $e');
+      // debugPrint('[InitiateTransaction] Error -> $e');
       throw _userSafeException(e);
     }
   }
@@ -1827,9 +1827,9 @@ class ApiService {
           )
           .timeout(Duration(seconds: AppConstants.networkTimeout));
 
-      debugPrint(
-        '[Login] get_challenge response (${challengeResponse.statusCode}) -> ${challengeResponse.body}',
-      );
+      // debugPrint(
+        // '[Login] get_challenge response (${challengeResponse.statusCode}) -> ${challengeResponse.body}',
+      // );
 
       if (challengeResponse.statusCode != 200) {
         throw Exception(
@@ -1869,9 +1869,9 @@ class ApiService {
           )
           .timeout(Duration(seconds: AppConstants.networkTimeout));
 
-      debugPrint(
-        '[Login] login response (${loginResponse.statusCode}) -> ${loginResponse.body}',
-      );
+      // debugPrint(
+        // '[Login] login response (${loginResponse.statusCode}) -> ${loginResponse.body}',
+      // );
 
       if (loginResponse.statusCode == 200) {
         final loginData = LoginResponse.fromJson(

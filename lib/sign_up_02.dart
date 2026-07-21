@@ -106,11 +106,11 @@ class _SignUp02ScreenState extends State<SignUp02Screen>
   }
 
   Future<void> _fetchCaptcha() async {
-    debugPrint('[SignUp] Fetching form captcha...');
+    // debugPrint('[SignUp] Fetching form captcha...');
     setState(() => _loadingCaptcha = true);
     try {
       final captcha = await ApiService.getSignupCaptcha();
-      debugPrint('[SignUp] Form captcha loaded -> captchaId=${captcha.captchaId}');
+      // debugPrint('[SignUp] Form captcha loaded -> captchaId=${captcha.captchaId}');
       if (!mounted) return;
       setState(() {
         _captchaId = captcha.captchaId;
@@ -119,7 +119,7 @@ class _SignUp02ScreenState extends State<SignUp02Screen>
         _captchaController.clear();
       });
     } catch (e) {
-      debugPrint('[SignUp] Form captcha fetch failed -> $e');
+      // debugPrint('[SignUp] Form captcha fetch failed -> $e');
       if (!mounted) return;
       setState(() => _loadingCaptcha = false);
     }
@@ -367,7 +367,7 @@ class _SignUp02ScreenState extends State<SignUp02Screen>
     required String encryptedPassword,
     required String encryptedConfirmPassword,
   }) async {
-    debugPrint('[SignUp] _doSignUp start -> mobile=$mobile, email=$email');
+    // debugPrint('[SignUp] _doSignUp start -> mobile=$mobile, email=$email');
     setState(() => _isLoading = true);
 
     try {
@@ -386,12 +386,12 @@ class _SignUp02ScreenState extends State<SignUp02Screen>
         captcha: _captchaController.text.trim(),
       );
 
-      debugPrint(
-        '[SignUp] register response -> status=${registerResult.status}, '
-        'responseCode=${registerResult.responseCode}, message=${registerResult.message}, '
-        'mobileOtpRequired=${registerResult.mobileOtpRequired}, '
-        'emailOtpRequired=${registerResult.emailOtpRequired}',
-      );
+      // debugPrint(
+        // '[SignUp] register response -> status=${registerResult.status}, '
+        // 'responseCode=${registerResult.responseCode}, message=${registerResult.message}, '
+        // 'mobileOtpRequired=${registerResult.mobileOtpRequired}, '
+        // 'emailOtpRequired=${registerResult.emailOtpRequired}',
+      // );
 
       bool? status = registerResult.status;
       String? message = registerResult.message;
@@ -402,7 +402,7 @@ class _SignUp02ScreenState extends State<SignUp02Screen>
       // (re)send, so the rest of the flow continues on a dedicated
       // mobile/captcha verification screen instead of an in-place dialog.
       if (registerResult.responseCode == 0) {
-        debugPrint('[SignUp] responseCode=0 -> navigating to verify screen.');
+        // debugPrint('[SignUp] responseCode=0 -> navigating to verify screen.');
         if (!mounted) return;
         setState(() => _isLoading = false);
         Navigator.pushReplacement(
@@ -422,7 +422,7 @@ class _SignUp02ScreenState extends State<SignUp02Screen>
       setState(() => _isLoading = false);
 
       if (status != true) {
-        debugPrint('[SignUp] Registration failed -> $message');
+        // debugPrint('[SignUp] Registration failed -> $message');
         _fetchCaptcha();
         showMessageDialog(
           title: 'Registration Failed',
@@ -438,7 +438,7 @@ class _SignUp02ScreenState extends State<SignUp02Screen>
 
       // Step 2: Mobile OTP verification
       if (mobileOtpRequired == true) {
-        debugPrint('[SignUp] mobileOtpRequired=true -> showing mobile OTP sheet.');
+        // debugPrint('[SignUp] mobileOtpRequired=true -> showing mobile OTP sheet.');
         if (!mounted) return;
         final mobileOtpResult = await showOtpBottomSheet(
           title: 'Verify Mobile OTP',
@@ -451,14 +451,14 @@ class _SignUp02ScreenState extends State<SignUp02Screen>
           ),
         );
         if (mobileOtpResult == null) {
-          debugPrint('[SignUp] Mobile OTP sheet cancelled by user.');
+          // debugPrint('[SignUp] Mobile OTP sheet cancelled by user.');
           return;
         }
 
-        debugPrint(
-          '[SignUp] Mobile OTP verified -> registrationComplete=${mobileOtpResult.registrationComplete}, '
-          'emailOtpRequired=${mobileOtpResult.emailOtpRequired}',
-        );
+        // debugPrint(
+          // '[SignUp] Mobile OTP verified -> registrationComplete=${mobileOtpResult.registrationComplete}, '
+          // 'emailOtpRequired=${mobileOtpResult.emailOtpRequired}',
+        // );
 
         if (mobileOtpResult.registrationComplete == true) {
           if (!mounted) return;
@@ -474,7 +474,7 @@ class _SignUp02ScreenState extends State<SignUp02Screen>
 
       // Step 3: Email OTP verification
       if (needEmailOtp) {
-        debugPrint('[SignUp] emailOtpRequired=true -> showing email OTP sheet.');
+        // debugPrint('[SignUp] emailOtpRequired=true -> showing email OTP sheet.');
         if (!mounted) return;
         final emailOtpResult = await showOtpBottomSheet(
           title: 'Verify Email OTP',
@@ -487,11 +487,11 @@ class _SignUp02ScreenState extends State<SignUp02Screen>
           ),
         );
         if (emailOtpResult == null) {
-          debugPrint('[SignUp] Email OTP sheet cancelled by user.');
+          // debugPrint('[SignUp] Email OTP sheet cancelled by user.');
           return;
         }
 
-        debugPrint('[SignUp] Email OTP verified -> registration complete.');
+        // debugPrint('[SignUp] Email OTP verified -> registration complete.');
         if (!mounted) return;
         showSuccessAndGoBack(
           emailOtpResult.message ?? 'Registration complete!',
@@ -499,7 +499,7 @@ class _SignUp02ScreenState extends State<SignUp02Screen>
         return;
       }
     } catch (e) {
-      debugPrint('[SignUp] _doSignUp error -> $e');
+      // debugPrint('[SignUp] _doSignUp error -> $e');
       if (!mounted) return;
       setState(() => _isLoading = false);
       _fetchCaptcha();

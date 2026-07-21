@@ -72,20 +72,20 @@ Future<bool> confirmExitAssessment(BuildContext context) async {
 /// run would mutate the same Navigator stack concurrently.
 void exitAssessmentToDashboard(BuildContext context) {
   if (ApiService.isHandlingSessionExpiry) {
-    debugPrint('[ExitGuard] Skipping exit popUntil — session expiry teardown in progress.');
+    // debugPrint('[ExitGuard] Skipping exit popUntil — session expiry teardown in progress.');
     return;
   }
-  debugPrint('[ExitGuard] exitAssessmentToDashboard -> popUntil(isFirst).');
+  // debugPrint('[ExitGuard] exitAssessmentToDashboard -> popUntil(isFirst).');
   Navigator.of(context).popUntil((route) => route.isFirst);
-  debugPrint('[ExitGuard] popUntil(isFirst) returned.');
+  // debugPrint('[ExitGuard] popUntil(isFirst) returned.');
 }
 
 /// Runs the confirm-then-exit sequence used by both the AppBar back button
 /// and the hardware/system back gesture on assessment/reassessment screens.
 Future<void> handleAssessmentBack(BuildContext context) async {
-  debugPrint('[ExitGuard] handleAssessmentBack -> showing confirm dialog.');
+  // debugPrint('[ExitGuard] handleAssessmentBack -> showing confirm dialog.');
   final shouldClose = await confirmExitAssessment(context);
-  debugPrint('[ExitGuard] confirmExitAssessment -> $shouldClose (context.mounted=${context.mounted})');
+  // debugPrint('[ExitGuard] confirmExitAssessment -> $shouldClose (context.mounted=${context.mounted})');
   if (shouldClose && context.mounted) {
     exitAssessmentToDashboard(context);
   }

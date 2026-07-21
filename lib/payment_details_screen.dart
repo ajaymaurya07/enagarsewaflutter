@@ -698,10 +698,10 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
     final String userId = propertyEntity?.userId ?? "0";
     final String? email = await StorageService.getEmailId();
 
-    debugPrint(
-      '[PaymentTxn] propertyId=${widget.propertyId}, propertyFoundInDb=${propertyEntity != null}, '
-      'ulbId=$ulbId, userId=$userId, totalArv=$totalArvValue, email=$email',
-    );
+    // debugPrint(
+      // '[PaymentTxn] propertyId=${widget.propertyId}, propertyFoundInDb=${propertyEntity != null}, '
+      // 'ulbId=$ulbId, userId=$userId, totalArv=$totalArvValue, email=$email',
+    // );
 
     final bill = _details?.billDetails;
     final owner = _details?.ownerDetails;
@@ -741,7 +741,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
 
       setState(() => _isLoading = false);
 
-      debugPrint('[PaymentTxnAjay] _handlePayuTransaction error -> $response');
+      // debugPrint('[PaymentTxnAjay] _handlePayuTransaction error -> $response');
 
       if (response.status == true) {
         await StorageService.savePayuMobileTransactionId(
@@ -754,7 +754,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
         );
       }
     } catch (e) {
-      debugPrint('[PaymentTxn] _handlePayuTransaction error -> $e');
+      // debugPrint('[PaymentTxn] _handlePayuTransaction error -> $e');
       if (!mounted) return;
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(

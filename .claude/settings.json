@@ -13,7 +13,8 @@
       "Skill(artifact-design)",
       "Skill(artifact-design:*)",
       "Bash(find / -iname \"PayUConstantKeys.dart\" 2>/dev/null | head -5)",
-      "Read(//d//**)"
+      "Read(//d//**)",
+      "Bash(python \"C:\\\\Users\\\\maury\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\d--flutter-app\\\\aa3c6e40-0b43-4e99-bb78-10521bed7a17\\\\scratchpad\\\\comment_debugprint.py\")"
     ]
   }
 }

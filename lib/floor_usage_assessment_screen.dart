@@ -42,25 +42,25 @@ class _FloorUsageAssessmentScreenState
       _selectedFloorType = null;
     });
 
-    debugPrint(
-      '[FloorUsageAssessment] Fetching floor types for floorUsageId=$floorUsageId...',
-    );
+    // debugPrint(
+      // '[FloorUsageAssessment] Fetching floor types for floorUsageId=$floorUsageId...',
+    // );
     try {
       final response = await ApiService.getFloorTypeList(floorUsageId);
       final floorTypes = response.data;
-      debugPrint(
-        '[FloorUsageAssessment] getFloorTypeList($floorUsageId) -> ${floorTypes.length} item(s): '
-        '${floorTypes.map((f) => '${f.id}:${f.name}').join(', ')}',
-      );
+      // debugPrint(
+        // '[FloorUsageAssessment] getFloorTypeList($floorUsageId) -> ${floorTypes.length} item(s): '
+        // '${floorTypes.map((f) => '${f.id}:${f.name}').join(', ')}',
+      // );
       if (!mounted) return;
       setState(() {
         _floorTypeList = floorTypes;
         _isLoadingFloorTypes = false;
       });
     } catch (e) {
-      debugPrint(
-        '[FloorUsageAssessment] getFloorTypeList($floorUsageId) error: $e',
-      );
+      // debugPrint(
+        // '[FloorUsageAssessment] getFloorTypeList($floorUsageId) error: $e',
+      // );
       if (!mounted) return;
       setState(() {
         _floorTypeError = e.toString().replaceFirst('Exception: ', '');
@@ -76,24 +76,24 @@ class _FloorUsageAssessmentScreenState
       _propertyTypeMultiplier = null;
     });
 
-    debugPrint(
-      '[FloorUsageAssessment] Fetching property type multiplier for floorType=$floorTypeId...',
-    );
+    // debugPrint(
+      // '[FloorUsageAssessment] Fetching property type multiplier for floorType=$floorTypeId...',
+    // );
     try {
       final multiplier =
           await ApiService.getPropertyTypeMultiplier(floorTypeId);
-      debugPrint(
-        '[FloorUsageAssessment] getPropertyTypeMultiplier($floorTypeId) -> $multiplier',
-      );
+      // debugPrint(
+        // '[FloorUsageAssessment] getPropertyTypeMultiplier($floorTypeId) -> $multiplier',
+      // );
       if (!mounted) return;
       setState(() {
         _propertyTypeMultiplier = multiplier;
         _isLoadingMultiplier = false;
       });
     } catch (e) {
-      debugPrint(
-        '[FloorUsageAssessment] getPropertyTypeMultiplier($floorTypeId) error: $e',
-      );
+      // debugPrint(
+        // '[FloorUsageAssessment] getPropertyTypeMultiplier($floorTypeId) error: $e',
+      // );
       if (!mounted) return;
       setState(() {
         _multiplierError = e.toString().replaceFirst('Exception: ', '');
