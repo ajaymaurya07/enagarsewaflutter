@@ -741,6 +741,8 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
 
       setState(() => _isLoading = false);
 
+      debugPrint('[PaymentTxnAjay] _handlePayuTransaction error -> $response');
+
       if (response.status == true) {
         await StorageService.savePayuMobileTransactionId(
           request.mobileTransactionId,
@@ -1114,9 +1116,9 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
           PayUPaymentParamKey.ios_furl: furl,
           PayUPaymentParamKey.environment: txnData.resolvedPayuEnvironment,
           PayUPaymentParamKey.userCredential: '$key:$email',
-          // PayUPaymentParamKey.additionalParam: {
-          //   PayUAdditionalParamKeys.udf1: txnData.ulbId ?? '',
-          // },
+          PayUPaymentParamKey.additionalParam: {
+            PayUAdditionalParamKeys.udf1: txnData.ulbId ?? '',
+          },
         };
 
         final payUCheckoutProConfig = <String, dynamic>{
