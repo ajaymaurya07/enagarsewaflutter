@@ -167,8 +167,12 @@ class _AssessmentStep2ScreenState extends State<AssessmentStep2Screen> {
           ),
         ),
       );
-      if (!mounted) return;
-      Navigator.pop(context, result ?? true);
+      // Step3 is only ever popped by an abort (Close Assessment / Done),
+      // which uses popUntil(isFirst) to unwind the whole flow in one go and
+      // resolves this await with a null result. Self-popping here too would
+      // race that popUntil loop and pop whatever route it had already
+      // unwound to (e.g. the dashboard), leaving a blank screen.
+      if (result != null && mounted) Navigator.pop(context, result);
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);

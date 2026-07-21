@@ -408,14 +408,7 @@ class _AssessmentDocumentUploadScreenState
               height: 48,
               child: ElevatedButton(
                 onPressed: () {
-                  
-                  // debugPrint('[DocUpload] Done tapped -> popUntil(isFirst).');
-                 int count = 0;
-
-  Navigator.popUntil(context, (route) {
-    return count++ == 4;
-  });
-                  // debugPrint('[DocUpload] popUntil(isFirst) returned.');
+                  Navigator.of(context).popUntil((route) => route.isFirst);
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _primaryColor,
