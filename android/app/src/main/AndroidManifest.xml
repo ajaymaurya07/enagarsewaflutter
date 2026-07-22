@@ -18,7 +18,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application tools:replace="android:label"
-        android:label="enagarsewa"
+        android:label="eNagarSewa"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:allowBackup="false"
