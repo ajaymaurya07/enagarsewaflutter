@@ -14,7 +14,22 @@
       "Skill(artifact-design:*)",
       "Bash(find / -iname \"PayUConstantKeys.dart\" 2>/dev/null | head -5)",
       "Read(//d//**)",
-      "Bash(python \"C:\\\\Users\\\\maury\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\d--flutter-app\\\\aa3c6e40-0b43-4e99-bb78-10521bed7a17\\\\scratchpad\\\\comment_debugprint.py\")"
+      "Bash(python \"C:\\\\Users\\\\maury\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\d--flutter-app\\\\aa3c6e40-0b43-4e99-bb78-10521bed7a17\\\\scratchpad\\\\comment_debugprint.py\")",
+      "Bash(xargs grep -l \"ic_launcher\\\\|adaptive\")",
+      "Bash(python3 -c \"import PIL\")",
+      "Bash(pip3 list *)",
+      "Bash(\"/c/Users/maury/AppData/Local/Programs/Python/Python312/python\" -c \"import PIL; print\\(PIL.__version__\\)\")",
+      "Bash(\"/c/Users/maury/AppData/Local/Programs/Python/Python312/python\" -m pip install --quiet Pillow)",
+      "Bash(find / -ipath \"*flutter_launcher_icons*/README.md\" 2>/dev/null | head -5; find \"$HOME\" \"/c/Users/maury\" -ipath \"*pub-cache*flutter_launcher_icons*\" -maxdepth 6 2>/dev/null | head -20)",
+      "Read(//c/Users/maury/**)",
+      "Bash(rm -f android/app/src/main/res/mipmap-*/ic_launcher_adaptive_back.png android/app/src/main/res/mipmap-*/ic_launcher_adaptive_fore.png android/app/src/main/res/mipmap-*/ic_launcher_round_adaptive_back.png android/app/src/main/res/mipmap-*/ic_launcher_round_adaptive_fore.png *)",
+      "Bash(dart run *)",
+      "Bash(/c/Users/maury/AppData/Local/Programs/Python/Python312/python -c ' *)",
+      "Read(//c/Users/maury/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_launcher_icons-0.14.4/lib/**)",
+      "Bash(certutil -hashfile assets/icons/android_adaptive_foreground.png MD5)"
+    ],
+    "additionalDirectories": [
+      "D:\\flutter-app\\android\\app\\src\\main\\res\\mipmap-*"
     ]
   }
 }

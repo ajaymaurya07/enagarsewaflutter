@@ -22,6 +22,7 @@ class MainActivity : FlutterActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Prevent screenshots and screen recording across all screens.
+        // TODO : secure flag
         window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
     }
 
