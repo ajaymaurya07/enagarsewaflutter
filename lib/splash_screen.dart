@@ -3,7 +3,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:in_app_update/in_app_update.dart';
-import 'login_screen.dart';
+import 'otp_login_screen.dart';
 import 'search_property_screen.dart';
 import 'dashboard_screen.dart';
 import 'services/storage_service.dart';
@@ -266,7 +266,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       }
     } else {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        MaterialPageRoute(builder: (context) => const OtpLoginScreen()),
       );
     }
   }

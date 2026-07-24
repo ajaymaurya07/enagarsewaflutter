@@ -11,7 +11,7 @@ import 'database_service.dart';
 import 'integrity_service.dart';
 import 'pinned_http_client.dart';
 import '../constants/app_constants.dart';
-import '../login_screen.dart';
+import '../otp_login_screen.dart';
 
 class ApiService {
   static GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -37,7 +37,7 @@ class ApiService {
   static bool _isHandlingSessionExpiry = false;
 
   /// True while a 403/expired-session teardown is replacing the entire
-  /// navigator stack with LoginScreen. Other code that also performs a
+  /// navigator stack with OtpLoginScreen. Other code that also performs a
   /// full-stack navigation (e.g. exiting an assessment/reassessment flow)
   /// should skip its own navigation while this is true, to avoid two
   /// concurrent Navigator stack mutations racing each other.
@@ -48,16 +48,16 @@ class ApiService {
       // debugPrint('[SessionExpired] Already handling session expiry, skipping duplicate call.');
       return;
     }
-    // debugPrint('[SessionExpired] Triggered — tearing down session and navigating to LoginScreen.');
+    // debugPrint('[SessionExpired] Triggered — tearing down session and navigating to OtpLoginScreen.');
     _isHandlingSessionExpiry = true;
     try {
       await DatabaseService.clearDatabase();
       await StorageService.logout();
 
       if (navigatorKey.currentState != null) {
-        // debugPrint('[SessionExpired] Calling pushAndRemoveUntil(LoginScreen).');
+        // debugPrint('[SessionExpired] Calling pushAndRemoveUntil(OtpLoginScreen).');
         navigatorKey.currentState!.pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          MaterialPageRoute(builder: (context) => const OtpLoginScreen()),
           (route) => false,
         );
       } else {
@@ -1886,6 +1886,78 @@ class ApiService {
       }
     } catch (e) {
       rethrow;
+    }
+  }
+
+  // OTP Login - Send OTP (mobile-number based citizen login, unauthenticated)
+  static Future<OtpLoginSendOtpResponse> otpLoginSendOtp(String mobileNo) async {
+    try {
+      final deviceId = await DeviceService.getDeviceId();
+      final headers = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'X-App-Version': AppConstants.apiVersion,
+        'X-Device-Id': deviceId,
+      };
+
+      final response = await _post(
+            Uri.parse('${AppConstants.baseUrl}api/Otp_login/send_otp'),
+            headers: headers,
+            body: jsonEncode({'mobile_no': mobileNo}),
+          )
+          .timeout(Duration(seconds: AppConstants.networkTimeout));
+
+      if (response.statusCode == 200) {
+        return OtpLoginSendOtpResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Failed to send OTP: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw _userSafeException(e);
+    }
+  }
+
+  // OTP Login - Verify OTP. On success, persists the returned session tokens.
+  static Future<OtpLoginVerifyOtpResponse> otpLoginVerifyOtp(
+    String mobileNo,
+    String otp,
+  ) async {
+    try {
+      final deviceId = await DeviceService.getDeviceId();
+      final headers = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'X-App-Version': AppConstants.apiVersion,
+        'X-Device-Id': deviceId,
+      };
+
+      final response = await _post(
+            Uri.parse('${AppConstants.baseUrl}api/Otp_login/verify_otp'),
+            headers: headers,
+            body: jsonEncode({'mobile_no': mobileNo, 'otp': otp}),
+          )
+          .timeout(Duration(seconds: AppConstants.networkTimeout));
+
+      if (response.statusCode == 200) {
+        final result = OtpLoginVerifyOtpResponse.fromJson(jsonDecode(response.body));
+        if (result.status && result.data != null) {
+          await StorageService.saveLoginData(
+            SignIn(
+              accessToken: result.data!.accessToken,
+              refreshToken: result.data!.refreshToken,
+              emailId: result.data!.emailId,
+              userType: result.data!.userType,
+            ),
+          );
+        }
+        return result;
+      } else {
+        throw Exception('OTP verification failed: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw _userSafeException(e);
     }
   }
 
@@ -3869,6 +3941,88 @@ class VerifyOtpResponse {
       message: json['message'],
       userId: json['userId'],
       responseCode: json['responseCode'],
+    );
+  }
+}
+
+class OtpLoginSendOtpResponse {
+  final bool status;
+  final int? responseCode;
+  final String message;
+  final String? maskedMobile;
+  final int? expiresInSeconds;
+
+  OtpLoginSendOtpResponse({
+    required this.status,
+    this.responseCode,
+    required this.message,
+    this.maskedMobile,
+    this.expiresInSeconds,
+  });
+
+  factory OtpLoginSendOtpResponse.fromJson(Map<String, dynamic> json) {
+    final data = json['data'] as Map<String, dynamic>?;
+    final rawExpiry = data?['expiresInSeconds'];
+    return OtpLoginSendOtpResponse(
+      status: json['status'] == true,
+      responseCode: json['responseCode'],
+      message: json['message']?.toString() ?? '',
+      maskedMobile: data?['maskedMobile']?.toString(),
+      expiresInSeconds: rawExpiry is int ? rawExpiry : int.tryParse(rawExpiry?.toString() ?? ''),
+    );
+  }
+}
+
+class OtpLoginVerifyOtpResponse {
+  final bool status;
+  final int? responseCode;
+  final String message;
+  final OtpLoginData? data;
+
+  OtpLoginVerifyOtpResponse({
+    required this.status,
+    this.responseCode,
+    required this.message,
+    this.data,
+  });
+
+  factory OtpLoginVerifyOtpResponse.fromJson(Map<String, dynamic> json) {
+    return OtpLoginVerifyOtpResponse(
+      status: json['status'] == true,
+      responseCode: json['responseCode'],
+      message: json['message']?.toString() ?? '',
+      data: json['data'] != null
+          ? OtpLoginData.fromJson(json['data'] as Map<String, dynamic>)
+          : null,
+    );
+  }
+}
+
+class OtpLoginData {
+  final String? accessToken;
+  final String? refreshToken;
+  final String? emailId;
+  final String? userType;
+  final String? ulbId;
+  final String? loginVia;
+
+  OtpLoginData({
+    this.accessToken,
+    this.refreshToken,
+    this.emailId,
+    this.userType,
+    this.ulbId,
+    this.loginVia,
+  });
+
+  factory OtpLoginData.fromJson(Map<String, dynamic> json) {
+    return OtpLoginData(
+      accessToken: json['access_token']?.toString(),
+      refreshToken: json['refresh_token']?.toString(),
+      emailId: json['email_id']?.toString(),
+      userType: json['user_type']?.toString(),
+      ulbId: json['ulbid']?.toString(),
+      loginVia: json['login_via']?.toString(),
     );
   }
 }

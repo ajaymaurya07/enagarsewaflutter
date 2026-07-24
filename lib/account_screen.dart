@@ -6,7 +6,7 @@ import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 import 'services/storage_service.dart';
 import 'services/api_service.dart';
 import 'services/database_service.dart';
-import 'login_screen.dart';
+import 'otp_login_screen.dart';
 import 'tour_guides/account_tour.dart';
 
 class AccountScreen extends StatefulWidget {
@@ -211,7 +211,7 @@ class _AccountScreenState extends State<AccountScreen> {
         // Navigate to Login Screen
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          MaterialPageRoute(builder: (context) => const OtpLoginScreen()),
           (route) => false,
         );
       }

@@ -7,7 +7,7 @@ import 'services/email_service.dart';
 import 'services/api_service.dart';
 import 'widgets/info_label.dart';
 import 'help/signup_help.dart';
-import 'login_screen.dart';
+import 'otp_login_screen.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -901,7 +901,7 @@ class _SignUpScreenState extends State<SignUpScreen>
                 Navigator.pop(ctx); // close dialog
                 Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  MaterialPageRoute(builder: (_) => const OtpLoginScreen()),
                 );
               },
               child: Text(
@@ -916,7 +916,7 @@ class _SignUpScreenState extends State<SignUpScreen>
         ),
       );
 
-      // Dialog handles navigation to LoginScreen on OK tap.
+      // Dialog handles navigation to OtpLoginScreen on OK tap.
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
