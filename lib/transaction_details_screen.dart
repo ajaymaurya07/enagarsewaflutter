@@ -184,7 +184,6 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
     rows.add(['ULB Name', txn.ulbName ?? 'null']);
     rows.add(['ULB Type', txn.ulbType ?? 'null']);
     rows.add(['Financial Year', txn.financialYear ?? 'null']);
-    rows.add(['Bill Date', txn.billDate ?? 'null']);
     rows.add(['Transaction Number', txn.txnId ?? 'null']);
     rows.add(['Property ID.', txn.propertyId ?? 'null']);
     rows.add(['Transaction Date', txn.dateTime ?? 'null']);
@@ -491,7 +490,6 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
           _buildReceiptRow('ULB Name', txn.ulbName ?? 'null'),
           _buildReceiptRow('ULB Type', txn.ulbType ?? 'null'),
           _buildReceiptRow('Financial Year', txn.financialYear ?? 'null'),
-          _buildReceiptRow('Bill Date', txn.billDate ?? 'null'),
           _buildReceiptRow('Transaction Number', txn.txnId ?? 'null'),
           _buildReceiptRow('Property ID', txn.propertyId ?? 'null'),
           _buildReceiptRow('Transaction Date', txn.dateTime ?? 'null'),
