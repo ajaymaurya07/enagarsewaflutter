@@ -252,6 +252,7 @@ class ApiService {
     required String email,
     required String address,
     required String propertyId,
+    String? emailAddress,
     File? imageFile,
   }) async {
     try {
@@ -286,6 +287,9 @@ class ApiService {
       request.fields['email'] = email;
       request.fields['address'] = address;
       request.fields['propertyId'] = propertyId;
+      if (emailAddress != null) {
+        request.fields['email_address'] = emailAddress;
+      }
 
       // File
       if (imageFile != null) {

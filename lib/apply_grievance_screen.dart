@@ -53,6 +53,7 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _fatherNameController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
+  final TextEditingController _userEmailController = TextEditingController();
 
   // Location Details
   UlbData? _selectedUlb;
@@ -588,6 +589,22 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
                     enabled: false,
                     isLanguageSensitive: true,
                   ),
+                  _buildTextField(
+                    'Email Address',
+                    _userEmailController,
+                    keyboardType: TextInputType.emailAddress,
+                    isRequired: true,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Please enter Email Address';
+                      }
+                      final emailRegex = RegExp(r'^[\w\.\-]+@([\w\-]+\.)+[\w\-]{2,}$');
+                      if (!emailRegex.hasMatch(value.trim())) {
+                        return 'Please enter a valid Email Address';
+                      }
+                      return null;
+                    },
+                  ),
 
                   const SizedBox(height: 24),
                   _buildSectionTitle(
@@ -968,6 +985,7 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
     bool isLanguageSensitive = false,
     String? helpTitle,
     String? helpMessage,
+    String? Function(String?)? validator,
   }) {
     final useKrutidev = !enabled && isLanguageSensitive && _isKrutidev;
     return Padding(
@@ -991,14 +1009,15 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
                 fontSize: 14,
                 color: enabled ? _textPrimaryColor : _hintColor,
               ),
-        validator: isRequired
-            ? (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Please enter $label';
-                }
-                return null;
-              }
-            : null,
+        validator: validator ??
+            (isRequired
+                ? (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please enter $label';
+                    }
+                    return null;
+                  }
+                : null),
         decoration: InputDecoration(
           labelText: label,
           labelStyle: GoogleFonts.poppins(color: _hintColor, fontSize: 14),
@@ -1197,6 +1216,7 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
           email: _emailController.text.trim(),
           address: _addressController.text.trim(),
           propertyId: _selectedProperty!.propertyId,
+          emailAddress: _userEmailController.text.trim(),
           imageFile: _selectedImage,
         ),
         responseCode: (r) => r.responseCode,
