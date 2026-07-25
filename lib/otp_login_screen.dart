@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'search_property_screen.dart';
 import 'services/api_service.dart';
+import 'sign_up_02.dart';
 
 /// Modern OTP-based login screen.
 ///
@@ -296,6 +297,34 @@ class _OtpLoginScreenState extends State<OtpLoginScreen> {
                     ),
                   ),
                 ),
+                if (_step == _OtpLoginStep.mobileEntry) ...[
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        "Don't have an account? ",
+                        style: GoogleFonts.poppins(color: Colors.grey.shade600, fontSize: 14),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const SignUp02Screen()),
+                          );
+                        },
+                        child: Text(
+                          'Sign Up',
+                          style: GoogleFonts.poppins(
+                            color: _primaryColor,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 24),
               ],
             ),

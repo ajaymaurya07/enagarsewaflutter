@@ -945,7 +945,7 @@ class _SignUp02ScreenState extends State<SignUp02Screen>
 
                               // Email
                               const InfoLabel(
-                                label: 'Email ID',
+                                label: 'Email ID (Optional)',
                                 helpTitle: SignUpHelp.emailTitle,
                                 helpMessage: SignUpHelp.emailMessage,
                               ),
@@ -961,8 +961,18 @@ class _SignUp02ScreenState extends State<SignUp02Screen>
                                 ],
                                 style: GoogleFonts.poppins(fontSize: 14),
                                 decoration: _inputDecoration(
-                                  hint: 'Enter your email',
+                                  hint: 'Enter your email (optional)',
                                 ).copyWith(counterText: ''),
+                                validator: (v) {
+                                  final value = v?.trim() ?? '';
+                                  if (value.isEmpty) return null;
+                                  if (!RegExp(
+                                          r'^[\w\.\-\+]+@[\w\-]+\.[a-zA-Z]{2,}$')
+                                      .hasMatch(value)) {
+                                    return 'Please enter a valid email address';
+                                  }
+                                  return null;
+                                },
                               ),
                               const SizedBox(height: 20),
 
