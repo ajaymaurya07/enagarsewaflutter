@@ -185,14 +185,17 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
     rows.add(['ULB Type', txn.ulbType ?? 'null']);
     rows.add(['Financial Year', txn.financialYear ?? 'null']);
     rows.add(['Transaction Number', txn.txnId ?? 'null']);
+    rows.add(['Bill No', txn.billNo ?? 'null']);
     rows.add(['Property ID.', txn.propertyId ?? 'null']);
     rows.add(['Transaction Date', txn.dateTime ?? 'null']);
     rows.add(['Payment Status', status.isNotEmpty ? status : 'UNKNOWN']);
+    rows.add(['Payment Mode', txn.paymentMode ?? 'null']);
+    rows.add(['Bank Ref No', txn.bankRefNo ?? 'null']);
     rows.add(['User Code', txn.userCode ?? 'null']);
     rows.add(['Owner Name', txn.ownerName ?? 'null']);
     rows.add(['Father/Husband Name', txn.fatherName ?? 'null']);
     rows.add(['Address', txn.address ?? 'null']);
-    rows.add(['Fees(Rs.)', txn.paymentAmount ?? 'null']);
+    rows.add(['Payment Amount(Rs.)', txn.paymentAmount ?? 'null']);
     rows.add(['Mobile Number', txn.mobileNo ?? 'null']);
     rows.add(['Receipt No', txn.receiptNo ?? 'null']);
 
@@ -491,14 +494,17 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
           _buildReceiptRow('ULB Type', txn.ulbType ?? 'null'),
           _buildReceiptRow('Financial Year', txn.financialYear ?? 'null'),
           _buildReceiptRow('Transaction Number', txn.txnId ?? 'null'),
+          _buildReceiptRow('Bill No', txn.billNo ?? 'null'),
           _buildReceiptRow('Property ID', txn.propertyId ?? 'null'),
           _buildReceiptRow('Transaction Date', txn.dateTime ?? 'null'),
           _buildReceiptRow('Payment Status', status.isNotEmpty ? status : 'UNKNOWN'),
+          _buildReceiptRow('Payment Mode', txn.paymentMode ?? 'null'),
+          _buildReceiptRow('Bank Ref No', txn.bankRefNo ?? 'null'),
           _buildReceiptRow('User Code', txn.userCode ?? 'null'),
           _buildReceiptRow('Owner Name', txn.ownerName ?? 'null', isLanguageSensitive: true),
           _buildReceiptRow('Father/Husband Name', txn.fatherName ?? 'null', isLanguageSensitive: true),
           _buildReceiptRow('Address', txn.address ?? 'null', isLanguageSensitive: true),
-          _buildReceiptRow('Fees(Rs.)', txn.paymentAmount ?? 'null'),
+          _buildReceiptRow('Payment Amount(Rs.)', txn.paymentAmount ?? 'null'),
           _buildReceiptRow('Mobile Number', txn.mobileNo ?? 'null'),
           _buildReceiptRow('Receipt No', txn.receiptNo ?? 'null'),
 

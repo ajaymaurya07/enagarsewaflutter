@@ -21,7 +21,7 @@ class IntegrityService {
       '${AppConstants.baseUrl}api/Play_integrity/get_nonce';
 
 // TODO: Set to false when the backend verify-integrity API goes live.
-  static const bool _devMode = false; // PLAY INTEGRITY ENABLED
+  static const bool _devMode = true; // PLAY INTEGRITY ENABLED
 
   // ─── Public API ────────────────────────────────────────────────────────────
 
