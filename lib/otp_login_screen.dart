@@ -371,6 +371,7 @@ class _OtpLoginScreenState extends State<OtpLoginScreen> {
             hintText: 'Enter 10-digit mobile number',
             counterText: '',
             errorText: _mobileError,
+            errorMaxLines: 4,
             hintStyle: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade400),
             prefixIcon: const Icon(Icons.phone_android_outlined, color: _primaryColor, size: 20),
             filled: true,

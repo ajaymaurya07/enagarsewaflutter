@@ -33,23 +33,12 @@ class _SignUpVerifyScreenState extends State<SignUpVerifyScreen>
   late final _mobileController =
       TextEditingController(text: widget.initialMobile);
   final _captchaController = TextEditingController();
-  final _mobileOtpController = TextEditingController();
-  final _emailOtpController = TextEditingController();
 
   String? _captchaId;
   Uint8List? _captchaImageBytes;
   bool _loadingCaptcha = false;
   bool _isSubmitting = false;
   String? _errorMessage;
-
-  // Set once the resend_otp call succeeds and OTP entry is shown.
-  bool _showOtpStep = false;
-  bool _mobileOtpRequired = false;
-  bool _emailOtpRequired = false;
-  String? _mobile;
-  String? _otpInfoMessage;
-  bool _isVerifyingOtp = false;
-  String? _otpError;
 
   @override
   void initState() {
@@ -62,8 +51,6 @@ class _SignUpVerifyScreenState extends State<SignUpVerifyScreen>
   void dispose() {
     _mobileController.dispose();
     _captchaController.dispose();
-    _mobileOtpController.dispose();
-    _emailOtpController.dispose();
     super.dispose();
   }
 
@@ -115,6 +102,12 @@ class _SignUpVerifyScreenState extends State<SignUpVerifyScreen>
         captcha: captcha,
       );
 
+debugPrint("status: ${result.status}");
+debugPrint("responseCode: ${result.responseCode}");
+debugPrint("message: ${result.message}");
+debugPrint("mobileOtpSent: ${result.mobileOtpSent}");
+debugPrint("emailOtpSent: ${result.emailOtpSent}");
+debugPrint("registrationComplete: ${result.registrationComplete}");
       if (result.responseCode == 9) {
         if (!mounted) return;
         setState(() {
@@ -139,11 +132,11 @@ class _SignUpVerifyScreenState extends State<SignUpVerifyScreen>
         return;
       }
 
-      _startOtpStep(
+      await _handleOtpSequence(
         mobile: mobile,
+        mobileOtpSent: result.mobileOtpSent == true,
+        emailOtpSent: result.emailOtpSent == true,
         message: result.message,
-        mobileOtpRequired: result.mobileOtpRequired == true,
-        emailOtpRequired: result.emailOtpRequired == true,
       );
     } catch (e) {
       if (!mounted) return;
@@ -161,95 +154,70 @@ class _SignUpVerifyScreenState extends State<SignUpVerifyScreen>
     }
   }
 
-  void _startOtpStep({
+  /// Drives the mobile -> email OTP dialogs based on what the resend_otp
+  /// call reported it actually sent. Mirrors the sign-up screen's flow:
+  /// - mobile OTP sent -> show the mobile OTP sheet first.
+  ///   - if an email OTP was also sent, follow with the email OTP sheet and
+  ///     report "Registration Successful" once that's verified.
+  ///   - otherwise report the mobile verification's own completion message.
+  /// - only an email OTP sent -> show just the email OTP sheet.
+  /// - neither sent -> registration was already complete.
+  Future<void> _handleOtpSequence({
     required String mobile,
+    required bool mobileOtpSent,
+    required bool emailOtpSent,
     required String? message,
-    required bool mobileOtpRequired,
-    required bool emailOtpRequired,
-  }) {
-    if (!mobileOtpRequired && !emailOtpRequired) {
-      showSuccessAndGoBack(
-        message ?? 'Registration Successful',
-        title: 'Registration Successful',
+  }) async {
+    if (mobileOtpSent) {
+      if (!mounted) return;
+      final mobileOtpResult = await showOtpBottomSheet(
+        title: 'Verify Mobile OTP',
+        subtitle: message ?? 'OTP sent to your mobile number',
+        highlightText: mobile,
+        mobileNo: mobile,
+        onVerify: (otp) => ApiService.verifyCitizenOtp(
+          mobileNo: mobile,
+          otp: otp,
+        ),
       );
-      return;
-    }
+      if (mobileOtpResult == null) return;
 
-    setState(() {
-      _showOtpStep = true;
-      _mobile = mobile;
-      _mobileOtpRequired = mobileOtpRequired;
-      _emailOtpRequired = emailOtpRequired;
-      _otpInfoMessage = message;
-      _otpError = null;
-    });
-  }
-
-  Future<void> _verifyOtps() async {
-    final mobileOtp = _mobileOtpController.text.trim();
-    final emailOtp = _emailOtpController.text.trim();
-
-    if (_mobileOtpRequired && mobileOtp.isEmpty) {
-      setState(() => _otpError = 'Please enter the mobile OTP');
-      return;
-    }
-    if (_emailOtpRequired && emailOtp.isEmpty) {
-      setState(() => _otpError = 'Please enter the email OTP');
-      return;
-    }
-
-    setState(() {
-      _isVerifyingOtp = true;
-      _otpError = null;
-    });
-
-    try {
-      if (_mobileOtpRequired) {
-        final mobileResult = await ApiService.verifyCitizenOtp(
-          mobileNo: _mobile!,
-          otp: mobileOtp,
+      if (!emailOtpSent) {
+        if (!mounted) return;
+        showSuccessAndGoBack(
+          mobileOtpResult.message ?? 'Registration complete!',
         );
-        if (mobileResult.status != true) {
-          if (!mounted) return;
-          setState(() {
-            _isVerifyingOtp = false;
-            _otpError = mobileResult.message ?? 'Mobile OTP verification failed.';
-          });
-          return;
-        }
+        return;
       }
+    }
 
-      if (_emailOtpRequired) {
-        final emailResult = await ApiService.verifyOtpEmail(
+    if (emailOtpSent) {
+      if (!mounted) return;
+      final emailOtpResult = await showOtpBottomSheet(
+        title: 'Verify Email OTP',
+        subtitle: 'OTP sent to your email',
+        highlightText: widget.email,
+        mobileNo: mobile,
+        onVerify: (otp) => ApiService.verifyOtpEmail(
           email: widget.email,
-          otp: emailOtp,
-        );
-        if (emailResult.status != true) {
-          if (!mounted) return;
-          setState(() {
-            _isVerifyingOtp = false;
-            _otpError = emailResult.message ?? 'Email OTP verification failed.';
-          });
-          return;
-        }
-      }
+          otp: otp,
+        ),
+      );
+      if (emailOtpResult == null) return;
 
       if (!mounted) return;
-      setState(() => _isVerifyingOtp = false);
       showSuccessAndGoBack(
-        'Registration Successful',
+        emailOtpResult.message ?? 'Registration Successful',
         title: 'Registration Successful',
       );
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _isVerifyingOtp = false;
-        _otpError = ApiService.getUserFriendlyErrorMessage(
-          e,
-          fallbackMessage: 'Unable to verify OTP. Please try again.',
-        );
-      });
+      return;
     }
+
+    if (!mounted) return;
+    showSuccessAndGoBack(
+      message ?? 'Registration Successful',
+      title: 'Registration Successful',
+    );
   }
 
   @override
@@ -269,7 +237,7 @@ class _SignUpVerifyScreenState extends State<SignUpVerifyScreen>
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
-          child: _showOtpStep ? _buildOtpStep() : _buildCaptchaStep(),
+          child: _buildCaptchaStep(),
         ),
       ),
     );
@@ -400,93 +368,6 @@ class _SignUpVerifyScreenState extends State<SignUpVerifyScreen>
                 ),
               ),
             ],
-    );
-  }
-
-  Widget _buildOtpStep() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Icon(Icons.mark_email_read_rounded,
-            color: Color(0xFFE67514), size: 40),
-        const SizedBox(height: 16),
-        Text(
-          _otpInfoMessage ?? 'Enter the OTP(s) below to complete registration.',
-          style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade600),
-        ),
-        if (_mobileOtpRequired) ...[
-          const SizedBox(height: 24),
-          Text('Mobile OTP',
-              style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 4),
-          Text('OTP sent to $_mobile',
-              style: GoogleFonts.poppins(
-                  fontSize: 12, color: Colors.grey.shade600)),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _mobileOtpController,
-            enabled: !_isVerifyingOtp,
-            keyboardType: TextInputType.number,
-            maxLength: 6,
-            style: GoogleFonts.poppins(
-                fontSize: 18, letterSpacing: 4, fontWeight: FontWeight.bold),
-            decoration: otpFlowInputDecoration(hint: '------')
-                .copyWith(counterText: ''),
-          ),
-        ],
-        if (_emailOtpRequired) ...[
-          const SizedBox(height: 24),
-          Text('Email OTP',
-              style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 4),
-          Text('OTP sent to ${widget.email}',
-              style: GoogleFonts.poppins(
-                  fontSize: 12, color: Colors.grey.shade600)),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _emailOtpController,
-            enabled: !_isVerifyingOtp,
-            keyboardType: TextInputType.number,
-            maxLength: 6,
-            style: GoogleFonts.poppins(
-                fontSize: 18, letterSpacing: 4, fontWeight: FontWeight.bold),
-            decoration: otpFlowInputDecoration(hint: '------')
-                .copyWith(counterText: ''),
-          ),
-        ],
-        if (_otpError != null) ...[
-          const SizedBox(height: 8),
-          Text(_otpError!,
-              style: GoogleFonts.poppins(
-                  fontSize: 12,
-                  color: Colors.red.shade600,
-                  fontWeight: FontWeight.w500)),
-        ],
-        const SizedBox(height: 28),
-        SizedBox(
-          width: double.infinity,
-          height: 52,
-          child: ElevatedButton(
-            onPressed: _isVerifyingOtp ? null : _verifyOtps,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFE67514),
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            child: _isVerifyingOtp
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white)))
-                : Text('Verify OTP',
-                    style: GoogleFonts.poppins(
-                        fontWeight: FontWeight.w600, fontSize: 16)),
-          ),
-        ),
-      ],
     );
   }
 }
