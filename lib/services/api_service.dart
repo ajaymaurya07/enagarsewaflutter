@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
@@ -1314,6 +1315,269 @@ class ApiService {
     }
   }
 
+  // New Water & Sewerage Connection - Fetch Pipe Size
+  // The applicable pipe size (in mm) is derived by the backend from the
+  // connection category and the plot area, so it is fetched rather than picked.
+  static Future<PipeSizeResponse> getPipeSize({
+    required String categoryConnection,
+    required String plotArea,
+  }) async {
+    final requestBody = {
+      'categoryConnection': categoryConnection,
+      'plotArea': plotArea,
+    };
+    debugPrint('[FetchPipeSize] Request -> ${json.encode(requestBody)}');
+
+    try {
+      final response = await _makeAuthenticatedRequest(
+        (headers) {
+          debugPrint('[FetchPipeSize] Authorization -> ${headers['Authorization']}');
+          debugPrint('[FetchPipeSize] Device Id -> ${headers['X-Device-Id']}');
+          return _post(
+                Uri.parse('${AppConstants.baseUrl}api/House_tax/fetchPipeSize'),
+                headers: headers,
+                body: json.encode(requestBody),
+              )
+              .timeout(Duration(seconds: AppConstants.networkTimeout));
+        },
+      );
+
+      debugPrint(
+        '[FetchPipeSize] Response (${response.statusCode}) -> ${response.body}',
+      );
+
+      if (response.statusCode == 200) {
+        return PipeSizeResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('[FetchPipeSize] Error -> $e');
+      throw _userSafeException(e);
+    }
+  }
+
+  // New Water & Sewerage Connection - Submit Application (Multipart)
+  //
+  // Every application detail is a flat form-data text field; the three
+  // documents are file parts.
+  static Future<SubmitConnectionResponse> submitConnection({
+    required String applicantName,
+    required String relationType,
+    required String fatherHusbandName,
+    required String mobileNo,
+    required String newZoneId,
+    required String newWardId,
+    required String newMohallaId,
+    required String newPlotNo,
+    required String newStreet,
+    required String newLandmark,
+    required String corrZoneId,
+    required String corrWardId,
+    required String corrMohallaId,
+    required String corrPlotNo,
+    required String corrStreet,
+    required String corrLandmark,
+    required String connectionType,
+    required String connectionRequirement,
+    required String propertyId,
+    required String plotArea,
+    required String connectionCategory,
+    required String pipeSize,
+    required String idProofType,
+    required String propertyProofType,
+    required File selfPhoto,
+    required File idProofDocument,
+    required File propertyProofDocument,
+  }) async {
+    try {
+      final response = await _makeAuthenticatedMultipartRequest((headers) async {
+        debugPrint('[SubmitWaterConnection] Authorization -> ${headers['Authorization']}');
+        debugPrint('[SubmitWaterConnection] Device Id -> ${headers['X-Device-Id']}');
+
+        final request = http.MultipartRequest(
+          'POST',
+          Uri.parse('${AppConstants.baseUrl}api/House_tax/submitWaterConnection'),
+        );
+
+        request.fields.addAll({
+          'applicantName': applicantName,
+          'relationType': relationType,
+          'fatherHusbandName': fatherHusbandName,
+          'mobileNo': mobileNo,
+          'newZoneId': newZoneId,
+          'newWardId': newWardId,
+          'newMohallaId': newMohallaId,
+          'newPlotNo': newPlotNo,
+          'newStreet': newStreet,
+          'newLandmark': newLandmark,
+          'corrZoneId': corrZoneId,
+          'corrWardId': corrWardId,
+          'corrMohallaId': corrMohallaId,
+          'corrPlotNo': corrPlotNo,
+          'corrStreet': corrStreet,
+          'corrLandmark': corrLandmark,
+          'connectionType': connectionType,
+          'connectionRequirement': connectionRequirement,
+          'propertyId': propertyId,
+          'plotArea': plotArea,
+          'connectionCategory': connectionCategory,
+          'pipeSize': pipeSize,
+          'idProofType': idProofType,
+          'propertyProofType': propertyProofType,
+        });
+
+        request.files.add(
+          await http.MultipartFile.fromPath('selfPhoto', selfPhoto.path),
+        );
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'idProofDocument',
+            idProofDocument.path,
+          ),
+        );
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'propertyProofDocument',
+            propertyProofDocument.path,
+          ),
+        );
+
+        debugPrint('[SubmitWaterConnection] Request -> ${json.encode(request.fields)}');
+        debugPrint(
+          '[SubmitWaterConnection] Files -> '
+          '${request.files.map((f) => '${f.field}=${f.filename} (${f.length} bytes)').join(', ')}',
+        );
+        return request;
+      });
+
+      debugPrint(
+        '[SubmitWaterConnection] Response (${response.statusCode}) -> ${response.body}',
+      );
+
+      if (response.statusCode == 200) {
+        return SubmitConnectionResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('[SubmitWaterConnection] Error -> $e');
+      throw _userSafeException(e);
+    }
+  }
+
+  // New Water & Sewerage Connection - Application List
+  static Future<WaterConnectionListResponse> getWaterConnectionList() async {
+    try {
+      final response = await _makeAuthenticatedRequest(
+        (headers) {
+          debugPrint('[WaterConnectionList] Authorization -> ${headers['Authorization']}');
+          debugPrint('[WaterConnectionList] Device Id -> ${headers['X-Device-Id']}');
+          return _get(
+                Uri.parse(
+                  '${AppConstants.baseUrl}api/House_tax/getWaterConnectionList',
+                ),
+                headers: headers,
+              )
+              .timeout(Duration(seconds: AppConstants.networkTimeout));
+        },
+      );
+
+      debugPrint(
+        '[WaterConnectionList] Response (${response.statusCode}) -> ${response.body}',
+      );
+
+      if (response.statusCode == 200) {
+        return WaterConnectionListResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('[WaterConnectionList] Error -> $e');
+      throw _userSafeException(e);
+    }
+  }
+
+  // New Water & Sewerage Connection - Application Details
+  //
+  // The document URLs in the response are short-lived signed links, so the
+  // details are re-fetched rather than cached when a document is opened.
+  static Future<WaterConnectionDetailsResponse> getWaterConnectionDetails({
+    required String id,
+    required String ackNo,
+  }) async {
+    final requestBody = {'id': int.tryParse(id) ?? id, 'ackNo': ackNo};
+    debugPrint('[WaterConnectionDetails] Request -> ${json.encode(requestBody)}');
+
+    try {
+      final response = await _makeAuthenticatedRequest(
+        (headers) {
+          debugPrint('[WaterConnectionDetails] Authorization -> ${headers['Authorization']}');
+          debugPrint('[WaterConnectionDetails] Device Id -> ${headers['X-Device-Id']}');
+          return _post(
+                Uri.parse(
+                  '${AppConstants.baseUrl}api/House_tax/getWaterConnectionDetails',
+                ),
+                headers: headers,
+                body: json.encode(requestBody),
+              )
+              .timeout(Duration(seconds: AppConstants.networkTimeout));
+        },
+      );
+
+      debugPrint(
+        '[WaterConnectionDetails] Response (${response.statusCode}) -> ${response.body}',
+      );
+
+      if (response.statusCode == 200) {
+        return WaterConnectionDetailsResponse.fromJson(
+          jsonDecode(response.body),
+        );
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('[WaterConnectionDetails] Error -> $e');
+      throw _userSafeException(e);
+    }
+  }
+
+  /// Downloads one of the signed document links returned by
+  /// [getWaterConnectionDetails]. The link is fetched through the pinned
+  /// client, and only the API host is accepted, so a tampered URL in the
+  /// response cannot point the app at an arbitrary server.
+  static Future<Uint8List> downloadWaterConnectionDocument(String url) async {
+    final uri = Uri.tryParse(url);
+    final apiHost = Uri.parse(AppConstants.baseUrl).host;
+    if (uri == null || uri.scheme != 'https' || uri.host != apiHost) {
+      throw Exception('This document link is not supported.');
+    }
+
+    try {
+      final client = await PinnedHttpClient.getInstance();
+      final response = await client
+          .get(uri)
+          .timeout(Duration(seconds: AppConstants.networkTimeout));
+
+      debugPrint(
+        '[WaterConnectionDocument] Response (${response.statusCode}) -> '
+        '${response.bodyBytes.length} bytes',
+      );
+
+      if (response.statusCode == 200) return response.bodyBytes;
+      // A 401/403 here means the signed link has expired rather than that the
+      // session is gone, so the app-wide session teardown is not triggered.
+      throw Exception(
+        response.statusCode == 401 || response.statusCode == 403
+            ? 'This document link has expired. Please try again.'
+            : 'Could not download the document (${response.statusCode}).',
+      );
+    } catch (e) {
+      debugPrint('[WaterConnectionDocument] Error -> $e');
+      throw _userSafeException(e);
+    }
+  }
+
   // Search Property API
   static Future<List<PropertyData>> searchProperty({
     required String ulbId,
@@ -2353,6 +2617,302 @@ class SaveGrievanceResponse {
       responseCode: json['responseCode'] ?? 0,
       message: json['message'] ?? '',
       data: rawData is String && rawData.isNotEmpty ? rawData : null,
+    );
+  }
+}
+
+class PipeSizeResponse {
+  final bool success;
+  final int responseCode;
+  final String message;
+  // Pipe size in mm (e.g. "15"), or null when the backend could not derive one.
+  final String? data;
+
+  PipeSizeResponse({
+    required this.success,
+    required this.responseCode,
+    required this.message,
+    this.data,
+  });
+
+  factory PipeSizeResponse.fromJson(Map<String, dynamic> json) {
+    final rawData = json['data'];
+    final pipeSize = rawData?.toString().trim();
+    return PipeSizeResponse(
+      success: json['success'] ?? false,
+      responseCode: json['responseCode'] ?? 0,
+      message: json['message'] ?? '',
+      data: (pipeSize != null && pipeSize.isNotEmpty) ? pipeSize : null,
+    );
+  }
+}
+
+class SubmitConnectionResponse {
+  final bool success;
+  final int responseCode;
+  final String message;
+  // Acknowledgement number (e.g. "WC05620262703550"), absent on failure.
+  final String? ackNo;
+
+  SubmitConnectionResponse({
+    required this.success,
+    required this.responseCode,
+    required this.message,
+    this.ackNo,
+  });
+
+  factory SubmitConnectionResponse.fromJson(Map<String, dynamic> json) {
+    final rawData = json['data'];
+    final ackNo = rawData is Map ? rawData['ackNo']?.toString() : null;
+    return SubmitConnectionResponse(
+      success: json['success'] ?? false,
+      responseCode: json['responseCode'] ?? 0,
+      message: json['message'] ?? '',
+      ackNo: (ackNo != null && ackNo.isNotEmpty) ? ackNo : null,
+    );
+  }
+}
+
+class WaterConnectionListItem {
+  final String id;
+  final String ackNo;
+  final String propertyId;
+  final String applicantName;
+  final String mobileNo;
+  final String connectionType;
+  final String connectionRequirement;
+  final String connectionCategory;
+  final String pipeSize;
+  final String status;
+  final String createdAt;
+
+  WaterConnectionListItem({
+    required this.id,
+    required this.ackNo,
+    required this.propertyId,
+    required this.applicantName,
+    required this.mobileNo,
+    required this.connectionType,
+    required this.connectionRequirement,
+    required this.connectionCategory,
+    required this.pipeSize,
+    required this.status,
+    required this.createdAt,
+  });
+
+  factory WaterConnectionListItem.fromJson(Map<String, dynamic> json) {
+    String value(String key) => json[key]?.toString() ?? '';
+    return WaterConnectionListItem(
+      id: value('id'),
+      ackNo: value('ack_no'),
+      propertyId: value('property_id'),
+      applicantName: value('applicant_name'),
+      mobileNo: value('mobile_no'),
+      connectionType: value('connection_type'),
+      connectionRequirement: value('connection_requirement'),
+      connectionCategory: value('connection_category'),
+      pipeSize: value('pipe_size'),
+      status: value('status'),
+      createdAt: value('created_at'),
+    );
+  }
+}
+
+class WaterConnectionListResponse {
+  final bool success;
+  final int responseCode;
+  final String message;
+  final List<WaterConnectionListItem> data;
+
+  WaterConnectionListResponse({
+    required this.success,
+    required this.responseCode,
+    required this.message,
+    required this.data,
+  });
+
+  factory WaterConnectionListResponse.fromJson(Map<String, dynamic> json) {
+    final rawData = json['data'];
+    return WaterConnectionListResponse(
+      success: json['success'] ?? false,
+      responseCode: json['responseCode'] ?? 0,
+      message: json['message'] ?? '',
+      data: rawData is List
+          ? rawData
+              .whereType<Map<String, dynamic>>()
+              .map(WaterConnectionListItem.fromJson)
+              .toList()
+          : const [],
+    );
+  }
+}
+
+/// A short-lived signed link to one of the uploaded application documents.
+class WaterConnectionDocument {
+  final String url;
+  final DateTime? expiresAt;
+
+  WaterConnectionDocument({required this.url, this.expiresAt});
+
+  bool get isExpired {
+    final expiry = expiresAt;
+    return expiry != null && DateTime.now().isAfter(expiry);
+  }
+
+  static WaterConnectionDocument? fromJson(dynamic json) {
+    if (json is! Map) return null;
+    final url = json['url']?.toString();
+    if (url == null || url.isEmpty) return null;
+    return WaterConnectionDocument(
+      url: url,
+      expiresAt: DateTime.tryParse(json['expiresAt']?.toString() ?? ''),
+    );
+  }
+}
+
+class WaterConnectionDetails {
+  final String id;
+  final String ackNo;
+  final String propertyId;
+  final String applicantName;
+  final String relationType;
+  final String fatherHusbandName;
+  final String mobileNo;
+  final String newZoneId;
+  final String newWardId;
+  final String newMohallaId;
+  final String newPlotNo;
+  final String newStreet;
+  final String newLandmark;
+  final String corrZoneId;
+  final String corrWardId;
+  final String corrMohallaId;
+  final String corrPlotNo;
+  final String corrStreet;
+  final String corrLandmark;
+  final String connectionType;
+  final String connectionRequirement;
+  final String plotArea;
+  final String connectionCategory;
+  final String pipeSize;
+  final String idProofType;
+  final String propertyProofType;
+  final String status;
+  final String responseMessage;
+  final String createdAt;
+  final String updatedAt;
+  final WaterConnectionDocument? selfPhoto;
+  final WaterConnectionDocument? idProofDocument;
+  final WaterConnectionDocument? propertyProofDocument;
+
+  WaterConnectionDetails({
+    required this.id,
+    required this.ackNo,
+    required this.propertyId,
+    required this.applicantName,
+    required this.relationType,
+    required this.fatherHusbandName,
+    required this.mobileNo,
+    required this.newZoneId,
+    required this.newWardId,
+    required this.newMohallaId,
+    required this.newPlotNo,
+    required this.newStreet,
+    required this.newLandmark,
+    required this.corrZoneId,
+    required this.corrWardId,
+    required this.corrMohallaId,
+    required this.corrPlotNo,
+    required this.corrStreet,
+    required this.corrLandmark,
+    required this.connectionType,
+    required this.connectionRequirement,
+    required this.plotArea,
+    required this.connectionCategory,
+    required this.pipeSize,
+    required this.idProofType,
+    required this.propertyProofType,
+    required this.status,
+    required this.responseMessage,
+    required this.createdAt,
+    required this.updatedAt,
+    this.selfPhoto,
+    this.idProofDocument,
+    this.propertyProofDocument,
+  });
+
+  factory WaterConnectionDetails.fromJson(Map<String, dynamic> json) {
+    // Nulls come back for fields the backend has not filled in yet (e.g.
+    // ulb_id), so every value is normalised to a plain string.
+    String value(String key) {
+      final raw = json[key];
+      return raw == null ? '' : raw.toString();
+    }
+
+    final documents = json['documents'];
+    WaterConnectionDocument? document(String key) =>
+        documents is Map ? WaterConnectionDocument.fromJson(documents[key]) : null;
+
+    return WaterConnectionDetails(
+      id: value('id'),
+      ackNo: value('ack_no'),
+      propertyId: value('property_id'),
+      applicantName: value('applicant_name'),
+      relationType: value('relation_type'),
+      fatherHusbandName: value('father_husband_name'),
+      mobileNo: value('mobile_no'),
+      newZoneId: value('new_zone_id'),
+      newWardId: value('new_ward_id'),
+      newMohallaId: value('new_mohalla_id'),
+      newPlotNo: value('new_plot_no'),
+      newStreet: value('new_street'),
+      newLandmark: value('new_landmark'),
+      corrZoneId: value('corr_zone_id'),
+      corrWardId: value('corr_ward_id'),
+      corrMohallaId: value('corr_mohalla_id'),
+      corrPlotNo: value('corr_plot_no'),
+      corrStreet: value('corr_street'),
+      corrLandmark: value('corr_landmark'),
+      connectionType: value('connection_type'),
+      connectionRequirement: value('connection_requirement'),
+      plotArea: value('plot_area'),
+      connectionCategory: value('connection_category'),
+      pipeSize: value('pipe_size'),
+      idProofType: value('id_proof_type'),
+      propertyProofType: value('property_proof_type'),
+      status: value('status'),
+      responseMessage: value('response_message'),
+      createdAt: value('created_at'),
+      updatedAt: value('updated_at'),
+      selfPhoto: document('selfPhoto'),
+      idProofDocument: document('idProofDocument'),
+      propertyProofDocument: document('propertyProofDocument'),
+    );
+  }
+}
+
+class WaterConnectionDetailsResponse {
+  final bool success;
+  final int responseCode;
+  final String message;
+  final WaterConnectionDetails? data;
+
+  WaterConnectionDetailsResponse({
+    required this.success,
+    required this.responseCode,
+    required this.message,
+    this.data,
+  });
+
+  factory WaterConnectionDetailsResponse.fromJson(Map<String, dynamic> json) {
+    final rawData = json['data'];
+    return WaterConnectionDetailsResponse(
+      success: json['success'] ?? false,
+      responseCode: json['responseCode'] ?? 0,
+      message: json['message'] ?? '',
+      data: rawData is Map<String, dynamic>
+          ? WaterConnectionDetails.fromJson(rawData)
+          : null,
     );
   }
 }

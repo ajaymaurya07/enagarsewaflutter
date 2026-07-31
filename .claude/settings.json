@@ -26,7 +26,21 @@
       "Bash(dart run *)",
       "Bash(/c/Users/maury/AppData/Local/Programs/Python/Python312/python -c ' *)",
       "Read(//c/Users/maury/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_launcher_icons-0.14.4/lib/**)",
-      "Bash(certutil -hashfile assets/icons/android_adaptive_foreground.png MD5)"
+      "Bash(certutil -hashfile assets/icons/android_adaptive_foreground.png MD5)",
+      "Read(//c/Users/maury/AppData/Local/Pub/Cache/hosted/pub.dev/payu_checkoutpro_flutter-1.4.4/android/src/main/**)",
+      "Bash(xargs grep -l \"faketouch\\\\|screen.portrait\")",
+      "Bash(timeout 300 ./android/gradlew -p android :app:processReleaseMainManifest)",
+      "Bash(./gradlew :app:processReleaseMainManifest)",
+      "Bash(xargs -I{} echo {})",
+      "PowerShell(flutter analyze lib/new_water_connection_screen.dart lib/services/api_service.dart)",
+      "PowerShell(flutter pub get)",
+      "Read(//c/Users/maury/AppData/Local/Pub/Cache/hosted/pub.dev/http-1.6.0/lib/src/**)",
+      "PowerShell(flutter analyze)",
+      "PowerShell(flutter analyze lib/services/api_service.dart)",
+      "PowerShell(flutter analyze lib/new_water_connection_screen.dart)",
+      "PowerShell(flutter analyze lib/water_connection_details_screen.dart lib/water_connection_list_screen.dart lib/utils/water_connection_ui.dart)",
+      "PowerShell(Remove-Item d:\\\\flutter-app\\\\lib\\\\water_document_webview_screen.dart -Confirm:$false)",
+      "PowerShell(flutter analyze lib/water_document_viewer_screen.dart lib/water_connection_details_screen.dart)"
     ],
     "additionalDirectories": [
       "D:\\flutter-app\\android\\app\\src\\main\\res\\mipmap-*"

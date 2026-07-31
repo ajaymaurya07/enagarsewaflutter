@@ -17,6 +17,7 @@ import 'services/database_service.dart';
 import 'services/notification_helper.dart';
 import 'tour_guides/dashboard_tour.dart';
 import 'arv_change_history_screen.dart';
+import 'water_connection_list_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -645,6 +646,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             Icons.water_drop_outlined,
                             cardWidth,
                             key: _keyWaterSewerage,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const WaterConnectionListScreen(),
+                                ),
+                              );
+                            },
                           ),
                         ],
                       ),
