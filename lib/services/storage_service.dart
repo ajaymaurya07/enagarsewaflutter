@@ -6,6 +6,7 @@ class StorageService {
   static const String _accessTokenKey = 'access_token';
   static const String _refreshTokenKey = 'refresh_token';
   static const String _integrityTokenKey = 'integrity_token';
+  static const String _loginMobileKey = 'login_mobile_no';
   // v10+ uses custom AES-256 ciphers automatically; no options needed
   static final FlutterSecureStorage _secureStorage = FlutterSecureStorage();
 
@@ -21,6 +22,9 @@ class StorageService {
     }
     if (data.emailId != null) await prefs.setString('email_id', data.emailId!);
     if (data.userType != null) await prefs.setString('user_type', data.userType!);
+    if (data.userId != null && data.userId!.isNotEmpty) {
+      await prefs.setString('user_id', data.userId!);
+    }
   }
 
   static Future<void> updateAccessToken(String token) async {
@@ -47,6 +51,32 @@ class StorageService {
   static Future<String?> getUlbId() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('selected_ulb_id');
+  }
+
+  /// Login (`verify_otp`) se aaya hua `user_id`. Property selection ke waqt
+  /// iska koi dusra source nahi hota, isliye login par hi persist hota hai.
+  static Future<void> saveUserId(String userId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_id', userId);
+  }
+
+  static Future<String?> getUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('user_id');
+  }
+
+  /// Login (`verify_otp`) response ka `mobile`. Property select karte waqt
+  /// property ke owner mobile se compare hota hai, isliye secure storage me.
+  static Future<void> saveLoginMobile(String mobileNo) async {
+    await _secureStorage.write(key: _loginMobileKey, value: mobileNo);
+  }
+
+  static Future<String?> getLoginMobile() async {
+    return _secureStorage.read(key: _loginMobileKey);
+  }
+
+  static Future<void> clearLoginMobile() async {
+    await _secureStorage.delete(key: _loginMobileKey);
   }
 
   static Future<void> saveTotalArv(String totalArv) async {
@@ -90,11 +120,13 @@ class StorageService {
     await prefs.remove(_refreshTokenKey);
     await prefs.remove('email_id');
     await prefs.remove('user_type');
+    await prefs.remove('user_id');
     await prefs.remove('is_property_verified');
     await prefs.remove('selected_ulb_id');
     await prefs.remove('selected_property_total_arv');
     await clearIntegrityToken();
     await clearUlbLanguageCache();
+    await clearLoginMobile();
   }
 
   static Future<bool> isLoggedIn() async {

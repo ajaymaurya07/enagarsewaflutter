@@ -2076,6 +2076,33 @@ class ApiService {
   }
 
   // Secure Login Flow
+  /// Debug helper: [value] ko JSON string banata hai par token/password jaise
+  /// fields mask kar deta hai, taaki login response logcat me safely dikh sake.
+  static String _maskedJson(dynamic value) {
+    dynamic mask(dynamic node) {
+      if (node is Map) {
+        return node.map((key, v) {
+          final k = key.toString().toLowerCase();
+          final isSecret = k.contains('token') ||
+              k.contains('password') ||
+              k.contains('hash');
+          return MapEntry(
+            key.toString(),
+            isSecret ? '***(${v?.toString().length ?? 0} chars)' : mask(v),
+          );
+        });
+      }
+      if (node is List) return node.map(mask).toList();
+      return node;
+    }
+
+    try {
+      return jsonEncode(mask(value));
+    } catch (_) {
+      return value.toString();
+    }
+  }
+
   static Future<LoginResponse> secureLogin(
     String username,
     String password,
@@ -2142,9 +2169,18 @@ class ApiService {
       // );
 
       if (loginResponse.statusCode == 200) {
-        final loginData = LoginResponse.fromJson(
-          jsonDecode(loginResponse.body),
+        final decoded = jsonDecode(loginResponse.body);
+        debugPrint(
+          '[Login] password login raw response -> ${_maskedJson(decoded)}',
         );
+
+        final loginData = LoginResponse.fromJson(decoded);
+        debugPrint(
+          '[Login] parsed -> success=${loginData.success}, '
+          'emailId=${loginData.data?.emailId}, '
+          'userType=${loginData.data?.userType}',
+        );
+
         if (loginData.success && loginData.data != null) {
           await StorageService.saveLoginData(loginData.data!);
         }
@@ -2208,7 +2244,21 @@ class ApiService {
           .timeout(Duration(seconds: AppConstants.networkTimeout));
 
       if (response.statusCode == 200) {
-        final result = OtpLoginVerifyOtpResponse.fromJson(jsonDecode(response.body));
+        final decoded = jsonDecode(response.body);
+        debugPrint(
+          '[OtpLogin] verify_otp raw response -> ${_maskedJson(decoded)}',
+        );
+
+        final result = OtpLoginVerifyOtpResponse.fromJson(decoded);
+        debugPrint(
+          '[OtpLogin] parsed data -> emailId=${result.data?.emailId}, '
+          'userType=${result.data?.userType}, '
+          'ulbId=${result.data?.ulbId}, '
+          'loginVia=${result.data?.loginVia}, '
+          'userId=${result.data?.userId}, '
+          'mobile=${result.data?.mobile}',
+        );
+
         if (result.status && result.data != null) {
           await StorageService.saveLoginData(
             SignIn(
@@ -2216,8 +2266,44 @@ class ApiService {
               refreshToken: result.data!.refreshToken,
               emailId: result.data!.emailId,
               userType: result.data!.userType,
+              // user_id sirf login response me aata hai — property selection
+              // screen ke paas iska koi source nahi tha (wahan hardcoded "0"
+              // ja raha tha), isliye yahin persist kar do.
+              userId: result.data!.userId,
             ),
           );
+
+          // Login response ka `ulbid` seedha ULB cache me daal do. Warna ye
+          // value discard ho jaati thi aur Zone/Ward/Mohalla wale screens
+          // sirf Dashboard ke getUlbLanguage par depend karte the.
+          final ulbId = result.data!.ulbId;
+          if (ulbId != null && ulbId.isNotEmpty) {
+            await StorageService.saveUlbCache(ulbId);
+            debugPrint('[OtpLogin] saveUlbCache -> $ulbId');
+          } else {
+            debugPrint(
+              '[OtpLogin] ulbid response me nahi mila — ULB cache khaali rahega',
+            );
+          }
+
+          final userId = result.data!.userId;
+          if (userId == null || userId.isEmpty) {
+            debugPrint('[OtpLogin] user_id response me nahi mila');
+          }
+
+          // Login ka mobile number secure storage me — property selection par
+          // property ke owner mobile se compare karne ke liye chahiye.
+          final loginMobile = result.data!.mobile?.trim();
+          if (loginMobile != null && loginMobile.isNotEmpty) {
+            await StorageService.saveLoginMobile(loginMobile);
+          } else {
+            // Response me `mobile` na aaye to jis number se OTP verify hua
+            // wahi login number hai.
+            await StorageService.saveLoginMobile(mobileNo.trim());
+            debugPrint(
+              '[OtpLogin] mobile response me nahi mila — entered number save kiya',
+            );
+          }
         }
         return result;
       } else {
@@ -4012,30 +4098,27 @@ class UlbData {
   String toString() => '${ulbName ?? ""} (${ulbType ?? ""})';
 }
 
+/// Only carries the ULB's configured language. The ULB ID is no longer
+/// scraped out of [message] — it comes from the OTP login response instead.
 class UlbLanguageResponse {
   final bool success;
   final String message;
   final int? responseCode;
   final String? language;
-  final String? ulbId;
 
   UlbLanguageResponse({
     required this.success,
     required this.message,
     this.responseCode,
     this.language,
-    this.ulbId,
   });
 
   factory UlbLanguageResponse.fromJson(Map<String, dynamic> json) {
-    final message = json['message']?.toString() ?? '';
-    final ulbIdMatch = RegExp(r'ULB ID\s*:-\s*(\S+)').firstMatch(message);
     return UlbLanguageResponse(
       success: json['success'] == true,
-      message: message,
+      message: json['message']?.toString() ?? '',
       responseCode: json['responseCode'] is int ? json['responseCode'] : null,
       language: json['data']?.toString(),
-      ulbId: ulbIdMatch?.group(1),
     );
   }
 }
@@ -4569,6 +4652,8 @@ class OtpLoginData {
   final String? userType;
   final String? ulbId;
   final String? loginVia;
+  final String? userId;
+  final String? mobile;
 
   OtpLoginData({
     this.accessToken,
@@ -4577,6 +4662,8 @@ class OtpLoginData {
     this.userType,
     this.ulbId,
     this.loginVia,
+    this.userId,
+    this.mobile,
   });
 
   factory OtpLoginData.fromJson(Map<String, dynamic> json) {
@@ -4587,6 +4674,8 @@ class OtpLoginData {
       userType: json['user_type']?.toString(),
       ulbId: json['ulbid']?.toString(),
       loginVia: json['login_via']?.toString(),
+      userId: json['user_id']?.toString(),
+      mobile: json['mobile']?.toString(),
     );
   }
 }
@@ -5082,12 +5171,20 @@ class SignIn {
   final String? refreshToken;
   final String? emailId;
   final String? userType;
-  SignIn({this.accessToken, this.refreshToken, this.emailId, this.userType});
+  final String? userId;
+  SignIn({
+    this.accessToken,
+    this.refreshToken,
+    this.emailId,
+    this.userType,
+    this.userId,
+  });
   factory SignIn.fromJson(Map<String, dynamic> json) => SignIn(
     accessToken: json['access_token']?.toString(),
     refreshToken: json['refresh_token']?.toString(),
     emailId: json['email_id']?.toString(),
     userType: json['user_type']?.toString(),
+    userId: json['user_id']?.toString(),
   );
 }
 

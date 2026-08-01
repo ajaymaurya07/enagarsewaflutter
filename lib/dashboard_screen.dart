@@ -74,13 +74,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   // Fetches and caches the citizen's ULB language (English / Krutidev) once.
   // Skipped entirely if a value is already cached in secure storage.
+  //
+  // NOTE: ULB ID is NOT saved here anymore — it comes from the OTP login
+  // response (`data.ulbid`) and is cached in ApiService.otpLoginVerifyOtp.
   Future<void> _loadUlbLanguage() async {
     final cachedLanguage = await StorageService.getLanguageCache();
-    final cachedUlbId = await StorageService.getUlbCache();
-    if (cachedLanguage != null &&
-        cachedLanguage.isNotEmpty &&
-        cachedUlbId != null &&
-        cachedUlbId.isNotEmpty) {
+    if (cachedLanguage != null && cachedLanguage.isNotEmpty) {
       return;
     }
 
@@ -88,11 +87,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final response = await ApiService.getUlbLanguage();
       if (response.success &&
           response.language != null &&
-          response.language!.isNotEmpty &&
-          response.ulbId != null &&
-          response.ulbId!.isNotEmpty) {
+          response.language!.isNotEmpty) {
         await StorageService.saveLanguageCache(response.language!);
-        await StorageService.saveUlbCache(response.ulbId!);
       }
     } catch (_) {
       // Non-blocking: dashboard should still work if this call fails.

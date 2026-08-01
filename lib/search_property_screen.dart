@@ -4,6 +4,8 @@ import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:enagarsewa/services/api_service.dart';
 import 'package:enagarsewa/services/storage_service.dart';
+import 'package:enagarsewa/services/database_service.dart';
+import 'otp_login_screen.dart';
 import 'property_selection_screen.dart';
 import 'tour_guides/search_property_tour.dart';
 import 'widgets/info_label.dart';
@@ -42,6 +44,7 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
   bool _isLoadingWards = false;
   bool _isLoadingMohallas = false;
   bool _isSearching = false;
+  bool _isLoggingOut = false;
   String? _errorMessage;
 
   // Tour guide keys
@@ -455,6 +458,84 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
     super.dispose();
   }
 
+  void _handleLogout() async {
+    // Confirmation dialog
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Logout',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          'Are you sure you want to logout?',
+          style: GoogleFonts.poppins(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.poppins(color: Colors.grey.shade700),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(
+              'Logout',
+              style: GoogleFonts.poppins(
+                color: Colors.red.shade600,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+
+    setState(() {
+      _isLoggingOut = true;
+    });
+
+    try {
+      // 1. Logout API
+      try {
+        await ApiService.logout();
+      } catch (_) {
+        // Local data clear karna zaroori hai chahe API fail ho jaye
+      }
+
+      // 2. Clear Database
+      await DatabaseService.clearDatabase();
+
+      // 3. Clear Storage
+      await StorageService.logout();
+
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const OtpLoginScreen()),
+        (route) => false,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoggingOut = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            ApiService.getUserFriendlyErrorMessage(
+              e,
+              fallbackMessage: 'Logout failed. Please try again.',
+            ),
+          ),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -484,6 +565,20 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
                       icon: const Icon(Icons.help_outline_rounded, color: Color(0xFFE67514)),
                       tooltip: 'Tour Guide',
                       onPressed: _startTour,
+                    ),
+                    IconButton(
+                      icon: _isLoggingOut
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Color(0xFFE67514),
+                              ),
+                            )
+                          : const Icon(Icons.logout_rounded, color: Color(0xFFE67514)),
+                      tooltip: 'Logout',
+                      onPressed: _isLoggingOut ? null : _handleLogout,
                     ),
                   ],
                 ),

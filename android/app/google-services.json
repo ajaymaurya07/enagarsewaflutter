@@ -1,13 +1,70 @@
 {
   "project_info": {
-    "project_number": "1064647816079",
-    "project_id": "enagarsewaflutter",
-    "storage_bucket": "enagarsewaflutter.firebasestorage.app"
+    "project_number": "917424913019",
+    "project_id": "vdai2021-856fb",
+    "storage_bucket": "vdai2021-856fb.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1064647816079:android:a788c961c618a00ab1d1fa",
+        "mobilesdk_app_id": "1:917424913019:android:cf43103980430e0bb6c0de",
+        "android_client_info": {
+          "package_name": "com.vdai.chat.notice"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAEfCtBa9Z5nMmaySzo1FkhMXvDMVXWZIA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:917424913019:android:f0f3d4999d5bdaa8b6c0de",
+        "android_client_info": {
+          "package_name": "com.vdai.election_trakers_jaunpur"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAEfCtBa9Z5nMmaySzo1FkhMXvDMVXWZIA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:917424913019:android:2a2489da75edabcbb6c0de",
+        "android_client_info": {
+          "package_name": "com.vdai.jaunpur.my_chat_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAEfCtBa9Z5nMmaySzo1FkhMXvDMVXWZIA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:917424913019:android:d69365239a095e23b6c0de",
         "android_client_info": {
           "package_name": "com.vdsai.enagaesewa"
         }
@@ -15,7 +72,26 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCxCn1Lzag-muoLuOYdZxN-A0DHOpJaAPI"
+          "current_key": "AIzaSyAEfCtBa9Z5nMmaySzo1FkhMXvDMVXWZIA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:917424913019:android:bcadf94126058207b6c0de",
+        "android_client_info": {
+          "package_name": "com.www.jaunpurelection"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAEfCtBa9Z5nMmaySzo1FkhMXvDMVXWZIA"
         }
       ],
       "services": {

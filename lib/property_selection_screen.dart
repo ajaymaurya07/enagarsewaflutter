@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
@@ -7,8 +7,6 @@ import 'services/storage_service.dart';
 import 'services/database_service.dart';
 import 'dashboard_screen.dart';
 import 'tour_guides/property_selection_tour.dart';
-import 'widgets/info_label.dart';
-import 'help/property_selection_help.dart';
 import 'utils/ulb_language_helper.dart';
 
 class PropertySelectionScreen extends StatefulWidget {
@@ -24,9 +22,6 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
   final _keyHeader = GlobalKey();
   final _keyFirstPropertyCard = GlobalKey();
   final _keyFirstSelectButton = GlobalKey();
-
-  // TODO: set true before production release
-  static const _kRequireOtp = true;
 
   bool _isLoading = false;
   PropertyDetailsData? _currentPropertyDetails;
@@ -95,72 +90,198 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
       _isLoading = true;
       _selectedProperty = property;
     });
-    
+
     try {
       // 1. Get Property Details
       final res = await ApiService.getPropertyDetails(propertyId);
       _currentPropertyDetails = res.data;
-      
+
       final mobileNo = _currentPropertyDetails?.ownerDetails?.mobileNo;
 
       if (mobileNo == null || mobileNo.isEmpty) {
         throw Exception('Mobile number not found for this property');
       }
 
-      // 2a. OTP bypass (flag: _kRequireOtp = false)
-      // sendOtp call hoti h (backend me OTP register ho), dialog nahi dikhta,
-      // aur verifyOtp '123456' se auto call hoti h
-      if (!_kRequireOtp) {
-        final otpRes = await ApiService.sendOtp(mobileNo, propertyId);
-        if (!mounted) return;
-        if (otpRes.success != true) {
-          setState(() => _isLoading = false);
-          _showSnackBar(otpRes.message ?? 'Failed to send OTP');
-          return;
-        }
-        final res = await ApiService.verifyOtp(mobileNo, '123456');
-        if (!mounted) return;
-        setState(() => _isLoading = false);
-        if (res.success == true) {
-          await _finalizePropertySelection(mobileNo, propertyId, res);
-        } else {
-          _showSnackBar(res.message ?? 'OTP verification failed');
-        }
-        return;
-      }
-
-      // 2b. Normal OTP flow
-      final otpRes = await ApiService.sendOtp(mobileNo, propertyId);
+      // 2. Login wala number (verify_otp se secure storage me aaya) aur
+      // property ka owner mobile match hone chahiye. Mismatch par user se
+      // confirm karao — Cancel karne par isi screen par rukna hai.
+      final loginMobile = await StorageService.getLoginMobile();
 
       if (!mounted) return;
       setState(() => _isLoading = false);
 
-      if (otpRes.success == true) {
-        final maskedNumber = otpRes.maskedMobile ?? 'XXXXXX${mobileNo.length > 4 ? mobileNo.substring(mobileNo.length - 4) : mobileNo}';
-        _showOtpBottomSheet(mobileNo, propertyId, maskedNumber);
-      } else {
-        _showSnackBar(otpRes.message ?? 'Failed to send OTP');
+      if (loginMobile != null &&
+          loginMobile.isNotEmpty &&
+          !_isSameMobile(loginMobile, mobileNo)) {
+        final shouldContinue = await _showMobileMismatchDialog(
+          loginMobile: loginMobile,
+          propertyMobile: mobileNo,
+        );
+        if (!shouldContinue) {
+          if (!mounted) return;
+          setState(() => _selectedProperty = null);
+          return;
+        }
+        if (!mounted) return;
       }
+
+      // 3. Koi OTP nahi: property details milte hi selection finalize kar do
+      await _finalizePropertySelection(mobileNo, propertyId);
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
       _showSnackBar(
         ApiService.getUserFriendlyErrorMessage(
           e,
-          fallbackMessage: 'Unable to send OTP right now. Please try again.',
+          fallbackMessage: 'Unable to select this property right now. Please try again.',
         ),
       );
     }
   }
 
+  /// Numbers ko digits-only karke aakhri 10 digits par compare karta hai,
+  /// taki `+91`/`0` prefix ya spaces ki wajah se false mismatch na aaye.
+  bool _isSameMobile(String a, String b) {
+    String normalize(String value) {
+      final digits = value.replaceAll(RegExp(r'\D'), '');
+      return digits.length > 10 ? digits.substring(digits.length - 10) : digits;
+    }
+
+    final left = normalize(a);
+    final right = normalize(b);
+    if (left.isEmpty || right.isEmpty) return true;
+    return left == right;
+  }
+
+  /// Mismatch dialog. `true` = Continue, `false` = Cancel / dismiss.
+  Future<bool> _showMobileMismatchDialog({
+    required String loginMobile,
+    required String propertyMobile,
+  }) async {
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded,
+                color: Color(0xFFE67514), size: 24),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Number Mismatch',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF333333),
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Your login mobile number does not match the mobile number '
+              'registered with this property.',
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                color: Colors.grey.shade700,
+              ),
+            ),
+            const SizedBox(height: 16),
+            _buildMismatchRow('Login Number', loginMobile),
+            const SizedBox(height: 8),
+            _buildMismatchRow('Property Number', propertyMobile),
+            const SizedBox(height: 16),
+            Text(
+              'Do you still want to continue with this property?',
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: const Color(0xFF333333),
+              ),
+            ),
+          ],
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade600,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFE67514),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+            ),
+            child: Text(
+              'Continue',
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return result ?? false;
+  }
+
+  Widget _buildMismatchRow(String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 120,
+          child: Text(
+            label,
+            style: GoogleFonts.poppins(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey.shade600,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: GoogleFonts.poppins(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF333333),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Future<void> _finalizePropertySelection(
     String mobileNo,
     String propertyId,
-    dynamic res,
   ) async {
     final ulbId = await StorageService.getUlbId();
     final totalArv = _selectedProperty?.totalArv?.toString() ?? "0.0";
-    final userId = res.userId?.toString() ?? "0";
+    // user_id login (verify_otp) response se aata hai, property API se nahi.
+    final userId = await StorageService.getUserId() ?? "0";
 
     await StorageService.saveTotalArv(totalArv);
 
@@ -193,249 +314,6 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const DashboardScreen()),
       (route) => false,
-    );
-  }
-
-  void _showOtpBottomSheet(String mobileNo, String propertyId, String maskedNumber) {
-    final otpController = TextEditingController();
-    bool isVerifying = false;
-    String? sheetError;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-          ),
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Handle bar
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  'Verify OTP',
-                  style: GoogleFonts.poppins(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF333333),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Enter the code sent to your mobile number $maskedNumber',
-                  style: GoogleFonts.poppins(
-                    fontSize: 13,
-                    color: Colors.grey.shade500,
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Inline error
-                if (sheetError != null) ...[
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: Colors.red.shade50,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.red.shade200),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.error_outline, color: Colors.red.shade600, size: 18),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            sheetError!,
-                            style: GoogleFonts.poppins(
-                              fontSize: 12,
-                              color: Colors.red.shade700,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-
-                // OTP Field
-                InfoLabel(
-                  label: 'Enter OTP',
-                  helpTitle: PropertySelectionHelp.otpTitle,
-                  helpMessage: PropertySelectionHelp.otpMessage,
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: otpController,
-                  keyboardType: TextInputType.number,
-                  maxLength: 6,
-                  style: GoogleFonts.poppins(fontSize: 14, letterSpacing: 4),
-                  decoration: InputDecoration(
-                    hintText: '------',
-                    hintStyle: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade400),
-                    prefixIcon: const Icon(Icons.pin_outlined, color: Color(0xFFE67514), size: 20),
-                    counterText: '',
-                    filled: true,
-                    fillColor: const Color(0xFFF8F9FB),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey.shade200),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFE67514), width: 1.5),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Verify Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: isVerifying ? null : () async {
-                      final sheetNavigator = Navigator.of(context);
-                      final appNavigator = Navigator.of(this.context);
-
-                      if (otpController.text.trim().isEmpty) {
-                        setModalState(() => sheetError = 'Please enter OTP');
-                        return;
-                      }
-                      if (otpController.text.length < 4) {
-                        setModalState(() => sheetError = 'Please enter valid OTP');
-                        return;
-                      }
-
-                      setModalState(() {
-                        isVerifying = true;
-                        sheetError = null;
-                      });
-                      try {
-                        final res = await ApiService.verifyOtp(mobileNo, otpController.text);
-                        if (res.success == true) {
-                          final ulbId = await StorageService.getUlbId();
-                          final totalArv = _selectedProperty?.totalArv?.toString() ?? "0.0";
-                          final userId = res.userId?.toString() ?? "0";
-
-                          await StorageService.saveTotalArv(totalArv);
-
-                          final email = await StorageService.getEmailId();
-                          final userType = await StorageService.getUserType();
-
-                          await DatabaseService.insertProperty(
-                            PropertyEntity(
-                              propertyId: propertyId,
-                              ownerName: _currentPropertyDetails?.ownerDetails?.ownerName ?? "N/A",
-                              ward: _currentPropertyDetails?.propertyDetailsInfo?.wardName ?? "N/A",
-                              mohalla: _currentPropertyDetails?.propertyDetailsInfo?.mohallaName ?? "N/A",
-                              zone: _currentPropertyDetails?.propertyDetailsInfo?.zoneName,
-                              phoneNumber: mobileNo,
-                              email: email,
-                              userType: userType,
-                              ulbId: ulbId,
-                              arvValue: totalArv,
-                              userId: userId,
-                              fatherName: _selectedProperty?.fatherHusbandName ?? "N/A",
-                              address: _selectedProperty?.address ?? "N/A",
-                              houseNo: _currentPropertyDetails?.propertyDetailsInfo?.houseNo,
-                              totalArea: _currentPropertyDetails?.propertyDetailsInfo?.totalArea,
-                            ),
-                          );
-
-                          await StorageService.setPropertyVerified(true);
-
-                          if (!mounted) return;
-                          sheetNavigator.pop();
-
-                          appNavigator.pushAndRemoveUntil(
-                            MaterialPageRoute(builder: (context) => const DashboardScreen()),
-                            (route) => false,
-                          );
-                        } else {
-                          if (!mounted) return;
-                          setModalState(() => sheetError = res.message ?? 'Invalid OTP');
-                        }
-                      } catch (e) {
-                        if (!mounted) return;
-                        setModalState(
-                          () =>
-                              sheetError = ApiService.getUserFriendlyErrorMessage(
-                            e,
-                            fallbackMessage:
-                                'Unable to verify OTP right now. Please try again.',
-                          ),
-                        );
-                      } finally {
-                        if (mounted) setModalState(() => isVerifying = false);
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFE67514),
-                      disabledBackgroundColor: const Color(0xFFE67514).withValues(alpha: 0.6),
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    ),
-                    child: isVerifying
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          )
-                        : Text(
-                            'Verify OTP',
-                            style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w700),
-                          ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // Cancel
-                SizedBox(
-                  width: double.infinity,
-                  child: TextButton(
-                    onPressed: isVerifying ? null : () => Navigator.pop(context),
-                    child: Text(
-                      'Cancel',
-                      style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey.shade600),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 

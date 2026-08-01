@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'apply_grievance_screen.dart' show SelectionSheet;
 import 'services/api_service.dart';
+import 'services/otp_gate_service.dart';
 import 'services/storage_service.dart';
 import 'widgets/assessment_progress_bar.dart';
 
@@ -291,9 +292,16 @@ class _NewWaterConnectionScreenState extends State<NewWaterConnectionScreen> {
     String? pipeSize;
     String? error;
     try {
-      final response = await ApiService.getPipeSize(
-        categoryConnection: connectionCategory,
-        plotArea: plotArea,
+      // responseCode 12 = expired/incorrect session token: the gate sends and
+      // verifies an OTP for the property, then retries this lookup once.
+      final response = await OtpGateService.guard(
+        call: () => ApiService.getPipeSize(
+          categoryConnection: connectionCategory,
+          plotArea: plotArea,
+        ),
+        responseCode: (r) => r.responseCode,
+        propertyId: _propertyIdController.text.trim(),
+        mobileNo: _mobileNoController.text.trim(),
       );
       if (response.success && response.data != null) {
         pipeSize = response.data;
@@ -505,34 +513,41 @@ class _NewWaterConnectionScreenState extends State<NewWaterConnectionScreen> {
     String? ackNo;
     String? errorMessage;
     try {
-      final response = await ApiService.submitConnection(
-        applicantName: _ownerNameController.text.trim(),
-        relationType: _relation,
-        fatherHusbandName: _fatherHusbandNameController.text.trim(),
-        mobileNo: _mobileNoController.text.trim(),
-        newZoneId: _selectedZone!.zoneId,
-        newWardId: _selectedWard!.wardId,
-        newMohallaId: _selectedMohalla!.mohallaId,
-        newPlotNo: _plotHouseNoController.text.trim(),
-        newStreet: _streetController.text.trim(),
-        newLandmark: _landmarkController.text.trim(),
-        corrZoneId: _corrZone!.zoneId,
-        corrWardId: _corrWard!.wardId,
-        corrMohallaId: _corrMohalla!.mohallaId,
-        corrPlotNo: _corrPlotHouseNo,
-        corrStreet: _corrStreet,
-        corrLandmark: _corrLandmark,
-        connectionType: _connectionType!,
-        connectionRequirement: _connectionRequired!,
+      // responseCode 12 = expired/incorrect session token: the gate sends and
+      // verifies an OTP for the property, then retries the submit once.
+      final response = await OtpGateService.guard(
+        call: () => ApiService.submitConnection(
+          applicantName: _ownerNameController.text.trim(),
+          relationType: _relation,
+          fatherHusbandName: _fatherHusbandNameController.text.trim(),
+          mobileNo: _mobileNoController.text.trim(),
+          newZoneId: _selectedZone!.zoneId,
+          newWardId: _selectedWard!.wardId,
+          newMohallaId: _selectedMohalla!.mohallaId,
+          newPlotNo: _plotHouseNoController.text.trim(),
+          newStreet: _streetController.text.trim(),
+          newLandmark: _landmarkController.text.trim(),
+          corrZoneId: _corrZone!.zoneId,
+          corrWardId: _corrWard!.wardId,
+          corrMohallaId: _corrMohalla!.mohallaId,
+          corrPlotNo: _corrPlotHouseNo,
+          corrStreet: _corrStreet,
+          corrLandmark: _corrLandmark,
+          connectionType: _connectionType!,
+          connectionRequirement: _connectionRequired!,
+          propertyId: _propertyIdController.text.trim(),
+          plotArea: _plotAreaController.text.trim(),
+          connectionCategory: _connectionCategory!,
+          pipeSize: _pipeSize!,
+          idProofType: _idProofType!,
+          propertyProofType: _propertyDocOptions[_propertyDocType]!,
+          selfPhoto: File(_selfPhotoFile!.path!),
+          idProofDocument: File(_idProofFile!.path!),
+          propertyProofDocument: File(_propertyDocFile!.path!),
+        ),
+        responseCode: (r) => r.responseCode,
         propertyId: _propertyIdController.text.trim(),
-        plotArea: _plotAreaController.text.trim(),
-        connectionCategory: _connectionCategory!,
-        pipeSize: _pipeSize!,
-        idProofType: _idProofType!,
-        propertyProofType: _propertyDocOptions[_propertyDocType]!,
-        selfPhoto: File(_selfPhotoFile!.path!),
-        idProofDocument: File(_idProofFile!.path!),
-        propertyProofDocument: File(_propertyDocFile!.path!),
+        mobileNo: _mobileNoController.text.trim(),
       );
       if (response.success) {
         ackNo = response.ackNo;

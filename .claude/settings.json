@@ -40,7 +40,15 @@
       "PowerShell(flutter analyze lib/new_water_connection_screen.dart)",
       "PowerShell(flutter analyze lib/water_connection_details_screen.dart lib/water_connection_list_screen.dart lib/utils/water_connection_ui.dart)",
       "PowerShell(Remove-Item d:\\\\flutter-app\\\\lib\\\\water_document_webview_screen.dart -Confirm:$false)",
-      "PowerShell(flutter analyze lib/water_document_viewer_screen.dart lib/water_connection_details_screen.dart)"
+      "PowerShell(flutter analyze lib/water_document_viewer_screen.dart lib/water_connection_details_screen.dart)",
+      "PowerShell(flutter analyze lib/property_selection_screen.dart)",
+      "PowerShell($p='d:\\\\flutter-app\\\\lib\\\\property_selection_screen.dart'; $l=Get-Content $p; $new = $l[0..167] + $l[410..\\($l.Count-1\\)]; Set-Content -Path $p -Value $new -Encoding utf8; Get-Content $p -TotalCount 175 | Select-Object -Last 12)",
+      "Bash(awk -F: '$1>2900 && $1<5600')",
+      "PowerShell(flutter analyze lib/services/api_service.dart lib/dashboard_screen.dart lib/new_water_connection_screen.dart lib/property_tax_assessment_screen.dart)",
+      "PowerShell(flutter analyze lib/services/api_service.dart lib/services/storage_service.dart lib/property_selection_screen.dart)",
+      "PowerShell(flutter analyze lib/search_property_screen.dart lib/property_selection_screen.dart)",
+      "PowerShell(flutter analyze lib/property_selection_screen.dart lib/services/storage_service.dart lib/services/api_service.dart)",
+      "Bash(flutter clean *)"
     ],
     "additionalDirectories": [
       "D:\\flutter-app\\android\\app\\src\\main\\res\\mipmap-*"
