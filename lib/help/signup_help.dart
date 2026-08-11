@@ -11,15 +11,13 @@ class SignUpHelp {
   static const String phoneTitle = 'Phone Number';
   static const String phoneMessage =
       'Enter your 10-digit mobile number.\n'
-      'Example: 9876543210\n\n'
-      'The app can auto-detect SIM numbers on your device.';
+      'Example: 9876543210';
 
   static const String emailTitle = 'Email ID';
   static const String emailMessage =
       'Enter a valid email address.\n'
       'Example: name@example.com\n\n'
-      'An OTP will be sent to this email to verify your account. '
-      'The app can auto-detect email accounts on your device.';
+      'An OTP will be sent to this email to verify your account.';
 
   static const String passwordTitle = 'Password';
   static const String passwordMessage =

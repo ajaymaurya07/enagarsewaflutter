@@ -48,7 +48,17 @@
       "PowerShell(flutter analyze lib/services/api_service.dart lib/services/storage_service.dart lib/property_selection_screen.dart)",
       "PowerShell(flutter analyze lib/search_property_screen.dart lib/property_selection_screen.dart)",
       "PowerShell(flutter analyze lib/property_selection_screen.dart lib/services/storage_service.dart lib/services/api_service.dart)",
-      "Bash(flutter clean *)"
+      "Bash(flutter clean *)",
+      "Bash(sed 's/^\\\\\\(lib[^:]*:[0-9]*\\\\\\):\\\\s*/\\\\1: /')",
+      "Bash(cd d:/flutter-app/ios && ls -a && echo \"---RUNNER---\" && ls -a Runner && echo \"---GOOGLESERVICE---\" && find . -iname \"GoogleService-Info.plist\" && echo \"---PODFILE---\" && ls Podfile Podfile.lock 2>/dev/null; echo \"---ios-swift---\"; ls -a ../ios-swift | head -30)",
+      "WebFetch(domain:www.macincloud.com)",
+      "WebFetch(domain:codemagic.io)",
+      "WebFetch(domain:checkout.macincloud.com)",
+      "WebFetch(domain:support.macincloud.com)",
+      "WebFetch(domain:macincloud.wixsite.com)",
+      "PowerShell($p='d:\\\\flutter-app\\\\lib\\\\signup_screen.dart'; $bytes=[System.IO.File]::ReadAllBytes\\($p\\); $crlf=0; $lf=0; for\\($i=0;$i -lt $bytes.Length;$i++\\){ if\\($bytes[$i] -eq 10\\){ if\\($i -gt 0 -and $bytes[$i-1] -eq 13\\){$crlf++} else {$lf++} } }; \"CRLF=$crlf LF-only=$lf\"; \"BOM=\" + \\($bytes[0] -eq 0xEF\\))",
+      "PowerShell(flutter analyze lib\\\\signup_screen.dart)",
+      "PowerShell(flutter analyze lib 2>&1)"
     ],
     "additionalDirectories": [
       "D:\\flutter-app\\android\\app\\src\\main\\res\\mipmap-*"
