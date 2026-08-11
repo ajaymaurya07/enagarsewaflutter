@@ -58,7 +58,11 @@
       "WebFetch(domain:macincloud.wixsite.com)",
       "PowerShell($p='d:\\\\flutter-app\\\\lib\\\\signup_screen.dart'; $bytes=[System.IO.File]::ReadAllBytes\\($p\\); $crlf=0; $lf=0; for\\($i=0;$i -lt $bytes.Length;$i++\\){ if\\($bytes[$i] -eq 10\\){ if\\($i -gt 0 -and $bytes[$i-1] -eq 13\\){$crlf++} else {$lf++} } }; \"CRLF=$crlf LF-only=$lf\"; \"BOM=\" + \\($bytes[0] -eq 0xEF\\))",
       "PowerShell(flutter analyze lib\\\\signup_screen.dart)",
-      "PowerShell(flutter analyze lib 2>&1)"
+      "PowerShell(flutter analyze lib 2>&1)",
+      "Bash(python -c ' *)",
+      "Bash(grep -rn \"http://\\\\|https://\" lib/constants/app_constants.dart)",
+      "PowerShell(flutter analyze lib/services/push_notification_service.dart lib/splash_screen.dart)",
+      "PowerShell(dart run flutter_launcher_icons)"
     ],
     "additionalDirectories": [
       "D:\\flutter-app\\android\\app\\src\\main\\res\\mipmap-*"

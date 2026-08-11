@@ -49,6 +49,10 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: true
+  # App Store rejects the 1024x1024 marketing icon if it has an alpha channel
+  # (ITMS-90717). Flatten transparency onto white for the iOS icon set only.
+  remove_alpha_ios: true
+  background_color_ios: "#FFFFFF"
   image_path: "assets/images/e_nagar_seva_logo.png"
   min_sdk_android: 26
   adaptive_icon_background: "#FFFFFF"

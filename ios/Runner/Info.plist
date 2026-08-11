@@ -68,5 +68,55 @@
 	</array>
 	<key>NSPhoneNumberFormattingTelephonyUIEnabled</key>
 	<false/>
+
+	<!-- ── Privacy usage descriptions ──────────────────────────────────────── -->
+	<!-- image_picker: camera capture for grievance photos / assessment documents -->
+	<key>NSCameraUsageDescription</key>
+	<string>Camera access is needed so you can photograph documents and grievance evidence to attach to your application.</string>
+	<!-- image_picker + file_picker: choosing existing documents from Photos -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Photo library access is needed so you can attach existing document images and photos to your application.</string>
+	<!-- permission_handler: contacts read for e-mail autofill -->
+	<key>NSContactsUsageDescription</key>
+	<string>Contacts access is used only to suggest your own e-mail address when filling out a form. Contacts are never uploaded.</string>
+
+	<!-- ── Push notifications (firebase_messaging) ─────────────────────────── -->
+	<!-- Required for data-only / silent FCM messages to wake the app. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
+
+	<!-- ── Export compliance ───────────────────────────────────────────────── -->
+	<!-- Skips the encryption questionnaire on every TestFlight/App Store upload.
+	     Verify this answer against your own compliance review: the app uses
+	     HTTPS plus AES (pointycastle) for API payloads and Keychain storage,
+	     which normally falls under the standard-encryption exemption. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+
+	<!-- ── PayU UPI intent apps (payu_checkoutpro_flutter) ─────────────────── -->
+	<!-- canOpenURL returns false for unlisted schemes, so UPI apps would not be
+	     offered at checkout without these. -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>phonepe</string>
+		<string>tez</string>
+		<string>gpay</string>
+		<string>paytmmp</string>
+		<string>paytm</string>
+		<string>bhim</string>
+		<string>upi</string>
+		<string>credpay</string>
+		<string>amazonToPhone</string>
+		<string>mobikwik</string>
+		<string>freecharge</string>
+		<string>myairtelupi</string>
+		<string>ybl</string>
+		<string>icici</string>
+		<string>sms</string>
+		<string>tel</string>
+		<string>mailto</string>
+	</array>
 </dict>
 </plist>

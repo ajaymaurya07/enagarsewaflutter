@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -38,7 +40,27 @@ class PushNotificationService {
       _handleMessageOpened(initialMessage);
     }
 
-    await FirebaseMessaging.instance.getToken();
+    await _fetchFcmToken();
+  }
+
+  /// On iOS the FCM token cannot be minted until APNs has handed us a device
+  /// token, so getToken() throws `apns-token-not-set` when called at startup.
+  /// Poll briefly for the APNs token first, then ask for the FCM token.
+  static Future<String?> _fetchFcmToken() async {
+    try {
+      if (Platform.isIOS) {
+        String? apnsToken = await FirebaseMessaging.instance.getAPNSToken();
+        for (var attempt = 0; attempt < 10 && apnsToken == null; attempt++) {
+          await Future<void>.delayed(const Duration(milliseconds: 500));
+          apnsToken = await FirebaseMessaging.instance.getAPNSToken();
+        }
+        // Notifications denied or APNs unreachable (e.g. Simulator) — no token.
+        if (apnsToken == null) return null;
+      }
+      return await FirebaseMessaging.instance.getToken();
+    } catch (_) {
+      return null;
+    }
   }
 
   static Future<void> _requestNotificationPermission() async {
@@ -57,7 +79,13 @@ class PushNotificationService {
     const androidSettings = AndroidInitializationSettings(
       '@mipmap/ic_launcher',
     );
-    const iosSettings = DarwinInitializationSettings();
+    // Permissions are already requested through FirebaseMessaging above; asking
+    // again here would be a second no-op prompt path on iOS.
+    const iosSettings = DarwinInitializationSettings(
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
+    );
 
     const initializationSettings = InitializationSettings(
       android: androidSettings,
@@ -76,6 +104,11 @@ class PushNotificationService {
   static Future<void> _showForegroundNotification(RemoteMessage message) async {
     final notification = message.notification;
     if (notification == null) return;
+
+    // iOS already presents the incoming remote notification itself because of
+    // setForegroundNotificationPresentationOptions(alert: true). Re-posting it
+    // as a local notification would show the same alert twice.
+    if (Platform.isIOS) return;
 
     await _localNotifications.show(
       notification.hashCode,

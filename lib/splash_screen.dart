@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
@@ -45,7 +47,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   /// Checks Play Store for a pending update.
   /// Returns [AppUpdateInfo] if an immediate update is available, null otherwise.
+  /// Android-only: in_app_update wraps the Play Core API and has no iOS side.
   Future<AppUpdateInfo?> _checkForUpdate() async {
+    if (!Platform.isAndroid) return null;
     try {
       final AppUpdateInfo info = await InAppUpdate.checkForUpdate();
       if (info.updateAvailability == UpdateAvailability.updateAvailable &&
