@@ -170,6 +170,16 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
     }
   }
 
+  /// Shows '-' when a receipt field has no usable value (null, blank, or the
+  /// literal string "null" coming from the API).
+  String _displayValue(String? value) {
+    final trimmed = value?.trim();
+    if (trimmed == null || trimmed.isEmpty || trimmed.toLowerCase() == 'null') {
+      return '-';
+    }
+    return trimmed;
+  }
+
   Future<pw.Document> _buildPdf() async {
     final txn = widget.transaction;
     final regularFont = await PdfGoogleFonts.notoSansRegular();
@@ -181,23 +191,23 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
 
     final rows = <List<String>>[];
 
-    rows.add(['ULB Name', txn.ulbName ?? 'null']);
-    rows.add(['ULB Type', txn.ulbType ?? 'null']);
-    rows.add(['Financial Year', txn.financialYear ?? 'null']);
-    rows.add(['Transaction Number', txn.txnId ?? 'null']);
-    rows.add(['Bill No', txn.billNo ?? 'null']);
-    rows.add(['Property ID.', txn.propertyId ?? 'null']);
-    rows.add(['Transaction Date', txn.dateTime ?? 'null']);
+    rows.add(['ULB Name', _displayValue(txn.ulbName)]);
+    rows.add(['ULB Type', _displayValue(txn.ulbType)]);
+    rows.add(['Financial Year', _displayValue(txn.financialYear)]);
+    rows.add(['Transaction Number', _displayValue(txn.txnId)]);
+    rows.add(['Bill No', _displayValue(txn.billNo)]);
+    rows.add(['Property ID.', _displayValue(txn.propertyId)]);
+    rows.add(['Transaction Date', _displayValue(txn.dateTime)]);
     rows.add(['Payment Status', status.isNotEmpty ? status : 'UNKNOWN']);
-    rows.add(['Payment Mode', txn.paymentMode ?? 'null']);
-    rows.add(['Bank Ref No', txn.bankRefNo ?? 'null']);
-    rows.add(['User Code', txn.userCode ?? 'null']);
-    rows.add(['Owner Name', txn.ownerName ?? 'null']);
-    rows.add(['Father/Husband Name', txn.fatherName ?? 'null']);
-    rows.add(['Address', txn.address ?? 'null']);
-    rows.add(['Payment Amount(Rs.)', txn.paymentAmount ?? 'null']);
-    rows.add(['Mobile Number', txn.mobileNo ?? 'null']);
-    rows.add(['Receipt No', txn.receiptNo ?? 'null']);
+    rows.add(['Payment Mode', _displayValue(txn.paymentMode)]);
+    rows.add(['Bank Ref No', _displayValue(txn.bankRefNo)]);
+    rows.add(['User Code', _displayValue(txn.userCode)]);
+    rows.add(['Owner Name', _displayValue(txn.ownerName)]);
+    rows.add(['Father/Husband Name', _displayValue(txn.fatherName)]);
+    rows.add(['Address', _displayValue(txn.address)]);
+    rows.add(['Payment Amount(Rs.)', _displayValue(txn.paymentAmount)]);
+    rows.add(['Mobile Number', _displayValue(txn.mobileNo)]);
+    rows.add(['Receipt No', _displayValue(txn.receiptNo)]);
 
     pdf.addPage(
       pw.Page(
@@ -490,23 +500,23 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
           const Divider(height: 1, thickness: 1, color: Color(0xFF4CAF50)),
 
           // Receipt Table
-          _buildReceiptRow('ULB Name', txn.ulbName ?? 'null'),
-          _buildReceiptRow('ULB Type', txn.ulbType ?? 'null'),
-          _buildReceiptRow('Financial Year', txn.financialYear ?? 'null'),
-          _buildReceiptRow('Transaction Number', txn.txnId ?? 'null'),
-          _buildReceiptRow('Bill No', txn.billNo ?? 'null'),
-          _buildReceiptRow('Property ID', txn.propertyId ?? 'null'),
-          _buildReceiptRow('Transaction Date', txn.dateTime ?? 'null'),
+          _buildReceiptRow('ULB Name', _displayValue(txn.ulbName)),
+          _buildReceiptRow('ULB Type', _displayValue(txn.ulbType)),
+          _buildReceiptRow('Financial Year', _displayValue(txn.financialYear)),
+          _buildReceiptRow('Transaction Number', _displayValue(txn.txnId)),
+          _buildReceiptRow('Bill No', _displayValue(txn.billNo)),
+          _buildReceiptRow('Property ID', _displayValue(txn.propertyId)),
+          _buildReceiptRow('Transaction Date', _displayValue(txn.dateTime)),
           _buildReceiptRow('Payment Status', status.isNotEmpty ? status : 'UNKNOWN'),
-          _buildReceiptRow('Payment Mode', txn.paymentMode ?? 'null'),
-          _buildReceiptRow('Bank Ref No', txn.bankRefNo ?? 'null'),
-          _buildReceiptRow('User Code', txn.userCode ?? 'null'),
-          _buildReceiptRow('Owner Name', txn.ownerName ?? 'null', isLanguageSensitive: true),
-          _buildReceiptRow('Father/Husband Name', txn.fatherName ?? 'null', isLanguageSensitive: true),
-          _buildReceiptRow('Address', txn.address ?? 'null', isLanguageSensitive: true),
-          _buildReceiptRow('Payment Amount(Rs.)', txn.paymentAmount ?? 'null'),
-          _buildReceiptRow('Mobile Number', txn.mobileNo ?? 'null'),
-          _buildReceiptRow('Receipt No', txn.receiptNo ?? 'null'),
+          _buildReceiptRow('Payment Mode', _displayValue(txn.paymentMode)),
+          _buildReceiptRow('Bank Ref No', _displayValue(txn.bankRefNo)),
+          _buildReceiptRow('User Code', _displayValue(txn.userCode)),
+          _buildReceiptRow('Owner Name', _displayValue(txn.ownerName), isLanguageSensitive: true),
+          _buildReceiptRow('Father/Husband Name', _displayValue(txn.fatherName), isLanguageSensitive: true),
+          _buildReceiptRow('Address', _displayValue(txn.address), isLanguageSensitive: true),
+          _buildReceiptRow('Payment Amount(Rs.)', _displayValue(txn.paymentAmount)),
+          _buildReceiptRow('Mobile Number', _displayValue(txn.mobileNo)),
+          _buildReceiptRow('Receipt No', _displayValue(txn.receiptNo)),
 
           // Footer
           Container(
