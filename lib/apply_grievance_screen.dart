@@ -69,7 +69,6 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
 
   final Completer<List<UlbData>> _ulbsCompleter = Completer();
 
-  List<UlbData> _ulbList = [];
   List<ZoneData> _zoneList = [];
   List<WardData> _wardList = [];
   List<MohallaData> _mohallaList = [];
@@ -191,10 +190,7 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
   Future<void> _fetchUlbs() async {
     try {
       final ulbs = await ApiService.getUlbData();
-      setState(() {
-        _ulbList = ulbs;
-        _isLoadingUlbs = false;
-      });
+      setState(() => _isLoadingUlbs = false);
       if (!_ulbsCompleter.isCompleted) _ulbsCompleter.complete(ulbs);
     } catch (e) {
       setState(() => _isLoadingUlbs = false);
@@ -211,19 +207,6 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
       });
     } catch (e) {
       setState(() => _isLoadingCategories = false);
-    }
-  }
-
-  Future<void> _fetchZones(String ulbId) async {
-    setState(() => _isLoadingZones = true);
-    try {
-      final zones = await ApiService.getZoneData(ulbId);
-      setState(() {
-        _zoneList = zones;
-        _isLoadingZones = false;
-      });
-    } catch (e) {
-      setState(() => _isLoadingZones = false);
     }
   }
 
@@ -615,30 +598,13 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // Select ULB
+                  // Select ULB (read-only - user cannot change it)
                   _buildSelectableField(
                     label: 'ULB',
                     hint: _isLoadingUlbs
                         ? 'Loading ULBs...'
                         : (_selectedUlb?.toString() ?? 'Select ULB'),
-                    onTap: _isLoadingUlbs
-                        ? null
-                        : () => _showSelectionSheet(
-                            title: 'Select ULB',
-                            items: _ulbList.map((e) => e.toString()).toList(),
-                            onSelected: (index) {
-                              setState(() {
-                                _selectedUlb = _ulbList[index];
-                                _selectedZone = null;
-                                _selectedWard = null;
-                                _selectedMohalla = null;
-                                _zoneList = [];
-                                _wardList = [];
-                                _mohallaList = [];
-                              });
-                              _fetchZones(_selectedUlb!.ulbId!);
-                            },
-                          ),
+                    onTap: null,
                   ),
                   const SizedBox(height: 16),
 

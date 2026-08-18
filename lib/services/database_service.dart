@@ -18,6 +18,13 @@ class PropertyEntity {
   final String? houseNo;
   final String? totalArea;
 
+  /// Bill ki due date (`dd-mm-yyyy`) — propertydetails API ke `billDetails.billDate` se.
+  final String? billDate;
+
+  /// Bakaya rakam — propertydetails API ke `billDetails.netPayble` se.
+  /// "0" ka matlab payment ho chuka hai.
+  final String? netPayable;
+
   PropertyEntity({
     required this.propertyId,
     required this.ownerName,
@@ -34,6 +41,8 @@ class PropertyEntity {
     this.zone,
     this.houseNo,
     this.totalArea,
+    this.billDate,
+    this.netPayable,
   });
 
   Map<String, dynamic> toMap() {
@@ -53,6 +62,8 @@ class PropertyEntity {
       'zone': zone,
       'houseNo': houseNo,
       'totalArea': totalArea,
+      'billDate': billDate,
+      'netPayable': netPayable,
     };
   }
 
@@ -73,6 +84,8 @@ class PropertyEntity {
       zone: map['zone'],
       houseNo: map['houseNo'],
       totalArea: map['totalArea'],
+      billDate: map['billDate'],
+      netPayable: map['netPayable'],
     );
   }
 }
@@ -90,10 +103,10 @@ class DatabaseService {
     String path = join(await getDatabasesPath(), 'property_database.db');
     return await openDatabase(
       path,
-      version: 6,
+      version: 7,
       onCreate: (db, version) {
         return db.execute(
-          'CREATE TABLE property_table(propertyId TEXT PRIMARY KEY, ownerName TEXT, ward TEXT, mohalla TEXT, phoneNumber TEXT, email TEXT, userType TEXT, ulbId TEXT, arvValue TEXT, userId TEXT, fatherName TEXT, address TEXT, zone TEXT, houseNo TEXT, totalArea TEXT)',
+          'CREATE TABLE property_table(propertyId TEXT PRIMARY KEY, ownerName TEXT, ward TEXT, mohalla TEXT, phoneNumber TEXT, email TEXT, userType TEXT, ulbId TEXT, arvValue TEXT, userId TEXT, fatherName TEXT, address TEXT, zone TEXT, houseNo TEXT, totalArea TEXT, billDate TEXT, netPayable TEXT)',
         );
       },
       onUpgrade: (db, oldVersion, newVersion) async {
@@ -115,6 +128,10 @@ class DatabaseService {
           await db.execute('ALTER TABLE property_table ADD COLUMN houseNo TEXT');
           await db.execute('ALTER TABLE property_table ADD COLUMN totalArea TEXT');
         }
+        if (oldVersion < 7) {
+          await db.execute('ALTER TABLE property_table ADD COLUMN billDate TEXT');
+          await db.execute('ALTER TABLE property_table ADD COLUMN netPayable TEXT');
+        }
       },
     );
   }
@@ -125,6 +142,22 @@ class DatabaseService {
       'property_table',
       property.toMap(),
       conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  /// Sirf bill ki info update karta hai — baaki columns chhedta nahi.
+  /// Property row maujood na ho to chupchaap no-op (0 rows affected).
+  static Future<void> updatePropertyBillInfo({
+    required String propertyId,
+    String? billDate,
+    String? netPayable,
+  }) async {
+    final db = await database;
+    await db.update(
+      'property_table',
+      {'billDate': billDate, 'netPayable': netPayable},
+      where: 'propertyId = ?',
+      whereArgs: [propertyId],
     );
   }
 

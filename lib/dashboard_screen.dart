@@ -10,7 +10,6 @@ import 'transaction_history_screen.dart';
 import 'account_screen.dart';
 import 'track_grievance_screen.dart';
 import 'assessment_type_selection_screen.dart';
-import 'unable_to_connect_screen.dart';
 import 'services/storage_service.dart';
 import 'services/api_service.dart';
 import 'services/database_service.dart';
@@ -53,22 +52,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _currentPaymentPage = 0;
   TutorialCoachMark? _tutorialCoachMark;
 
-  // Payment Status Variables
-  PropertyDetailsData? _propertyDetails;
-  String _paymentStatus = "";
-  String _billDate = "";
-  String _paymentDate = "";
-  bool _isLoadingPaymentStatus = false;
-  bool _isConnectionScreenOpen = false;
+  // Payment Status — poora data local DB se aata hai (koi API call nahi).
+  // Har saved property ka apna card banta hai; jis property ka bill data
+  // cache nahi hua uska card slider me aata hi nahi.
+  List<_PropertyPaymentStatus> _paymentStatuses = const [];
 
-  static const int _sliderCardCount = 2;
+  // Fast-payment slide hamesha rehta hai, uske baad har property ka card.
+  int get _sliderCardCount => 1 + _paymentStatuses.length;
 
   @override
   void initState() {
     super.initState();
     _loadUserInfo();
     _startPaymentAutoScroll();
-    _loadPropertyDetails();
+    _loadPaymentStatuses();
     _loadUlbLanguage();
   }
 
@@ -106,6 +103,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _paymentAutoScrollTimer?.cancel();
     _paymentAutoScrollTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       if (!mounted || !_paymentPageController.hasClients) {
+        return;
+      }
+
+      // Sirf ek hi card ho to scroll karne ka koi matlab nahi.
+      if (_sliderCardCount < 2) {
         return;
       }
 
@@ -148,155 +150,53 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  Future<void> _loadPropertyDetails() async {
+  /// Saari saved properties local DB se padhta hai aur unme se sirf unke card
+  /// banata hai jinke paas bill data cache hai. Yahan koi network call nahi
+  /// hoti — bill date / net payable payment details screen par cache hote hain.
+  Future<void> _loadPaymentStatuses() async {
+    List<PropertyEntity> properties;
     try {
-      // Get first property from database
-      final properties = await DatabaseService.getAllProperties();
-      if (properties.isEmpty) {
-        return; // No properties saved yet
-      }
-
-      final firstProperty = properties.first;
-      final propertyId = firstProperty.propertyId;
-
-      if (!mounted) return;
-      setState(() => _isLoadingPaymentStatus = true);
-
-      // Fetch property details from API
-      final response = await ApiService.getPropertyDetails(propertyId);
-
-      if (!mounted) return;
-
-      if (response.success == true && response.data != null) {
-        setState(() {
-          _propertyDetails = response.data;
-          _calculatePaymentStatus();
-          _isLoadingPaymentStatus = false;
-        });
-        _sendPaymentNotificationIfNeeded();
-      } else {
-        if (mounted) {
-          setState(() => _isLoadingPaymentStatus = false);
-        }
-      }
-    } catch (e) {
-      final message = ApiService.getUserFriendlyErrorMessage(e);
-
-      if (mounted) {
-        setState(() => _isLoadingPaymentStatus = false);
-      }
-
-      if (_shouldRedirectToConnectionScreen(message)) {
-        _redirectToConnectionScreen();
-      }
-    }
-  }
-
-  bool _shouldRedirectToConnectionScreen(String message) {
-    final normalized = message.toLowerCase();
-    return normalized.contains('unable to connect right now') ||
-        normalized.contains('internet connection') ||
-        normalized.contains('timed out') ||
-        normalized.contains('failed host lookup') ||
-        normalized.contains('socketexception') ||
-        normalized.contains('clientexception');
-  }
-
-  void _redirectToConnectionScreen() {
-    if (!mounted || _isConnectionScreenOpen) {
-      return;
-    }
-
-    _isConnectionScreenOpen = true;
-
-    Navigator.of(context)
-        .push(
-          MaterialPageRoute(
-            builder: (_) => UnableToConnectScreen(
-              onRetry: () {
-                Navigator.of(context).pop();
-              },
-            ),
-          ),
-        )
-        .then((_) {
-          if (!mounted) {
-            return;
-          }
-          _isConnectionScreenOpen = false;
-          _loadPropertyDetails();
-        });
-  }
-
-  void _calculatePaymentStatus() {
-    if (_propertyDetails == null) return;
-
-    final billDate = _propertyDetails?.billDetails?.billDate;
-    final paymentDate =
-        _propertyDetails?.currReceiptDetails?.isNotEmpty ?? false
-            ? _propertyDetails?.currReceiptDetails?.first.paymentDate
-            : null;
-
-    _billDate = billDate ?? "";
-    _paymentDate = paymentDate ?? "";
-
-    // Parse dates (format: dd-mm-yyyy)
-    try {
-      if (paymentDate != null && paymentDate.isNotEmpty && paymentDate != "-") {
-        // Payment already made
-        _paymentStatus = "Payment Done";
-      } else if (billDate != null && billDate.isNotEmpty) {
-        final today = DateTime.now();
-        final billDateTime = _parseDate(billDate);
-
-        if (billDateTime != null) {
-          if (billDateTime.isBefore(today)) {
-            // Overdue
-            _paymentStatus = "Overdue";
-          } else if (billDateTime.year == today.year &&
-              billDateTime.month == today.month &&
-              billDateTime.day == today.day) {
-            // Due today
-            _paymentStatus = "Due Today";
-          } else {
-            // Future due date
-            _paymentStatus = "Upcoming";
-          }
-        }
-      }
+      properties = await DatabaseService.getAllProperties();
     } catch (_) {
+      properties = const [];
     }
+
+    if (!mounted) return;
+
+    final statuses = properties
+        .map(_PropertyPaymentStatus.fromEntity)
+        .whereType<_PropertyPaymentStatus>()
+        .toList();
+
+    // Card kam ho gaye to page index range se bahar na chala jaye.
+    final needsReset = _currentPaymentPage >= 1 + statuses.length;
+
+    setState(() {
+      _paymentStatuses = statuses;
+      if (needsReset) _currentPaymentPage = 0;
+    });
+
+    if (needsReset) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _paymentPageController.hasClients) {
+          _paymentPageController.jumpToPage(0);
+        }
+      });
+    }
+
+    _sendPaymentNotificationsIfNeeded(statuses);
   }
 
-  DateTime? _parseDate(String dateStr) {
-    try {
-      // Expected format: dd-mm-yyyy
-      final parts = dateStr.split('-');
-      if (parts.length == 3) {
-        return DateTime(
-          int.parse(parts[2]), // year
-          int.parse(parts[1]), // month
-          int.parse(parts[0]), // day
-        );
-      }
-    } catch (_) {
-    }
-    return null;
-  }
-
-  Color _getStatusColor() {
-    switch (_paymentStatus) {
-      case "Overdue":
-        return Colors.red; // Red for overdue
-      case "Due Today":
-        return Colors.orange; // Orange for due today
-      case "Upcoming":
-        return Colors.blue; // Blue for upcoming
-      case "Payment Done":
-        return Colors.green; // Green for paid
-      default:
-        return Colors.grey;
-    }
+  /// `dd-mm-yyyy` parse karta hai. Galat format par null.
+  static DateTime? _parseDate(String? dateStr) {
+    if (dateStr == null) return null;
+    final parts = dateStr.trim().split('-');
+    if (parts.length != 3) return null;
+    final day = int.tryParse(parts[0]);
+    final month = int.tryParse(parts[1]);
+    final year = int.tryParse(parts[2]);
+    if (day == null || month == null || year == null) return null;
+    return DateTime(year, month, day);
   }
 
   void _showTourSegment({
@@ -466,10 +366,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             if (index == 0) {
                               return _buildFastPaymentSlide();
                             }
-                            return _buildPaymentStatusSlide();
+                            // Index 1 se aage: har saved property ka apna card.
+                            return _buildPaymentStatusSlide(
+                              _paymentStatuses[index - 1],
+                            );
                           },
                         ),
                       ),
+                      if (_sliderCardCount > 1) _buildSliderIndicator(),
 
                       // Refined "Search Property" Card - Admin only
                       if (_canSearchProperty) ...[
@@ -571,14 +475,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             Icons.home_work_outlined,
                             cardWidth,
                             key: _keyPropertyTax,
-                            onTap: () {
-                              Navigator.push(
+                            onTap: () async {
+                              await Navigator.push(
                                 context,
                                 MaterialPageRoute(
                                   builder: (context) =>
                                       const PropertyTaxScreen(),
                                 ),
                               );
+                              // Payment details screen wahan se khulti hai aur
+                              // bill info DB me cache karti hai — wapas aate hi
+                              // status cards refresh kar lo.
+                              await _loadPaymentStatuses();
                             },
                           ),
                           _buildServiceCard(
@@ -822,22 +730,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildPaymentStatusSlide() {
+  Widget _buildPaymentStatusSlide(_PropertyPaymentStatus status) {
+    final statusColor = status.color;
+    final isPaid = status.isPaid;
+
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: _sliderCardDecoration(),
-        child: _isLoadingPaymentStatus
-            ? const Center(
-                child: CircularProgressIndicator(color: _sliderAccentColor),
-              )
-            : _propertyDetails == null
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
                     'Payment Status',
                     style: GoogleFonts.poppins(
                       fontSize: 14,
@@ -845,85 +753,118 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       color: _sliderAccentColor,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'No property found. Add or verify a property to see due status.',
+                ),
+                if (isPaid)
+                  Icon(
+                    Icons.check_circle_rounded,
+                    size: 20,
+                    color: Colors.green.shade600,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 2),
+            Text(
+              status.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.poppins(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF444444),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              status.message,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.poppins(
+                fontSize: 11.5,
+                color: _sliderBodyTextColor,
+                height: 1.35,
+              ),
+            ),
+            const Spacer(),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: statusColor, width: 1),
+                  ),
+                  child: Text(
+                    status.status,
                     style: GoogleFonts.poppins(
                       fontSize: 12,
-                      color: _sliderBodyTextColor,
-                      height: 1.4,
+                      fontWeight: FontWeight.w700,
+                      color: statusColor,
                     ),
                   ),
-                ],
-              )
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Payment Status',
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: _sliderAccentColor,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _getStatusMessage(),
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      color: _sliderBodyTextColor,
-                      height: 1.4,
-                    ),
-                  ),
-                  const Spacer(),
-                  Row(
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _getStatusColor().withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: _getStatusColor(), width: 1),
-                        ),
-                        child: Text(
-                          _paymentStatus,
-                          style: GoogleFonts.poppins(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: _getStatusColor(),
-                          ),
+                      Text(
+                        status.billDate != null
+                            ? 'Due: ${status.billDate}'
+                            : 'Due: N/A',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.poppins(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF444444),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          _billDate.isNotEmpty ? 'Due: $_billDate' : 'Due: N/A',
+                      if (!isPaid && status.netPayable != null)
+                        Text(
+                          'Payable: ₹${status.netPayableText}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.poppins(
-                            fontSize: 12,
+                            fontSize: 11.5,
                             fontWeight: FontWeight.w600,
-                            color: const Color(0xFF444444),
+                            color: statusColor,
                           ),
                         ),
-                      ),
                     ],
                   ),
-                  if (_paymentDate.isNotEmpty && _paymentDate != "-") ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      'Last payment date: $_paymentDate',
-                      style: GoogleFonts.poppins(
-                        fontSize: 12,
-                        color: Colors.green.shade700,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Slider ke neeche chhote dots — tabhi jab ek se zyada card ho.
+  Widget _buildSliderIndicator() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: List.generate(_sliderCardCount, (index) {
+          final isActive = index == _currentPaymentPage;
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            margin: const EdgeInsets.symmetric(horizontal: 3),
+            height: 6,
+            width: isActive ? 18 : 6,
+            decoration: BoxDecoration(
+              color: isActive ? _sliderAccentColor : _sliderBorderColor,
+              borderRadius: BorderRadius.circular(3),
+            ),
+          );
+        }),
       ),
     );
   }
@@ -939,68 +880,179 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // ── Payment due notification (fires once per day per alert type) ──────────
+  // ── Payment due notification (per property, per alert type, once a day) ────
 
-  Future<void> _sendPaymentNotificationIfNeeded() async {
-    if (_paymentStatus == 'Payment Done') return;
+  Future<void> _sendPaymentNotificationsIfNeeded(
+    List<_PropertyPaymentStatus> statuses,
+  ) async {
+    final pending = statuses.where((s) => !s.isPaid && s.dueDate != null);
+    if (pending.isEmpty) return;
 
-    final billDate = _parseDate(_billDate);
-    if (billDate == null) return;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final prefs = await SharedPreferences.getInstance();
 
-    final today = DateTime.now();
-    final daysDiff = billDate
-        .difference(DateTime(today.year, today.month, today.day))
-        .inDays;
+    for (final status in pending) {
+      final daysDiff = status.dueDate!.difference(today).inDays;
 
-    String? notificationMsg;
-    if (daysDiff == 7) {
-      notificationMsg = 'Your payment is due in 7 days.';
-    } else if (daysDiff == 3) {
-      notificationMsg = 'Your payment is due in 3 days.';
-    } else if (daysDiff == 1) {
-      notificationMsg = 'Your payment is due tomorrow.';
-    } else if (daysDiff == 0) {
-      notificationMsg = 'Your payment is due today.';
-    } else if (daysDiff == -3) {
-      notificationMsg = 'Your payment is overdue by 3 days.';
-    } else if (daysDiff == -7) {
-      notificationMsg = 'Your payment is overdue by 7 days.';
+      String? notificationMsg;
+      if (daysDiff == 7) {
+        notificationMsg = 'Your payment is due in 7 days.';
+      } else if (daysDiff == 3) {
+        notificationMsg = 'Your payment is due in 3 days.';
+      } else if (daysDiff == 1) {
+        notificationMsg = 'Your payment is due tomorrow.';
+      } else if (daysDiff == 0) {
+        notificationMsg = 'Your payment is due today.';
+      } else if (daysDiff == -3) {
+        notificationMsg = 'Your payment is overdue by 3 days.';
+      } else if (daysDiff == -7) {
+        notificationMsg = 'Your payment is overdue by 7 days.';
+      }
+
+      if (notificationMsg == null) continue;
+
+      // Guard: ek property ka ek alert ek calendar din me sirf ek baar.
+      final key =
+          'payment_notif_${status.propertyId}_${today.year}_${today.month}_${today.day}_$daysDiff';
+      if (prefs.getBool(key) == true) continue;
+
+      await prefs.setBool(key, true);
+      NotificationHelper.showSimpleNotification(
+        'Payment Alert',
+        'Property ${status.propertyId}: $notificationMsg',
+      );
+    }
+  }
+}
+
+/// Dashboard slider ke ek payment-status card ka data.
+///
+/// Poori tarah local DB ke cached `billDate` + `netPayable` par bana hota hai.
+/// Dono khali hon to [fromEntity] null lautata hai — matlab card dikhana hi
+/// nahi hai.
+class _PropertyPaymentStatus {
+  final String propertyId;
+  final String ownerName;
+
+  /// Raw bill date jaisi DB me hai (`dd-mm-yyyy`), khali hone par null.
+  final String? billDate;
+
+  /// Parse ho chuki bill date; format galat ho to null.
+  final DateTime? dueDate;
+
+  /// Bakaya rakam; khali / `-` / unparseable hone par null.
+  final double? netPayable;
+
+  final String status;
+
+  const _PropertyPaymentStatus({
+    required this.propertyId,
+    required this.ownerName,
+    required this.billDate,
+    required this.dueDate,
+    required this.netPayable,
+    required this.status,
+  });
+
+  static _PropertyPaymentStatus? fromEntity(PropertyEntity property) {
+    final billDate = _cleanText(property.billDate);
+    final netPayable = _parseAmount(property.netPayable);
+
+    // Bill date aur net payable dono nadarad → is property ka card nahi.
+    if (billDate == null && netPayable == null) return null;
+
+    final dueDate = _DashboardScreenState._parseDate(billDate);
+    final isPaid = netPayable != null && netPayable <= 0;
+
+    final String status;
+    if (isPaid) {
+      status = 'Payment Done';
+    } else if (dueDate != null) {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      if (dueDate.isBefore(today)) {
+        status = 'Overdue';
+      } else if (dueDate.isAtSameMomentAs(today)) {
+        status = 'Due Today';
+      } else {
+        status = 'Upcoming';
+      }
+    } else {
+      // Rakam bakaya hai par valid due date nahi mili.
+      status = 'Payment Due';
     }
 
-    if (notificationMsg == null) return;
-
-    // Guard: send this specific alert only once per calendar day
-    final prefs = await SharedPreferences.getInstance();
-    final key =
-        'payment_notif_${today.year}_${today.month}_${today.day}_$daysDiff';
-    if (prefs.getBool(key) == true) return;
-
-    await prefs.setBool(key, true);
-    NotificationHelper.showSimpleNotification('Payment Alert', notificationMsg);
+    return _PropertyPaymentStatus(
+      propertyId: property.propertyId,
+      ownerName: _cleanText(property.ownerName) ?? '',
+      billDate: billDate,
+      dueDate: dueDate,
+      netPayable: netPayable,
+      status: status,
+    );
   }
 
-  String _getStatusMessage() {
-    // If payment is done, show default message
-    if (_paymentStatus == "Payment Done") {
-      return 'Payment received successfully. Your account is up to date.';
-    }
+  bool get isPaid => status == 'Payment Done';
 
-    // Only show alerts if payment is NOT done and billDate is valid
-    final billDate = _parseDate(_billDate);
-    if (billDate == null) {
-      return 'We are checking your latest payment details.';
+  Color get color {
+    switch (status) {
+      case 'Payment Done':
+        return Colors.green;
+      case 'Overdue':
+        return Colors.red;
+      case 'Due Today':
+        return Colors.orange;
+      case 'Upcoming':
+        return Colors.blue;
+      default:
+        return Colors.deepOrange;
     }
+  }
 
-    // Fallback to old logic for other cases
-    switch (_paymentStatus) {
-      case "Overdue":
+  /// Card ki dusri line — kis property ka status hai ye clear karne ke liye.
+  String get label =>
+      ownerName.isEmpty ? 'ID: $propertyId' : '$ownerName · ID: $propertyId';
+
+  String get message {
+    switch (status) {
+      case 'Payment Done':
+        return 'Payment received successfully. Your account is up to date.';
+      case 'Overdue':
         return 'Your payment is overdue. Please clear dues to avoid penalties.';
-      case "Due Today":
+      case 'Due Today':
         return 'Your payment is due today. Complete payment to stay updated.';
-      case "Upcoming":
+      case 'Upcoming':
         return 'Your payment is upcoming. You can pay early for convenience.';
       default:
-        return 'We are checking your latest payment details.';
+        return 'You have an outstanding amount on this property.';
     }
+  }
+
+  String get netPayableText {
+    final amount = netPayable;
+    if (amount == null) return '-';
+    return amount == amount.roundToDouble()
+        ? amount.round().toString()
+        : amount.toStringAsFixed(2);
+  }
+
+  /// Khali string, `-`, `n/a` jaise placeholders ko null maanta hai.
+  static String? _cleanText(String? value) {
+    if (value == null) return null;
+    final trimmed = value.trim();
+    if (trimmed.isEmpty ||
+        trimmed == '-' ||
+        trimmed.toLowerCase() == 'null' ||
+        trimmed.toLowerCase() == 'n/a') {
+      return null;
+    }
+    return trimmed;
+  }
+
+  static double? _parseAmount(String? value) {
+    final cleaned = _cleanText(value);
+    if (cleaned == null) return null;
+    return double.tryParse(cleaned.replaceAll(',', '').replaceAll('₹', ''));
   }
 }

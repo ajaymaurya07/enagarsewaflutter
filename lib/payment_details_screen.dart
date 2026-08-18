@@ -277,6 +277,10 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
     try {
       final response = await ApiService.getPropertyDetails(widget.propertyId);
       if (response.success == true && response.data != null) {
+        // Dashboard ka payment-status card ab DB se padhta hai, isliye is
+        // property ki bill date aur net payable yahin cache kar dete hain.
+        await _cacheBillInfo(response.data!);
+
         if (!mounted) return;
 
         setState(() {
@@ -305,6 +309,21 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
         );
         _isLoading = false;
       });
+    }
+  }
+
+  /// Is property id ke liye bill date + net payable local DB me likhta hai.
+  /// Multiple properties saved ho sakti hain, isliye update hamesha
+  /// `widget.propertyId` wali row par hi hota hai.
+  Future<void> _cacheBillInfo(PropertyDetailsData data) async {
+    try {
+      await DatabaseService.updatePropertyBillInfo(
+        propertyId: widget.propertyId,
+        billDate: data.billDetails?.billDate,
+        netPayable: data.billDetails?.netPayble,
+      );
+    } catch (_) {
+      // Cache likhna optional hai — fail hone par screen normal chalti rahe.
     }
   }
 

@@ -305,6 +305,11 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
         address: _selectedProperty?.address ?? "N/A",
         houseNo: _currentPropertyDetails?.propertyDetailsInfo?.houseNo,
         totalArea: _currentPropertyDetails?.propertyDetailsInfo?.totalArea,
+        // Dashboard ka payment-status card in dono par chalta hai. insert
+        // ConflictAlgorithm.replace use karta hai, isliye yahan bhi bharna
+        // zaroori hai warna dobara verify karne par cache wipe ho jayega.
+        billDate: _currentPropertyDetails?.billDetails?.billDate,
+        netPayable: _currentPropertyDetails?.billDetails?.netPayble,
       ),
     );
 

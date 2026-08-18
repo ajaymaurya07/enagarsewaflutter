@@ -62,7 +62,10 @@
       "Bash(python -c ' *)",
       "Bash(grep -rn \"http://\\\\|https://\" lib/constants/app_constants.dart)",
       "PowerShell(flutter analyze lib/services/push_notification_service.dart lib/splash_screen.dart)",
-      "PowerShell(dart run flutter_launcher_icons)"
+      "PowerShell(dart run flutter_launcher_icons)",
+      "PowerShell(flutter analyze lib/dashboard_screen.dart lib/services/database_service.dart lib/payment_details_screen.dart lib/property_selection_screen.dart)",
+      "PowerShell(flutter analyze lib/dashboard_screen.dart)",
+      "PowerShell(flutter analyze lib/apply_grievance_screen.dart)"
     ],
     "additionalDirectories": [
       "D:\\flutter-app\\android\\app\\src\\main\\res\\mipmap-*"
