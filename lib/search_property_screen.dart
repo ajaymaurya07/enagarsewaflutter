@@ -334,10 +334,12 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
     });
     try {
       final data = await ApiService.getUlbData();
+      if (!mounted) return;
       setState(() {
         _ulbList = data;
         _isLoadingUlbs = false;
       });
+      await _preselectLoginUlb();
     } catch (e) {
       setState(() {
         _isLoadingUlbs = false;
@@ -348,6 +350,40 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
         );
       });
     }
+  }
+
+  // OTP verify hone par login response ka `ulbid` cache ho jaata hai — ULB
+  // list aane ke baad wahi ULB by default select kar dete hain, taki citizen
+  // ko apna sheher dobara na chunna pade. User picker se dusra ULB chun sakta
+  // hai; ye sirf pehli load par chalta hai aur manual selection ko kabhi
+  // override nahi karta.
+  Future<void> _preselectLoginUlb() async {
+    if (_selectedUlb != null || _ulbList.isEmpty) return;
+
+    final loginUlbId = (await StorageService.getUlbCache())?.trim();
+    if (loginUlbId == null || loginUlbId.isEmpty) return;
+
+    // Await ke doraan user khud ULB chun sakta hai — us case me uski choice
+    // hi rehni chahiye.
+    if (!mounted || _selectedUlb != null) return;
+
+    UlbData? matchedUlb;
+    for (final ulb in _ulbList) {
+      if ((ulb.ulbId ?? '').trim() == loginUlbId) {
+        matchedUlb = ulb;
+        break;
+      }
+    }
+    // Login ka ULB list me na mile (list badal gayi ho) to picker khaali hi
+    // rehne do — galat ULB select karne se search bhi galat chalega.
+    if (matchedUlb == null) return;
+
+    setState(() {
+      _selectedUlb = matchedUlb;
+    });
+    // Zone/Ward/Mohalla wale search modes seedha kaam karein, isliye zones
+    // pehle se load kar dete hain — manual selection me bhi yahi hota hai.
+    await _loadZoneData(loginUlbId);
   }
 
   Future<void> _loadZoneData(String ulbId) async {
