@@ -205,8 +205,8 @@ class StorageService {
   }
 
   // ── ULB Language (English / Krutidev) cache ────────────────────────────────
-  // Cached after the dashboard's getUlbLanguage call so it isn't re-fetched
-  // on every app open.
+  // Cached after the search property screen's getUlbLanguage call so it isn't
+  // re-fetched on every app open.
 
   static const String _languageCacheKey = 'ulb_language';
   static const String _ulbIdCacheKey = 'ulb_id_cache';

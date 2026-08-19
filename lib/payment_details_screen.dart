@@ -1232,6 +1232,10 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
     final prop = _details?.propertyDetailsInfo;
     final owner = _details?.ownerDetails;
 
+    final isKrutidev = await UlbLanguageHelper.isKrutidev();
+
+  final languageFont =await UlbLanguageHelper.pdfFontIfKrutidev(isKrutidev);
+
     final doc = pw.Document();
 
     doc.addPage(
@@ -1265,15 +1269,15 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
               _buildPdfRow('Ward Name', prop?.wardName ?? 'N/A'),
               _buildPdfRow('Mohalla Name', prop?.mohallaName ?? 'N/A'),
               _buildPdfRow('House No.', prop?.houseNo ?? 'N/A'),
-              _buildPdfRow('Address', prop?.address ?? 'N/A'),
+              _buildPdfRow('Address', prop?.address ?? 'N/A',languageFont: languageFont),
               pw.SizedBox(height: 12),
               pw.Divider(),
               pw.SizedBox(height: 8),
               pw.Text('Owner Information',
                   style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 6),
-              _buildPdfRow('Owner Name', owner?.ownerName ?? 'N/A'),
-              _buildPdfRow('Father Name', owner?.fatherName ?? 'N/A'),
+              _buildPdfRow('Owner Name', owner?.ownerName ?? 'N/A',languageFont: languageFont),
+              _buildPdfRow('Father Name', owner?.fatherName ?? 'N/A',languageFont: languageFont),
               _buildPdfRow('Mobile No.', owner?.mobileNo ?? 'N/A'),
               pw.SizedBox(height: 12),
               pw.Divider(),
@@ -1318,27 +1322,40 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
     );
   }
 
-  pw.Widget _buildPdfRow(String label, String value) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.symmetric(vertical: 3),
-      child: pw.Row(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Expanded(
-            flex: 3,
-            child: pw.Text(label,
-                style: const pw.TextStyle(color: PdfColors.grey700)),
+ pw.Widget _buildPdfRow(
+  String label,
+  String value, {
+  pw.Font? languageFont,
+}) {
+  return pw.Padding(
+    padding: const pw.EdgeInsets.symmetric(vertical: 3),
+    child: pw.Row(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Expanded(
+          flex: 3,
+          child: pw.Text(
+            label,
+            style: const pw.TextStyle(
+              color: PdfColors.grey700,
+            ),
           ),
-          pw.SizedBox(width: 8),
-          pw.Expanded(
-            flex: 4,
-            child: pw.Text(value,
-                style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+        ),
+        pw.SizedBox(width: 8),
+        pw.Expanded(
+          flex: 4,
+          child: pw.Text(
+            value,
+            style: pw.TextStyle(
+              font: languageFont,
+              fontWeight: pw.FontWeight.bold,
+            ),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 
   @override
   Widget build(BuildContext context) {

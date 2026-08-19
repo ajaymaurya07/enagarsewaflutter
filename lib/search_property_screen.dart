@@ -47,6 +47,12 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
   bool _isLoggingOut = false;
   String? _errorMessage;
 
+  // Screen khulte hi language fetch hoti hai — tab tak loader, aur network
+  // fail hone par retry view. ULB list wale `_errorMessage` se alag state
+  // rakhi hai taki dono messages clash na karein.
+  bool _isLoadingLanguage = true;
+  bool _languageLoadFailed = false;
+
   // Tour guide keys
   final _keySearchTabs = GlobalKey();
   final _keyTabOwner = GlobalKey();
@@ -68,7 +74,138 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
   void initState() {
     super.initState();
     _loadUlbData();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _autoStartTourIfFirstVisit());
+    _loadUlbLanguage();
+  }
+
+  // ULB language (English / Krutidev) sirf yahin fetch hoti hai — login ke
+  // baad citizen seedha isi screen par aata hai, isliye Dashboard se ye call
+  // hata di gayi hai. Cache pehle se ho to koi API call nahi hoti.
+  //
+  // NOTE: ULB ID yahan save nahi hota — wo OTP login response (`data.ulbid`)
+  // se aata hai aur ApiService.otpLoginVerifyOtp me cache hota hai.
+  Future<void> _loadUlbLanguage() async {
+    try {
+      final cachedLanguage = await StorageService.getLanguageCache();
+      if (cachedLanguage == null || cachedLanguage.isEmpty) {
+        final response = await ApiService.getUlbLanguage();
+        if (!response.success ||
+            response.language == null ||
+            response.language!.isEmpty) {
+          throw Exception(response.message);
+        }
+        await StorageService.saveLanguageCache(response.language!);
+      }
+
+      if (!mounted) return;
+      setState(() => _isLoadingLanguage = false);
+
+      // Tour tabhi start ho jab asli form build ho chuka ho — loader/retry
+      // view par tour ke GlobalKeys attach nahi hote.
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _autoStartTourIfFirstVisit(),
+      );
+    } catch (_) {
+      // Internet nahi / response nahi mila — retry view dikha do.
+      if (!mounted) return;
+      setState(() {
+        _isLoadingLanguage = false;
+        _languageLoadFailed = true;
+      });
+    }
+  }
+
+  void _retryUlbLanguage() {
+    setState(() {
+      _isLoadingLanguage = true;
+      _languageLoadFailed = false;
+    });
+    _loadUlbLanguage();
+  }
+
+  Widget _buildLanguageLoader() {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(color: Color(0xFFE67514)),
+            const SizedBox(height: 16),
+            Text(
+              'Please wait...',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                color: Colors.grey.shade600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLanguageRetryView() {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.wifi_off_rounded,
+                  size: 56,
+                  color: Color(0xFFE67514),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'No internet connection',
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF333333),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Please check your connection and try again.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: 160,
+                  height: 46,
+                  child: ElevatedButton(
+                    onPressed: _retryUlbLanguage,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFE67514),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: Text(
+                      'Retry',
+                      style: GoogleFonts.poppins(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _autoStartTourIfFirstVisit() async {
@@ -538,6 +675,15 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Language aane tak loader, aur network fail par retry view — search form
+    // tabhi dikhta hai jab language ready ho.
+    if (_isLoadingLanguage) {
+      return _buildLanguageLoader();
+    }
+    if (_languageLoadFailed) {
+      return _buildLanguageRetryView();
+    }
+
     return Scaffold(
       body: Container(
         width: double.infinity,

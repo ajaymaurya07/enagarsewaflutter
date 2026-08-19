@@ -11,7 +11,6 @@ import 'account_screen.dart';
 import 'track_grievance_screen.dart';
 import 'assessment_type_selection_screen.dart';
 import 'services/storage_service.dart';
-import 'services/api_service.dart';
 import 'services/database_service.dart';
 import 'services/notification_helper.dart';
 import 'tour_guides/dashboard_tour.dart';
@@ -66,30 +65,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _loadUserInfo();
     _startPaymentAutoScroll();
     _loadPaymentStatuses();
-    _loadUlbLanguage();
-  }
-
-  // Fetches and caches the citizen's ULB language (English / Krutidev) once.
-  // Skipped entirely if a value is already cached in secure storage.
-  //
-  // NOTE: ULB ID is NOT saved here anymore — it comes from the OTP login
-  // response (`data.ulbid`) and is cached in ApiService.otpLoginVerifyOtp.
-  Future<void> _loadUlbLanguage() async {
-    final cachedLanguage = await StorageService.getLanguageCache();
-    if (cachedLanguage != null && cachedLanguage.isNotEmpty) {
-      return;
-    }
-
-    try {
-      final response = await ApiService.getUlbLanguage();
-      if (response.success &&
-          response.language != null &&
-          response.language!.isNotEmpty) {
-        await StorageService.saveLanguageCache(response.language!);
-      }
-    } catch (_) {
-      // Non-blocking: dashboard should still work if this call fails.
-    }
   }
 
   @override
@@ -933,7 +908,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
 /// nahi hai.
 class _PropertyPaymentStatus {
   final String propertyId;
-  final String ownerName;
 
   /// Raw bill date jaisi DB me hai (`dd-mm-yyyy`), khali hone par null.
   final String? billDate;
@@ -948,7 +922,6 @@ class _PropertyPaymentStatus {
 
   const _PropertyPaymentStatus({
     required this.propertyId,
-    required this.ownerName,
     required this.billDate,
     required this.dueDate,
     required this.netPayable,
@@ -985,7 +958,6 @@ class _PropertyPaymentStatus {
 
     return _PropertyPaymentStatus(
       propertyId: property.propertyId,
-      ownerName: _cleanText(property.ownerName) ?? '',
       billDate: billDate,
       dueDate: dueDate,
       netPayable: netPayable,
@@ -1011,8 +983,7 @@ class _PropertyPaymentStatus {
   }
 
   /// Card ki dusri line — kis property ka status hai ye clear karne ke liye.
-  String get label =>
-      ownerName.isEmpty ? 'ID: $propertyId' : '$ownerName · ID: $propertyId';
+  String get label => 'PID: $propertyId';
 
   String get message {
     switch (status) {

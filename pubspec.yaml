@@ -72,6 +72,9 @@ flutter:
     - assets/images/e_nagar_seva_logo.png
     - assets/rate_master.json
     - assets/certs/iamsup_chain.pem
+    # Also declared under fonts: below — listed here so the PDF generator can
+    # load the same .ttf through rootBundle (UlbLanguageHelper.krutidevPdfFont).
+    - assets/font/Kruti Dev 010 Regular.ttf
   fonts:
     - family: Krutidev010
       fonts:

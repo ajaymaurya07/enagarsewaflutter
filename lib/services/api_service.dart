@@ -2275,7 +2275,7 @@ class ApiService {
 
           // Login response ka `ulbid` seedha ULB cache me daal do. Warna ye
           // value discard ho jaati thi aur Zone/Ward/Mohalla wale screens
-          // sirf Dashboard ke getUlbLanguage par depend karte the.
+          // sirf Search Property ke getUlbLanguage par depend karte the.
           final ulbId = result.data!.ulbId;
           if (ulbId != null && ulbId.isNotEmpty) {
             await StorageService.saveUlbCache(ulbId);

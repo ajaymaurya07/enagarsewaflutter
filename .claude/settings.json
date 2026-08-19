@@ -65,7 +65,13 @@
       "PowerShell(dart run flutter_launcher_icons)",
       "PowerShell(flutter analyze lib/dashboard_screen.dart lib/services/database_service.dart lib/payment_details_screen.dart lib/property_selection_screen.dart)",
       "PowerShell(flutter analyze lib/dashboard_screen.dart)",
-      "PowerShell(flutter analyze lib/apply_grievance_screen.dart)"
+      "PowerShell(flutter analyze lib/apply_grievance_screen.dart)",
+      "PowerShell(flutter analyze lib/search_property_screen.dart)",
+      "PowerShell(flutter analyze lib/dashboard_screen.dart lib/search_property_screen.dart lib/services/api_service.dart lib/services/storage_service.dart)",
+      "PowerShell(flutter analyze lib/search_property_screen.dart lib/dashboard_screen.dart)",
+      "Bash(python -)",
+      "PowerShell(flutter analyze --no-pub 2>&1)",
+      "PowerShell(flutter pub get 2>&1)"
     ],
     "additionalDirectories": [
       "D:\\flutter-app\\android\\app\\src\\main\\res\\mipmap-*"
