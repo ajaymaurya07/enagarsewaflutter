@@ -4308,6 +4308,13 @@ class BillDetails {
   final String? otherTaxDiscount;
   final String? waterChargeInterest;
   final String? waterChargeCurrent;
+  final String? houseTaxPayable;
+  final String? waterTaxPayable;
+  final String? sewerTaxPayable;
+  final String? otherTaxPayable;
+  final String? waterChargePayable;
+
+
 
   BillDetails({
     this.sewerTaxArrear,
@@ -4350,6 +4357,11 @@ class BillDetails {
     this.otherTaxDiscount,
     this.waterChargeInterest,
     this.waterChargeCurrent,
+    this.houseTaxPayable,
+    this.waterTaxPayable,
+    this.sewerTaxPayable,
+    this.otherTaxPayable,
+    this.waterChargePayable
   });
 
   factory BillDetails.fromJson(Map<String, dynamic> json) {
@@ -4395,6 +4407,12 @@ class BillDetails {
       otherTaxDiscount: json['otherTaxDiscount']?.toString(),
       waterChargeInterest: json['waterChargeInterest']?.toString(),
       waterChargeCurrent: json['waterChargeCurrent']?.toString(),
+      houseTaxPayable : json['houseTaxPayable']?.toString(),
+      waterTaxPayable : json['waterTaxPayable']?.toString(),
+      sewerTaxPayable : json['sewerTaxPayable']?.toString(),
+      otherTaxPayable: json['otherTaxPayable']?.toString(),
+      waterChargePayable :json['waterChargePayable']?.toString()
+    
     );
   }
 }

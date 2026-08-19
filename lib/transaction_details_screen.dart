@@ -182,6 +182,11 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
 
   Future<pw.Document> _buildPdf() async {
     final txn = widget.transaction;
+    // Owner Name / Father Name / Address are stored in the ULB's legacy
+    // Krutidev encoding, so the PDF needs the same face the receipt card uses
+    // or those rows render as garbage Latin text.
+    final isKrutidev = await UlbLanguageHelper.isKrutidev();
+    final languageFont = await UlbLanguageHelper.pdfFontIfKrutidev(isKrutidev);
     final regularFont = await PdfGoogleFonts.notoSansRegular();
     final boldFont = await PdfGoogleFonts.notoSansBold();
     final pdf = pw.Document();
@@ -189,25 +194,33 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
     final status = txn.transactionStatus?.toUpperCase() ?? '';
     final isSuccess = status == 'SUCCESS';
 
-    final rows = <List<String>>[];
+    final rows = <({String label, String value, bool isLanguageSensitive})>[];
 
-    rows.add(['ULB Name', _displayValue(txn.ulbName)]);
-    rows.add(['ULB Type', _displayValue(txn.ulbType)]);
-    rows.add(['Financial Year', _displayValue(txn.financialYear)]);
-    rows.add(['Transaction Number', _displayValue(txn.txnId)]);
-    rows.add(['Bill No', _displayValue(txn.billNo)]);
-    rows.add(['Property ID.', _displayValue(txn.propertyId)]);
-    rows.add(['Transaction Date', _displayValue(txn.dateTime)]);
-    rows.add(['Payment Status', status.isNotEmpty ? status : 'UNKNOWN']);
-    rows.add(['Payment Mode', _displayValue(txn.paymentMode)]);
-    rows.add(['Bank Ref No', _displayValue(txn.bankRefNo)]);
-    rows.add(['User Code', _displayValue(txn.userCode)]);
-    rows.add(['Owner Name', _displayValue(txn.ownerName)]);
-    rows.add(['Father/Husband Name', _displayValue(txn.fatherName)]);
-    rows.add(['Address', _displayValue(txn.address)]);
-    rows.add(['Payment Amount(Rs.)', _displayValue(txn.paymentAmount)]);
-    rows.add(['Mobile Number', _displayValue(txn.mobileNo)]);
-    rows.add(['Receipt No', _displayValue(txn.receiptNo)]);
+    void addRow(String label, String value, {bool isLanguageSensitive = false}) {
+      rows.add((
+        label: label,
+        value: value,
+        isLanguageSensitive: isLanguageSensitive,
+      ));
+    }
+
+    addRow('ULB Name', _displayValue(txn.ulbName));
+    addRow('ULB Type', _displayValue(txn.ulbType));
+    addRow('Financial Year', _displayValue(txn.financialYear));
+    addRow('Transaction Number', _displayValue(txn.txnId));
+    addRow('Bill No', _displayValue(txn.billNo));
+    addRow('Property ID.', _displayValue(txn.propertyId));
+    addRow('Transaction Date', _displayValue(txn.dateTime));
+    addRow('Payment Status', status.isNotEmpty ? status : 'UNKNOWN');
+    addRow('Payment Mode', _displayValue(txn.paymentMode));
+    addRow('Bank Ref No', _displayValue(txn.bankRefNo));
+    addRow('User Code', _displayValue(txn.userCode));
+    addRow('Owner Name', _displayValue(txn.ownerName), isLanguageSensitive: true);
+    addRow('Father/Husband Name', _displayValue(txn.fatherName), isLanguageSensitive: true);
+    addRow('Address', _displayValue(txn.address), isLanguageSensitive: true);
+    addRow('Payment Amount(Rs.)', _displayValue(txn.paymentAmount));
+    addRow('Mobile Number', _displayValue(txn.mobileNo));
+    addRow('Receipt No', _displayValue(txn.receiptNo));
 
     pdf.addPage(
       pw.Page(
@@ -255,11 +268,18 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
                     pw.Container(
                       padding: const pw.EdgeInsets.all(8),
                       color: PdfColors.grey100,
-                      child: pw.Text(row[0], style: const pw.TextStyle(fontSize: 11)),
+                      child: pw.Text(row.label, style: const pw.TextStyle(fontSize: 11)),
                     ),
                     pw.Container(
                       padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text(row[1], style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
+                      child: pw.Text(
+                        row.value,
+                        style: pw.TextStyle(
+                          font: row.isLanguageSensitive ? languageFont : null,
+                          fontSize: 11,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ],
                 )).toList(),

@@ -407,20 +407,28 @@ class _ReceiptCard extends StatelessWidget {
   }
 
   Future<pw.Document> _buildPdf() async {
+    // Owner Name / Father Name / Address come from the API in the ULB's legacy
+    // Krutidev encoding, so the PDF needs the same face the card uses or those
+    // rows render as garbage Latin text.
+    final languageFont = await UlbLanguageHelper.pdfFontIfKrutidev(isKrutidev);
     final regularFont = await PdfGoogleFonts.notoSansRegular();
     final boldFont = await PdfGoogleFonts.notoSansBold();
     final pdf = pw.Document();
-    final rows = <List<String>>[];
+    final rows = <({String label, String value, bool isLanguageSensitive})>[];
 
-    void addRow(String label, String? value) {
+    void addRow(String label, String? value, {bool isLanguageSensitive = false}) {
       if (value != null && value.isNotEmpty && value != 'null' && value != '-') {
-        rows.add([label, value]);
+        rows.add((
+          label: label,
+          value: value,
+          isLanguageSensitive: isLanguageSensitive,
+        ));
       }
     }
 
     if (isCurrent && ownerDetails != null) {
-      addRow('Owner Name', ownerDetails!.ownerName);
-      addRow('Father/Husband Name', ownerDetails!.fatherName);
+      addRow('Owner Name', ownerDetails!.ownerName, isLanguageSensitive: true);
+      addRow('Father/Husband Name', ownerDetails!.fatherName, isLanguageSensitive: true);
     }
     if (isCurrent) {
       addRow('ULB Name', ulbName);
@@ -431,7 +439,7 @@ class _ReceiptCard extends StatelessWidget {
       addRow('Ward', propertyDetails!.wardName);
       addRow('Mohalla', propertyDetails!.mohallaName);
       addRow('House Number', propertyDetails!.houseNo);
-      addRow('Address', propertyDetails!.address);
+      addRow('Address', propertyDetails!.address, isLanguageSensitive: true);
     }
     addRow('Bill Number', receipt.billNo);
     addRow('Receipt No', receipt.receiptNo);
@@ -487,13 +495,17 @@ class _ReceiptCard extends StatelessWidget {
                             pw.Container(
                               padding: const pw.EdgeInsets.all(8),
                               color: PdfColors.grey100,
-                              child: pw.Text(row[0], style: const pw.TextStyle(fontSize: 11)),
+                              child: pw.Text(row.label, style: const pw.TextStyle(fontSize: 11)),
                             ),
                             pw.Container(
                               padding: const pw.EdgeInsets.all(8),
                               child: pw.Text(
-                                row[1],
-                                style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold),
+                                row.value,
+                                style: pw.TextStyle(
+                                  font: row.isLanguageSensitive ? languageFont : null,
+                                  fontSize: 11,
+                                  fontWeight: pw.FontWeight.bold,
+                                ),
                               ),
                             ),
                           ],

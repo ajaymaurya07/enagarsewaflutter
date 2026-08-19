@@ -71,7 +71,11 @@
       "PowerShell(flutter analyze lib/search_property_screen.dart lib/dashboard_screen.dart)",
       "Bash(python -)",
       "PowerShell(flutter analyze --no-pub 2>&1)",
-      "PowerShell(flutter pub get 2>&1)"
+      "PowerShell(flutter pub get 2>&1)",
+      "Read(//c/Users/maury/AppData/Local/Pub/Cache/hosted/pub.dev/pdf-3.12.0/lib/src/widgets/**)",
+      "PowerShell(flutter analyze lib/transaction_details_screen.dart lib/payment_history_screen.dart lib/utils/ulb_language_helper.dart)",
+      "Bash(ls ~/AppData/Local/Pub/Cache/hosted/pub.dev/ 2>/dev/null | grep -i \"^pdf\\\\|^printing\" )",
+      "Read(//c/Users/maury/AppData/Local/Pub/Cache/hosted/pub.dev/**)"
     ],
     "additionalDirectories": [
       "D:\\flutter-app\\android\\app\\src\\main\\res\\mipmap-*"

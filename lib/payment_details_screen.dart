@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'services/api_service.dart';
@@ -14,6 +13,7 @@ import 'payment_result_screen.dart';
 import 'payment_history_screen.dart';
 import 'apply_grievance_screen.dart';
 import 'tour_guides/payment_details_tour.dart';
+import 'utils/property_tax_receipt_pdf.dart';
 import 'utils/ulb_language_helper.dart';
 
 class PaymentDetailsScreen extends StatefulWidget {
@@ -249,12 +249,37 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
   bool _showPropertyDetails = false;
   TutorialCoachMark? _tutorialCoachMark;
   bool _isKrutidev = false;
+  String? _ulbName;
+  String? _ulbType;
 
   @override
   void initState() {
     super.initState();
     _fetchDetails();
     _loadUlbLanguagePreference();
+    _loadUlbInfo();
+  }
+
+  /// ULB naam/type Receipt Details screen ki tarah nikalta hai — property ke
+  /// `ulbId` ko ULB data list se match karke. Sirf print header ke liye chahiye,
+  /// isliye fail hone par screen chupchaap chalti rahti hai.
+  Future<void> _loadUlbInfo() async {
+    try {
+      final property = await DatabaseService.getPropertyById(widget.propertyId);
+      final ulbId = property?.ulbId;
+      if (ulbId == null || ulbId.isEmpty) return;
+
+      final ulbList = await ApiService.getUlbData();
+      final match = ulbList.where((u) => u.ulbId == ulbId).firstOrNull;
+      if (match == null || !mounted) return;
+
+      setState(() {
+        _ulbName = match.ulbName;
+        _ulbType = match.ulbType;
+      });
+    } catch (_) {
+      // Print header propertydetails ke ulbName par fallback kar lega.
+    }
   }
 
   Future<void> _loadUlbLanguagePreference() async {
@@ -1228,134 +1253,39 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
   }
 
   Future<void> _printProperty() async {
-    final bill = _details?.billDetails;
-    final prop = _details?.propertyDetailsInfo;
-    final owner = _details?.ownerDetails;
+    try {
+      if (_ulbName == null) await _loadUlbInfo();
+      final property = await DatabaseService.getPropertyById(widget.propertyId);
+      final bytes = await PropertyTaxReceiptPdf.buildBytes(
+        propertyId: widget.propertyId,
+        bill: _details?.billDetails,
+        owner: _details?.ownerDetails,
+        property: _details?.propertyDetailsInfo,
+        currReceipts: _details?.currReceiptDetails ?? const [],
+        arv: property?.arvValue,
+        ulbName: _ulbName,
+        ulbType: _ulbType,
+      );
 
-    final isKrutidev = await UlbLanguageHelper.isKrutidev();
-
-  final languageFont =await UlbLanguageHelper.pdfFontIfKrutidev(isKrutidev);
-
-    final doc = pw.Document();
-
-    doc.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(32),
-        build: (pw.Context ctx) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Center(
-                child: pw.Text(
-                  'Property Tax Details',
-                  style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold),
-                ),
-              ),
-              pw.SizedBox(height: 4),
-              pw.Center(
-                child: pw.Text(
-                  'Property ID: ${widget.propertyId}',
-                  style: pw.TextStyle(fontSize: 12, color: PdfColors.grey700),
-                ),
-              ),
-              pw.SizedBox(height: 16),
-              pw.Divider(thickness: 1.5),
-              pw.SizedBox(height: 10),
-              pw.Text('Property Information',
-                  style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold)),
-              pw.SizedBox(height: 6),
-              _buildPdfRow('Zone Name', prop?.zoneName ?? 'N/A'),
-              _buildPdfRow('Ward Name', prop?.wardName ?? 'N/A'),
-              _buildPdfRow('Mohalla Name', prop?.mohallaName ?? 'N/A'),
-              _buildPdfRow('House No.', prop?.houseNo ?? 'N/A'),
-              _buildPdfRow('Address', prop?.address ?? 'N/A',languageFont: languageFont),
-              pw.SizedBox(height: 12),
-              pw.Divider(),
-              pw.SizedBox(height: 8),
-              pw.Text('Owner Information',
-                  style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold)),
-              pw.SizedBox(height: 6),
-              _buildPdfRow('Owner Name', owner?.ownerName ?? 'N/A',languageFont: languageFont),
-              _buildPdfRow('Father Name', owner?.fatherName ?? 'N/A',languageFont: languageFont),
-              _buildPdfRow('Mobile No.', owner?.mobileNo ?? 'N/A'),
-              pw.SizedBox(height: 12),
-              pw.Divider(),
-              pw.SizedBox(height: 8),
-              pw.Text('Tax Summary',
-                  style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold)),
-              pw.SizedBox(height: 6),
-              _buildPdfRow('Bill Date', bill?.billDate ?? 'N/A'),
-              _buildPdfRow('Bill Number', bill?.billNo ?? 'N/A'),
-              _buildPdfRow('Financial Year', bill?.finYear ?? 'N/A'),
-              _buildPdfRow('House Tax Net Amount', 'Rs. ${bill?.houseTaxNetAmount ?? "0"}'),
-              _buildPdfRow('Water Tax Net Amount', 'Rs. ${bill?.waterTaxNetAmount ?? "0"}'),
-              _buildPdfRow('Sewer Tax Net Amount', 'Rs. ${bill?.sewerTaxNetAmount ?? "0"}'),
-              _buildPdfRow('Other Tax Net Amount', 'Rs. ${bill?.othertaxNetAmount ?? "0"}'),
-              _buildPdfRow('Water Charge Net Amount', 'Rs. ${bill?.waterChargeNetAmount ?? "0"}'),
-              _buildPdfRow('Net Demand', 'Rs. ${bill?.netDemand ?? "0"}'),
-              pw.SizedBox(height: 14),
-              pw.Container(
-                padding: const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: pw.BoxDecoration(
-                  border: pw.Border.all(width: 1.5),
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
-                ),
-                child: pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text('Net Payable',
-                        style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold)),
-                    pw.Text('Rs. ${bill?.netPayble ?? "0"}',
-                        style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold)),
-                  ],
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-
-    await Printing.layoutPdf(
-      onLayout: (PdfPageFormat format) async => doc.save(),
-    );
+      await Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) async => bytes,
+        name: 'property_tax_receipt_${widget.propertyId}.pdf',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            ApiService.getUserFriendlyErrorMessage(
+              e,
+              fallbackMessage: 'Unable to print the receipt right now. Please try again.',
+            ),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
-
- pw.Widget _buildPdfRow(
-  String label,
-  String value, {
-  pw.Font? languageFont,
-}) {
-  return pw.Padding(
-    padding: const pw.EdgeInsets.symmetric(vertical: 3),
-    child: pw.Row(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.Expanded(
-          flex: 3,
-          child: pw.Text(
-            label,
-            style: const pw.TextStyle(
-              color: PdfColors.grey700,
-            ),
-          ),
-        ),
-        pw.SizedBox(width: 8),
-        pw.Expanded(
-          flex: 4,
-          child: pw.Text(
-            value,
-            style: pw.TextStyle(
-              font: languageFont,
-              fontWeight: pw.FontWeight.bold,
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
-}
 
   @override
   Widget build(BuildContext context) {
