@@ -305,6 +305,9 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
         address: _selectedProperty?.address ?? "N/A",
         houseNo: _currentPropertyDetails?.propertyDetailsInfo?.houseNo,
         totalArea: _currentPropertyDetails?.propertyDetailsInfo?.totalArea,
+        // arvValue ki tarah propertysearch response se — bill print isi row se
+        // "पुरानी प्रापर्टी आईडी0" bharta hai.
+        oldPropertyId: _selectedProperty?.oldPropertyId,
         // Dashboard ka payment-status card in dono par chalta hai. insert
         // ConflictAlgorithm.replace use karta hai, isliye yahan bhi bharna
         // zaroori hai warna dobara verify karne par cache wipe ho jayega.

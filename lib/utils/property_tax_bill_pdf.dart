@@ -12,19 +12,28 @@ import 'package:printing/printing.dart';
 import '../services/api_service.dart';
 import 'ulb_language_helper.dart';
 
-/// Builds the "संपत्ति कर रसीद" print-out in the same layout the
-/// e-NagarSewa (NIC) portal prints — header band with bill/receipt numbers,
-/// the "गृह संबंधी विवरण" grid, the five-column "वित्तीय विवरण" grid, the
-/// total-deposited block, the discount note and the previous-payments section.
+/// Builds the "सम्पति कर बिल" print-out the way the e-NagarSewa (NIC) portal
+/// prints it — the discrepancy note band, the bill/ULB header, the
+/// "पूर्व जमा धनराशि" table (printed both above and below the bill, as the
+/// portal does), the "गृह संबंधी विवरण" grid, the row-wise "वित्तीय विवरण"
+/// grid with its Grand Total and "भुगतान हेतु शेष राशि" lines.
+///
+/// The portal's link row (View Transaction History etc.) and its NIC footer are
+/// left out — the links do nothing in a printed PDF.
+///
+/// This is the bill view; [PropertyTaxReceiptPdf] stays as the receipt view.
 ///
 /// The Hindi labels are rendered through `Printing.convertHtml` (a platform
 /// WebView prints the markup to PDF) because the `pdf` package draws one glyph
 /// per code unit and has no Devanagari shaping — matras and conjuncts would
-/// come out misplaced if the receipt were laid out with `pw` widgets. If the
+/// come out misplaced if the bill were laid out with `pw` widgets. If the
 /// platform cannot convert HTML, [buildBytes] falls back to
-/// [_buildFallbackDocument], the plain label/value sheet.
-class PropertyTaxReceiptPdf {
-  PropertyTaxReceiptPdf._();
+/// [_buildFallbackDocument], a plain label/value sheet.
+///
+/// The portal prints a QR code in the top-right corner; it is left out here on
+/// purpose because the app has no payload to encode into it yet.
+class PropertyTaxBillPdf {
+  PropertyTaxBillPdf._();
 
   static const double _margin = 0.8 * PdfPageFormat.cm;
 
@@ -36,9 +45,7 @@ class PropertyTaxReceiptPdf {
   ///   multiplies `marginLeft` by 1000 without converting points to mils, so a
   ///   non-zero left margin would blow up the left edge anyway.)
   /// * iOS builds the printable rect from these margins, so the format carries
-  ///   them there. If WebKit also applies `@page` the insets add up and the
-  ///   receipt just sits a little narrower — better than the edge-to-edge page
-  ///   that dropping them would risk.
+  ///   them there.
   static PdfPageFormat get _pageFormat => PdfPageFormat(
         21.0 * PdfPageFormat.cm,
         29.7 * PdfPageFormat.cm,
@@ -50,6 +57,8 @@ class PropertyTaxReceiptPdf {
 
   static String? _cachedKrutidevBase64;
 
+  static final NumberFormat _grouped = NumberFormat('#,##0.00', 'en_US');
+
   static Future<Uint8List> buildBytes({
     required String propertyId,
     BillDetails? bill,
@@ -59,6 +68,9 @@ class PropertyTaxReceiptPdf {
     String? arv,
     String? ulbName,
     String? ulbType,
+    String? oldPropertyId,
+    String? oldId,
+    String? assessmentDate,
   }) async {
     final isKrutidev = await UlbLanguageHelper.isKrutidev();
 
@@ -72,6 +84,9 @@ class PropertyTaxReceiptPdf {
         arv: arv,
         ulbName: ulbName,
         ulbType: ulbType,
+        oldPropertyId: oldPropertyId,
+        oldId: oldId,
+        assessmentDate: assessmentDate,
         isKrutidev: isKrutidev,
       );
       // Deprecated upstream, but it is the only API that hands the markup to a
@@ -102,20 +117,19 @@ class PropertyTaxReceiptPdf {
     required String? arv,
     String? ulbName,
     String? ulbType,
+    String? oldPropertyId,
+    String? oldId,
+    String? assessmentDate,
     required bool isKrutidev,
   }) async {
     final finYear = _text(bill?.finYear);
     final receipts = currReceipts.where(_hasReceiptNo).toList();
-    // The receipt raised against the bill on screen; the rest of the current
-    // financial year's receipts go to the "पूर्व जमा धनराशि" section.
-    final paid = receipts.where((r) => r.billNo == bill?.billNo).firstOrNull ??
-        receipts.firstOrNull;
-    final earlier = receipts.where((r) => r != paid).toList();
+    final columns = _taxColumns(bill, receipts);
 
-    final columns = _taxColumns(bill, paid);
-    final totalDeposited = columns.fold<double>(
+    // The portal's Grand Total is the sum of the "देय धनराशि" row.
+    final grandTotal = columns.fold<double>(
       0,
-      (sum, column) => sum + column.depositedValue,
+      (sum, column) => sum + column.payableValue,
     );
 
     final fontFace = isKrutidev
@@ -129,6 +143,7 @@ class PropertyTaxReceiptPdf {
 
     final printedOn = DateFormat('dd-MM-yyyy HH:mm').format(DateTime.now());
     final maskedMobile = _maskMobile(owner?.mobileNo);
+    final depositsSection = _depositsSectionHtml(receipts, finYear);
 
     return '''
 <!DOCTYPE html>
@@ -147,91 +162,81 @@ body {
   font-family: 'Noto Sans Devanagari', 'Devanagari Sangam MN', 'Kohinoor Devanagari', 'Mangal', sans-serif;
 }
 table { width: 100%; border-collapse: collapse; }
-.head td { padding: 0 0 2px 0; font-size: 10px; line-height: 1.7; vertical-align: top; }
-.head .ulb { text-align: center; font-size: 17px; font-weight: bold; }
-.head .r { text-align: right; }
-.title { text-align: center; font-size: 15px; font-weight: bold; margin: 10px 0 8px; }
+.topnote {
+  border: 1px solid #e3c363; background: #fffdf4; color: #c0392b;
+  padding: 6px 10px; text-align: center; font-weight: bold;
+  font-size: 9.5px; line-height: 1.6;
+}
+.head td { padding: 10px 0 2px 0; font-size: 10.5px; line-height: 1.9; vertical-align: top; }
+.head .ulb { text-align: center; font-size: 17px; font-weight: bold; vertical-align: middle; }
+.title { text-align: center; font-size: 15px; font-weight: bold; margin: 8px 0 6px; }
 .grid { border: 1px solid #808080; }
 .grid + .grid, .grid.join { margin-top: -1px; }
 .grid td { border: 1px solid #808080; padding: 4px 6px; vertical-align: middle; }
 .band td { background: #e6e6e6; text-align: center; font-weight: bold; font-size: 11.5px; padding: 5px; }
+.chead td { background: #e6e6e6; text-align: center; font-weight: bold; }
 .lbl { width: 22%; }
 .val { font-weight: bold; }
-.addr { line-height: 1.85; padding: 5px 6px !important; }
-.grp { padding: 0 !important; width: 20%; vertical-align: top; }
-.grp table td { border-top: 0; }
-.grp table tr:first-child td { border-top: 0; }
-.grp td.n { text-align: right; width: 42%; font-weight: bold; }
-.ghead td { background: #f2f2f2; text-align: center; font-weight: bold; }
-.kd { font-family: 'KrutiDev010'; font-size: 14px; }
-.note {
-  border: 1px solid #e3c363; background: #fffdf4; color: #c0392b;
-  padding: 6px 10px; margin: 10px 0; text-align: center; line-height: 1.8;
+.addr { line-height: 1.9; padding: 5px 6px !important; }
+.n { text-align: right; width: 8%; }
+.sn { text-align: left; width: 4%; }
+.fh { width: 19.2%; }
+/* The longest label in the grid; the portal keeps it on one line. */
+.rest td { white-space: nowrap; font-size: 9.5px; padding: 4px 4px; }
+.total td {
+  background: #fffdf4; text-align: center; font-weight: bold; font-size: 11px; padding: 5px;
 }
-.sub { background: #e6e6e6; border: 1px solid #808080; text-align: center;
-  font-weight: bold; font-size: 11.5px; padding: 5px; margin-top: 10px; }
+.kd { font-family: 'KrutiDev010'; font-size: 14px; }
 .empty { text-align: center; font-style: italic; padding: 10px 6px; }
-.foot { text-align: center; font-style: italic; font-size: 10px;
-  border-top: 1px solid #b0b0b0; margin-top: 10px; padding-top: 8px; }
 </style>
 </head>
 <body>
 
+<div class="topnote">
+  In case of any discrepancy in the data, Citizen has to contact related NAGAR NIGAM /
+  NAGAR PALIKA PARISHAD / NAGAR PANCHAYAT. NIC (National Informatics Centre) is not
+  responsible for the data on the website.
+</div>
+
 <table class="head">
   <tr>
-    <td style="width:30%">
-      बिल संख्या: <b>${_esc(_text(bill?.billNo))}</b><br>
-      बिल दिनांक: <b>${_esc(_text(bill?.billDate))}</b><br>
-      प्रिंट दिनांक: <b>$printedOn</b>
+    <td style="width:33%">
+      बिल संख्या&nbsp;&nbsp;<b>${_esc(_text(bill?.billNo))}</b><br>
+      बिल दिनांक&nbsp;&nbsp;<b>${_esc(_text(bill?.billDate))}</b><br>
+      प्रिन्ट दिनांक&nbsp;&nbsp;<b>$printedOn</b>
     </td>
-    <td class="ulb" style="width:40%">${_esc(_ulbHeading(ulbType, ulbName ?? property?.ulbName))}</td>
-    <td class="r" style="width:30%">
-      बुक संख्या: <b>${_esc(_bookNo(finYear))}</b><br>
-      रसीद संख्या: <b>${_esc(_text(paid?.receiptNo))}</b><br>
-      रसीद दिनांक: <b>${_esc(_text(paid?.receiptDate))}</b>
-    </td>
+    <td class="ulb" style="width:34%">${_esc(_ulbHeading(ulbType, ulbName ?? property?.ulbName))}</td>
+    <td style="width:33%"></td>
   </tr>
 </table>
 
-<div class="title">${'संपत्ति कर रसीद'}</div>
+<div class="title">सम्पति कर बिल</div>
 
-<table class="grid">
+$depositsSection
+
+<table class="grid join">
   <tr class="band"><td colspan="4">गृह संबंधी विवरण</td></tr>
   <tr>
-    <td class="lbl">नयी 17-डिजिट प्रापर्टी आई0डी0</td>
+    <td class="lbl">नयी 17-डिजिट प्रापर्टी आईडी0</td>
     <td class="val">${_esc(propertyId)}</td>
-    <td class="lbl">पुरानी प्रापर्टी आई0डी0</td>
-    <td class="val">-</td>
+    <td class="lbl">पुरानी प्रापर्टी आईडी0</td>
+    <td class="val">${_esc(_text(oldPropertyId))}</td>
   </tr>
   <tr>
-    <td class="lbl">पुरानी आई0डी0</td>
-    <td class="val">-</td>
+    <td class="lbl">पुरानी आईडी0</td>
+    <td class="val">${_esc(_text(oldId))}</td>
     <td class="lbl">वित्तीय वर्ष</td>
     <td class="val">${_esc(finYear)}</td>
   </tr>
   <tr>
-    <td class="lbl">वित्तीय वर्ष क्रमांक</td>
-    <td class="val">-</td>
     <td class="lbl">जोन</td>
     <td class="val">${_esc(_text(property?.zoneName))}</td>
-  </tr>
-  <tr>
     <td class="lbl">वार्ड</td>
     <td class="val">${_esc(_text(property?.wardName))}</td>
+  </tr>
+  <tr>
     <td class="lbl">मोहल्ला/चक</td>
-    <td class="val">${_esc(_text(property?.mohallaName))}</td>
-  </tr>
-  <tr>
-    <td class="lbl">जमा आपरेटर कोड</td>
-    <td class="val">-</td>
-    <td class="lbl">दिनांक क्रमांक</td>
-    <td class="val">-</td>
-  </tr>
-  <tr>
-    <td class="lbl">मोबाइल नं.</td>
-    <td class="val">${_esc(maskedMobile)}</td>
-    <td class="lbl">यूएलबी रसीद संख्या:</td>
-    <td class="val">-</td>
+    <td class="val" colspan="3">${_esc(_text(property?.mohallaName))}</td>
   </tr>
   <tr>
     <td class="lbl">नाम पता</td>
@@ -247,7 +252,7 @@ table { width: 100%; border-collapse: collapse; }
     <td class="lbl">AV/ARV</td>
     <td class="val">${_esc(_amount(arv))}</td>
     <td class="lbl">Date of Assessment</td>
-    <td class="val">-</td>
+    <td class="val">${_esc(_text(assessmentDate))}</td>
   </tr>
   <tr>
     <td class="lbl">Property Type</td>
@@ -255,91 +260,97 @@ table { width: 100%; border-collapse: collapse; }
   </tr>
 </table>
 
-<table class="grid join">
-  <tr class="band"><td colspan="5">वित्तीय विवरण</td></tr>
-  <tr>
-${columns.map(_taxColumnHtml).join('\n')}
-  </tr>
-</table>
+${_financialGridHtml(columns, grandTotal)}
 
-<table class="grid join">
-  <tr>
-    <td class="lbl">कुल जमा की गई धनराशि</td>
-    <td>
-      अंको मे: <b>${_esc(totalDeposited.toStringAsFixed(2))}</b><br>
-      शब्दों में: <b>${_esc(_amountInWords(totalDeposited))}</b>
-    </td>
-  </tr>
-  <tr>
-    <td class="lbl">पेमेन्ट मोड विवरण</td>
-    <td class="val">${_esc(_text(paid?.paymentMode))}</td>
-  </tr>
-</table>
-
-<div class="note">
-  * छूट नगर निगम द्वारा घोषित तिथियों के मध्य दी जायेगी एवं वार्षिक मांगदेय धनराशि पर दी जायेगी ।<br>
-  इस रसीद पर छूट: (${columns.where((c) => c.showsDiscountPercent).map((c) => '${c.title}: <b>${c.discountPercent}</b>').join(', ')})
-</div>
-
-<div class="sub">वित्तीय वर्ष ${_esc(finYear)} में पूर्व जमा धनराशि के विवरण</div>
-${_earlierPaymentsHtml(earlier, finYear)}
-
-<div class="foot">Software developed by National Informatics Centre, Lucknow. Data is the responsibility of particular ULB.</div>
+$depositsSection
 
 </body>
 </html>
 ''';
   }
 
-  static String _taxColumnHtml(_TaxColumn column) {
-    String row(String label, String value) =>
-        '<tr><td>${_esc(label)}</td><td class="n">${_esc(value)}</td></tr>';
+  /// The row-wise "वित्तीय विवरण" grid: one column pair (label + amount) per
+  /// tax head, the Grand Total band and the "भुगतान हेतु शेष राशि" line.
+  static String _financialGridHtml(List<_TaxColumn> columns, double grandTotal) {
+    String amountRow(int serial, String label, String Function(_TaxColumn) pick) {
+      final cells = columns
+          .map((c) => '<td>${_esc(label)}</td><td class="n">${_esc(pick(c))}</td>')
+          .join();
+      return '  <tr><td class="sn">$serial</td>$cells</tr>';
+    }
 
-    return '''    <td class="grp">
-      <table>
-        <tr class="ghead"><td colspan="2">${_esc(column.title)}</td></tr>
-        ${row('वार्षिक मांग', column.annualDemand)}
-        ${row('बकाया', column.arrear)}
-        ${row('ब्याज', column.interest)}
-        ${row('कुल मांग', column.totalDemand)}
-        ${row('मासिक ब्याज', column.monthlyInterest)}
-        ${row('छूट *', column.discount)}
-        ${row('अग्रिम जमा', column.advance)}
-        ${row('देय धनराशि', column.payable)}
-        ${row('जमा राशि', column.deposited)}
-      </table>
-    </td>''';
+    final headings =
+        columns.map((c) => '<td class="fh" colspan="2">${_esc(c.title)}</td>').join();
+    final remaining = columns
+        .map((c) =>
+            '<td>भुगतान हेतु शेष राशि</td><td class="n">${_esc(c.remaining)}</td>')
+        .join();
+
+    return '''
+<table class="grid join">
+  <tr class="band"><td colspan="11">वित्तीय विवरण</td></tr>
+  <tr class="chead"><td class="sn">क्रं0सं0</td>$headings</tr>
+${amountRow(1, 'वार्षिक मांग', (c) => c.annualDemand)}
+${amountRow(2, 'बकाया', (c) => c.arrear)}
+${amountRow(3, 'ब्याज', (c) => c.interest)}
+${amountRow(4, 'मासिक ब्याज', (c) => c.monthlyInterest)}
+${amountRow(5, 'कुल मांग', (c) => c.totalDemand)}
+${amountRow(6, 'छूट', (c) => c.discount)}
+${amountRow(7, 'अग्रिम जमा', (c) => c.advance)}
+${amountRow(8, 'देय धनराशि', (c) => c.payable)}
+  <tr class="total">
+    <td colspan="11">सम्पूर्ण देय धनराशि योग (Grand Total) : ${_esc(_grouped.format(grandTotal))}</td>
+  </tr>
+  <tr class="rest"><td class="sn"></td>$remaining</tr>
+</table>''';
   }
 
-  static String _earlierPaymentsHtml(
+  /// The "वित्तीय वर्ष … में पूर्व जमा धनराशि के विवरण" block. The portal prints
+  /// it twice — once above the bill and once below — so this markup is reused.
+  static String _depositsSectionHtml(
     List<ReceiptDetailsItem> receipts,
     String finYear,
   ) {
+    final band = '<tr class="band"><td colspan="10">वित्तीय वर्ष '
+        '${_esc(finYear)} में पूर्व जमा धनराशि के विवरण</td></tr>';
+
     if (receipts.isEmpty) {
-      return '<div class="empty">No Previous Payment Transaction Done Through '
-          'https://e-nagarsewaup.gov.in in the Financial Year $finYear</div>';
+      const message = 'No Payment Transaction Done Through '
+          'https://e-nagarsewaup.gov.in in the Financial Year ';
+      return '<table class="grid join">\n  $band\n'
+          '  <tr><td class="empty" colspan="10">$message${_esc(finYear)}</td></tr>\n'
+          '</table>';
     }
 
     final rows = receipts.map((receipt) {
-      final amount = _sum([
+      final total = _sum([
         receipt.propertyTaxPaidAmount,
         receipt.waterTaxPaidAmount,
         receipt.waterChargePaidAmount,
         receipt.sewerTaxPaidAmount,
         receipt.otherTaxPaidAmount,
       ]);
-      return '<tr>'
-          '<td>${_esc(_text(receipt.receiptNo))}</td>'
-          '<td>${_esc(_text(receipt.receiptDate))}</td>'
-          '<td>${_esc(_text(receipt.paymentMode))}</td>'
-          '<td class="val" style="text-align:right">${_esc(amount.toStringAsFixed(2))}</td>'
+      return '  <tr>'
+          '<td style="text-align:center">${_esc(_bookNo(finYear))}</td>'
+          '<td style="text-align:center">${_esc(_text(receipt.receiptNo))}</td>'
+          '<td style="text-align:center">${_esc(_text(receipt.receiptDate))}</td>'
+          '<td style="text-align:center">${_esc(_text(receipt.paymentMode))}</td>'
+          '<td class="n">${_esc(_amount(receipt.propertyTaxPaidAmount))}</td>'
+          '<td class="n">${_esc(_amount(receipt.waterTaxPaidAmount))}</td>'
+          '<td class="n">${_esc(_amount(receipt.waterChargePaidAmount))}</td>'
+          '<td class="n">${_esc(_amount(receipt.sewerTaxPaidAmount))}</td>'
+          '<td class="n">${_esc(_amount(receipt.otherTaxPaidAmount))}</td>'
+          '<td class="n val">${_esc(_grouped.format(total))}</td>'
           '</tr>';
     }).join('\n');
 
     return '''
 <table class="grid join">
-  <tr class="band">
-    <td>रसीद संख्या</td><td>रसीद दिनांक</td><td>पेमेन्ट मोड</td><td>जमा राशि</td>
+  $band
+  <tr class="chead">
+    <td>बुक संख्या</td><td>रसीद सं.</td><td>जमा की तारीख और समय</td><td>भुगतान मोड</td>
+    <td>गृहकर जमा</td><td>जलकर जमा</td><td>जल शुल्क जमा</td><td>सीवरेजकर जमा</td>
+    <td>अन्यकर जमा</td><td>कुल जमा</td>
   </tr>
 $rows
 </table>''';
@@ -349,69 +360,71 @@ $rows
 
   static List<_TaxColumn> _taxColumns(
     BillDetails? bill,
-    ReceiptDetailsItem? paid,
+    List<ReceiptDetailsItem> receipts,
   ) {
+    double paidOf(String? Function(ReceiptDetailsItem) pick) =>
+        _sum(receipts.map(pick).toList());
+
     return [
       _TaxColumn(
         title: 'गृहकर',
         annualDemand: bill?.houseCurrentTax,
         arrear: bill?.houseTaxArrear,
         interest: bill?.houseTaxInterest,
-        totalDemand: bill?.houseTaxNetAmount,
         monthlyInterest: bill?.houseTaxMonthlyInterest,
+        totalDemand: bill?.houseTaxNetAmount,
         discount: bill?.houseTaxDiscount,
         advance: bill?.houseTaxAdvance,
         payable: bill?.houseTaxPayable,
-        deposited: paid?.propertyTaxPaidAmount,
+        depositedValue: paidOf((r) => r.propertyTaxPaidAmount),
       ),
       _TaxColumn(
         title: 'जलकर',
         annualDemand: bill?.waterCurrentTax,
         arrear: bill?.waterTaxArrear,
         interest: bill?.waterTaxInterest,
-        totalDemand: bill?.waterTaxNetAmount,
         monthlyInterest: bill?.waterTaxMonthlyInterest,
+        totalDemand: bill?.waterTaxNetAmount,
         discount: bill?.waterTaxDiscount,
         advance: bill?.waterTaxAdvance,
         payable: bill?.waterTaxPayable,
-        deposited: paid?.waterTaxPaidAmount,
+        depositedValue: paidOf((r) => r.waterTaxPaidAmount),
       ),
       _TaxColumn(
         title: 'जल शुल्क',
         annualDemand: bill?.waterChargeCurrent,
         arrear: bill?.waterChargeArrear,
         interest: bill?.waterChargeInterest,
-        totalDemand: bill?.waterChargeNetAmount,
         monthlyInterest: bill?.waterChargeMonthlyInterest,
+        totalDemand: bill?.waterChargeNetAmount,
         discount: bill?.waterChargeDiscount,
         advance: bill?.waterChargeAdvance,
         payable: bill?.waterChargePayable,
-        deposited: paid?.waterChargePaidAmount,
-        showsDiscountPercent: false,
+        depositedValue: paidOf((r) => r.waterChargePaidAmount),
       ),
       _TaxColumn(
         title: 'सीवरेजकर',
         annualDemand: bill?.sewerCurrentTax,
         arrear: bill?.sewerTaxArrear,
         interest: bill?.sewerTaxInterest,
-        totalDemand: bill?.sewerTaxNetAmount,
         monthlyInterest: bill?.sewerTaxMonthlyInterest,
+        totalDemand: bill?.sewerTaxNetAmount,
         discount: bill?.sewerTaxDiscount,
         advance: bill?.sewerTaxAdvance,
         payable: bill?.sewerTaxPayable,
-        deposited: paid?.sewerTaxPaidAmount,
+        depositedValue: paidOf((r) => r.sewerTaxPaidAmount),
       ),
       _TaxColumn(
         title: 'अन्यकर',
         annualDemand: bill?.otherCurrentTax,
         arrear: bill?.otherTaxArrear,
         interest: bill?.otherTaxInterest,
-        totalDemand: bill?.othertaxNetAmount,
         monthlyInterest: bill?.otherTaxMonthlyInterest,
+        totalDemand: bill?.othertaxNetAmount,
         discount: bill?.otherTaxDiscount,
         advance: bill?.otherTaxAdvance,
         payable: bill?.otherTaxPayable,
-        deposited: paid?.otherTaxPaidAmount,
+        depositedValue: paidOf((r) => r.otherTaxPaidAmount),
       ),
     ];
   }
@@ -488,51 +501,6 @@ $rows
     return '${'#' * (digits.length - 5)}${digits.substring(digits.length - 5)}';
   }
 
-  static const List<String> _ones = [
-    '', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
-    'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
-    'Seventeen', 'Eighteen', 'Nineteen',
-  ];
-
-  static const List<String> _tens = [
-    '', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety',
-  ];
-
-  static String _below100(int n) {
-    if (n < 20) return _ones[n];
-    final unit = n % 10;
-    return '${_tens[n ~/ 10]}${unit == 0 ? '' : ' ${_ones[unit]}'}';
-  }
-
-  static String _below1000(int n) {
-    if (n < 100) return _below100(n);
-    final rest = n % 100;
-    return '${_ones[n ~/ 100]} Hundred${rest == 0 ? '' : ' and ${_below100(rest)}'}';
-  }
-
-  /// Indian numbering (crore / lakh / thousand); paise are dropped the same way
-  /// the portal drops them.
-  static String _amountInWords(double amount) {
-    var rupees = amount.round();
-    if (rupees <= 0) return 'Zero Rupees Only';
-
-    final parts = <String>[];
-    void take(int divisor, String name) {
-      final count = rupees ~/ divisor;
-      if (count > 0) {
-        parts.add('${_below1000(count)} $name');
-        rupees %= divisor;
-      }
-    }
-
-    take(10000000, 'Crore');
-    take(100000, 'Lakh');
-    take(1000, 'Thousand');
-    if (rupees > 0) parts.add(_below1000(rupees));
-
-    return '${parts.join(' ')} Rupees Only';
-  }
-
   // ------------------------------------------------------------- fallback
 
   /// Plain label/value sheet used when the platform cannot print HTML.
@@ -556,7 +524,7 @@ $rows
             children: [
               pw.Center(
                 child: pw.Text(
-                  'Property Tax Details',
+                  'Property Tax Bill',
                   style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold),
                 ),
               ),
@@ -596,12 +564,11 @@ $rows
               _fallbackRow('Bill Date', _text(bill?.billDate)),
               _fallbackRow('Bill Number', _text(bill?.billNo)),
               _fallbackRow('Financial Year', _text(bill?.finYear)),
-              _fallbackRow('House Tax Net Amount', 'Rs. ${_amount(bill?.houseTaxNetAmount)}'),
-              _fallbackRow('Water Tax Net Amount', 'Rs. ${_amount(bill?.waterTaxNetAmount)}'),
-              _fallbackRow('Sewer Tax Net Amount', 'Rs. ${_amount(bill?.sewerTaxNetAmount)}'),
-              _fallbackRow('Other Tax Net Amount', 'Rs. ${_amount(bill?.othertaxNetAmount)}'),
-              _fallbackRow('Water Charge Net Amount', 'Rs. ${_amount(bill?.waterChargeNetAmount)}'),
-              _fallbackRow('Net Demand', 'Rs. ${_amount(bill?.netDemand)}'),
+              _fallbackRow('House Tax Payable', 'Rs. ${_amount(bill?.houseTaxPayable)}'),
+              _fallbackRow('Water Tax Payable', 'Rs. ${_amount(bill?.waterTaxPayable)}'),
+              _fallbackRow('Water Charge Payable', 'Rs. ${_amount(bill?.waterChargePayable)}'),
+              _fallbackRow('Sewer Tax Payable', 'Rs. ${_amount(bill?.sewerTaxPayable)}'),
+              _fallbackRow('Other Tax Payable', 'Rs. ${_amount(bill?.otherTaxPayable)}'),
               pw.SizedBox(height: 14),
               pw.Container(
                 padding: const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -612,7 +579,7 @@ $rows
                 child: pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
-                    pw.Text('Net Payable',
+                    pw.Text('Grand Total',
                         style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold)),
                     pw.Text('Rs. ${_amount(bill?.netPayble)}',
                         style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold)),
@@ -659,46 +626,36 @@ class _TaxColumn {
     required String? annualDemand,
     required String? arrear,
     required String? interest,
-    required String? totalDemand,
     required String? monthlyInterest,
+    required String? totalDemand,
     required String? discount,
     required String? advance,
     required String? payable,
-    required String? deposited,
-    this.showsDiscountPercent = true,
-  })  : annualDemandValue = PropertyTaxReceiptPdf._number(annualDemand),
-        discountValue = PropertyTaxReceiptPdf._number(discount),
-        depositedValue = PropertyTaxReceiptPdf._number(deposited),
-        annualDemand = PropertyTaxReceiptPdf._amount(annualDemand),
-        arrear = PropertyTaxReceiptPdf._amount(arrear),
-        interest = PropertyTaxReceiptPdf._amount(interest),
-        totalDemand = PropertyTaxReceiptPdf._amount(totalDemand),
-        monthlyInterest = PropertyTaxReceiptPdf._amount(monthlyInterest),
-        discount = PropertyTaxReceiptPdf._amount(discount),
-        advance = PropertyTaxReceiptPdf._amount(advance),
-        payable = PropertyTaxReceiptPdf._amount(payable),
-        deposited = PropertyTaxReceiptPdf._amount(deposited);
+    required this.depositedValue,
+  })  : payableValue = PropertyTaxBillPdf._number(payable),
+        annualDemand = PropertyTaxBillPdf._amount(annualDemand),
+        arrear = PropertyTaxBillPdf._amount(arrear),
+        interest = PropertyTaxBillPdf._amount(interest),
+        monthlyInterest = PropertyTaxBillPdf._amount(monthlyInterest),
+        totalDemand = PropertyTaxBillPdf._amount(totalDemand),
+        discount = PropertyTaxBillPdf._amount(discount),
+        advance = PropertyTaxBillPdf._amount(advance),
+        payable = PropertyTaxBillPdf._amount(payable);
 
   final String title;
   final String annualDemand;
   final String arrear;
   final String interest;
-  final String totalDemand;
   final String monthlyInterest;
+  final String totalDemand;
   final String discount;
   final String advance;
   final String payable;
-  final String deposited;
 
-  final double annualDemandValue;
-  final double discountValue;
+  final double payableValue;
   final double depositedValue;
 
-  /// The portal's discount note lists every head except जल शुल्क.
-  final bool showsDiscountPercent;
-
-  String get discountPercent {
-    if (annualDemandValue <= 0) return '0.0%';
-    return '${(discountValue / annualDemandValue * 100).toStringAsFixed(1)}%';
-  }
+  /// What is still owed on this head once the year's deposits are taken off.
+  String get remaining =>
+      (payableValue - depositedValue).clamp(0, double.infinity).toStringAsFixed(2);
 }

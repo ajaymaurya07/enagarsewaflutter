@@ -13,7 +13,7 @@ import 'payment_result_screen.dart';
 import 'payment_history_screen.dart';
 import 'apply_grievance_screen.dart';
 import 'tour_guides/payment_details_tour.dart';
-import 'utils/property_tax_receipt_pdf.dart';
+import 'utils/property_tax_bill_pdf.dart';
 import 'utils/ulb_language_helper.dart';
 
 class PaymentDetailsScreen extends StatefulWidget {
@@ -1252,11 +1252,55 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
     );
   }
 
+  /// Purani property id aur ARV, dono propertysearch API se aati hain aur
+  /// property verify hote waqt DB me cache hoti hain. Us se pehle save hui
+  /// properties me ye columns khaali reh jate hain, isliye print se pehle ek
+  /// baar bhar dete hain — warna bill par "-" chhap jayega.
+  Future<PropertyEntity?> _cacheSearchInfoIfMissing(PropertyEntity? property) async {
+    final ulbId = property?.ulbId;
+    if (property == null || ulbId == null || ulbId.isEmpty) return property;
+
+    final needsOldId = !_hasValue(property.oldPropertyId);
+    final needsArv = !_hasValue(property.arvValue) || _number(property.arvValue) <= 0;
+    if (!needsOldId && !needsArv) return property;
+
+    try {
+      final results = await ApiService.searchProperty(
+        ulbId: ulbId,
+        searchType: 'PID',
+        propertyId: widget.propertyId,
+      );
+      final match =
+          results.where((p) => p.propertyId == widget.propertyId).firstOrNull ??
+              results.firstOrNull;
+      if (match == null) return property;
+
+      await DatabaseService.updatePropertySearchInfo(
+        propertyId: widget.propertyId,
+        oldPropertyId: needsOldId ? match.oldPropertyId : null,
+        arvValue: needsArv ? match.totalArv?.toString() : null,
+      );
+      return await DatabaseService.getPropertyById(widget.propertyId) ?? property;
+    } catch (_) {
+      // Search fail ho to bill in dono ke bina bhi print ho jaye.
+      return property;
+    }
+  }
+
+  static bool _hasValue(String? value) {
+    final trimmed = value?.trim();
+    return trimmed != null && trimmed.isNotEmpty && trimmed != 'null' && trimmed != '-';
+  }
+
+  static double _number(String? value) => double.tryParse(value?.trim() ?? '') ?? 0.0;
+
   Future<void> _printProperty() async {
     try {
       if (_ulbName == null) await _loadUlbInfo();
-      final property = await DatabaseService.getPropertyById(widget.propertyId);
-      final bytes = await PropertyTaxReceiptPdf.buildBytes(
+      final property = await _cacheSearchInfoIfMissing(
+        await DatabaseService.getPropertyById(widget.propertyId),
+      );
+      final bytes = await PropertyTaxBillPdf.buildBytes(
         propertyId: widget.propertyId,
         bill: _details?.billDetails,
         owner: _details?.ownerDetails,
@@ -1265,11 +1309,12 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
         arv: property?.arvValue,
         ulbName: _ulbName,
         ulbType: _ulbType,
+        oldPropertyId: property?.oldPropertyId,
       );
 
       await Printing.layoutPdf(
         onLayout: (PdfPageFormat format) async => bytes,
-        name: 'property_tax_receipt_${widget.propertyId}.pdf',
+        name: 'property_tax_bill_${widget.propertyId}.pdf',
       );
     } catch (e) {
       if (!mounted) return;
@@ -1278,7 +1323,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
           content: Text(
             ApiService.getUserFriendlyErrorMessage(
               e,
-              fallbackMessage: 'Unable to print the receipt right now. Please try again.',
+              fallbackMessage: 'Unable to print the bill right now. Please try again.',
             ),
           ),
           backgroundColor: Colors.red,

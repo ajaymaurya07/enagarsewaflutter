@@ -18,6 +18,10 @@ class PropertyEntity {
   final String? houseNo;
   final String? totalArea;
 
+  /// Purani property id — propertysearch API ke `oldPropertyId` se. Bill print
+  /// me "पुरानी प्रापर्टी आईडी0" wali row isi se bharti hai.
+  final String? oldPropertyId;
+
   /// Bill ki due date (`dd-mm-yyyy`) — propertydetails API ke `billDetails.billDate` se.
   final String? billDate;
 
@@ -41,6 +45,7 @@ class PropertyEntity {
     this.zone,
     this.houseNo,
     this.totalArea,
+    this.oldPropertyId,
     this.billDate,
     this.netPayable,
   });
@@ -62,6 +67,7 @@ class PropertyEntity {
       'zone': zone,
       'houseNo': houseNo,
       'totalArea': totalArea,
+      'oldPropertyId': oldPropertyId,
       'billDate': billDate,
       'netPayable': netPayable,
     };
@@ -84,6 +90,7 @@ class PropertyEntity {
       zone: map['zone'],
       houseNo: map['houseNo'],
       totalArea: map['totalArea'],
+      oldPropertyId: map['oldPropertyId'],
       billDate: map['billDate'],
       netPayable: map['netPayable'],
     );
@@ -103,10 +110,10 @@ class DatabaseService {
     String path = join(await getDatabasesPath(), 'property_database.db');
     return await openDatabase(
       path,
-      version: 7,
+      version: 8,
       onCreate: (db, version) {
         return db.execute(
-          'CREATE TABLE property_table(propertyId TEXT PRIMARY KEY, ownerName TEXT, ward TEXT, mohalla TEXT, phoneNumber TEXT, email TEXT, userType TEXT, ulbId TEXT, arvValue TEXT, userId TEXT, fatherName TEXT, address TEXT, zone TEXT, houseNo TEXT, totalArea TEXT, billDate TEXT, netPayable TEXT)',
+          'CREATE TABLE property_table(propertyId TEXT PRIMARY KEY, ownerName TEXT, ward TEXT, mohalla TEXT, phoneNumber TEXT, email TEXT, userType TEXT, ulbId TEXT, arvValue TEXT, userId TEXT, fatherName TEXT, address TEXT, zone TEXT, houseNo TEXT, totalArea TEXT, billDate TEXT, netPayable TEXT, oldPropertyId TEXT)',
         );
       },
       onUpgrade: (db, oldVersion, newVersion) async {
@@ -132,6 +139,9 @@ class DatabaseService {
           await db.execute('ALTER TABLE property_table ADD COLUMN billDate TEXT');
           await db.execute('ALTER TABLE property_table ADD COLUMN netPayable TEXT');
         }
+        if (oldVersion < 8) {
+          await db.execute('ALTER TABLE property_table ADD COLUMN oldPropertyId TEXT');
+        }
       },
     );
   }
@@ -156,6 +166,29 @@ class DatabaseService {
     await db.update(
       'property_table',
       {'billDate': billDate, 'netPayable': netPayable},
+      where: 'propertyId = ?',
+      whereArgs: [propertyId],
+    );
+  }
+
+  /// propertysearch API se aane wali wo do values update karta hai jo bill
+  /// print me chahiye. `null` bheji gayi value ko chhodta hai (taki maujood
+  /// data wipe na ho) aur row na mile to chupchaap no-op.
+  static Future<void> updatePropertySearchInfo({
+    required String propertyId,
+    String? oldPropertyId,
+    String? arvValue,
+  }) async {
+    final values = <String, Object?>{
+      'oldPropertyId': ?oldPropertyId,
+      'arvValue': ?arvValue,
+    };
+    if (values.isEmpty) return;
+
+    final db = await database;
+    await db.update(
+      'property_table',
+      values,
       where: 'propertyId = ?',
       whereArgs: [propertyId],
     );
