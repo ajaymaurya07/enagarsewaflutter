@@ -15,9 +15,31 @@ import 'help/apply_grievance_help.dart';
 import 'utils/ulb_language_helper.dart';
 
 class ApplyGrievanceScreen extends StatefulWidget {
+  /// Grievance category auto-selected when the screen is opened from the
+  /// Payment Details screen.
+  static const String propertyTaxCategoryName =
+      'Property Tax (House, Water and Sewerage)';
+
+  /// Grievance sub category auto-selected along with
+  /// [propertyTaxCategoryName].
+  static const String assessmentSubCategoryName = 'Regarding Assessment';
+
   final String? preselectedPropertyId;
 
-  const ApplyGrievanceScreen({super.key, this.preselectedPropertyId});
+  /// When set, the matching grievance category is selected automatically once
+  /// the category list is loaded.
+  final String? preselectedCategoryName;
+
+  /// When set, the matching sub category of [preselectedCategoryName] is
+  /// selected automatically. Ignored if the category could not be matched.
+  final String? preselectedSubCategoryName;
+
+  const ApplyGrievanceScreen({
+    super.key,
+    this.preselectedPropertyId,
+    this.preselectedCategoryName,
+    this.preselectedSubCategoryName,
+  });
 
   @override
   State<ApplyGrievanceScreen> createState() => _ApplyGrievanceScreenState();
@@ -205,10 +227,89 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
         _grievanceCategories = categories;
         _isLoadingCategories = false;
       });
+      _applyPreselectedGrievanceType();
     } catch (e) {
       setState(() => _isLoadingCategories = false);
     }
   }
+
+  /// Auto-selects the category / sub category requested by the caller
+  /// (e.g. Payment Details → Apply Grievance). The user can still change them.
+  void _applyPreselectedGrievanceType() {
+    final categoryName = widget.preselectedCategoryName;
+    if (!mounted || categoryName == null || _grievanceCategories.isEmpty) {
+      return;
+    }
+
+    final category = _matchByName<GrievanceCategory>(
+      _grievanceCategories,
+      categoryName,
+      (item) => item.serviceName,
+    );
+    if (category == null) return;
+
+    final subCategoryName = widget.preselectedSubCategoryName;
+    final subCategory = subCategoryName == null
+        ? null
+        : _matchByName<GrievanceSubCategory>(
+            category.subCategories ?? const [],
+            subCategoryName,
+            (item) => item.subName,
+          );
+
+    setState(() {
+      _selectedCategory = category;
+      _selectedSubCategory = subCategory;
+    });
+  }
+
+  /// Finds the entry whose name best matches [target]. Names come from the API
+  /// so punctuation/spacing may differ: exact match is tried first, then
+  /// containment, then a word overlap fallback.
+  T? _matchByName<T>(
+    List<T> items,
+    String target,
+    String? Function(T item) nameOf,
+  ) {
+    final normalizedTarget = _normalizeName(target);
+    if (normalizedTarget.isEmpty) return null;
+
+    for (final item in items) {
+      if (_normalizeName(nameOf(item) ?? '') == normalizedTarget) return item;
+    }
+
+    for (final item in items) {
+      final name = _normalizeName(nameOf(item) ?? '');
+      if (name.isEmpty) continue;
+      if (name.contains(normalizedTarget) || normalizedTarget.contains(name)) {
+        return item;
+      }
+    }
+
+    final targetWords = _nameWords(target);
+    if (targetWords.isEmpty) return null;
+
+    T? bestMatch;
+    var bestScore = 1;
+    for (final item in items) {
+      final words = _nameWords(nameOf(item) ?? '');
+      final score = words.where(targetWords.contains).length;
+      if (score > bestScore) {
+        bestScore = score;
+        bestMatch = item;
+      }
+    }
+    return bestMatch;
+  }
+
+  String _normalizeName(String value) =>
+      value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+
+  Set<String> _nameWords(String value) => value
+      .toLowerCase()
+      .split(RegExp(r'[^a-z0-9]+'))
+      .where((word) => word.isNotEmpty && word != 'and')
+      .toSet();
 
   Future<void> _fetchWards(String ulbId, String zoneId) async {
     setState(() => _isLoadingWards = true);

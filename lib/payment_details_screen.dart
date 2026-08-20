@@ -1583,6 +1583,10 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
                           MaterialPageRoute(
                             builder: (_) => ApplyGrievanceScreen(
                               preselectedPropertyId: widget.propertyId,
+                              preselectedCategoryName:
+                                  ApplyGrievanceScreen.propertyTaxCategoryName,
+                              preselectedSubCategoryName: ApplyGrievanceScreen
+                                  .assessmentSubCategoryName,
                             ),
                           ),
                         );

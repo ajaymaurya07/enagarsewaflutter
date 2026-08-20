@@ -153,6 +153,14 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
     return left == right;
   }
 
+  /// `9876596788` -> `#####96788`, portal ke masking format ke jaisa.
+  String _maskMobile(String? mobile) {
+    final digits = (mobile ?? '').replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) return '-';
+    if (digits.length <= 5) return digits;
+    return '${'#' * (digits.length - 5)}${digits.substring(digits.length - 5)}';
+  }
+
   /// Mismatch dialog. `true` = Continue, `false` = Cancel / dismiss.
   Future<bool> _showMobileMismatchDialog({
     required String loginMobile,
@@ -193,9 +201,9 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            _buildMismatchRow('Login Number', loginMobile),
+            _buildMismatchRow('Login Number', _maskMobile(loginMobile)),
             const SizedBox(height: 8),
-            _buildMismatchRow('Property Number', propertyMobile),
+            _buildMismatchRow('Property Number', _maskMobile(propertyMobile)),
             const SizedBox(height: 16),
             Text(
               'Do you still want to continue with this property?',
