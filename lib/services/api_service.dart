@@ -4445,6 +4445,14 @@ class PropertyInfo {
   final String? propertyType;
   final String? ulbName;
 
+  /// 14-digit legacy property id ("पुरानी प्रापर्टी आईडी0" on the bill).
+  final String? oldPropertyId;
+
+  /// The ULB's own pre-migration id ("पुरानी आईडी0" on the bill).
+  final String? existingPropertyId;
+
+  final String? dateOfAssessment;
+
   PropertyInfo({
     this.address,
     this.houseNo,
@@ -4456,6 +4464,9 @@ class PropertyInfo {
     this.propertyUseAs,
     this.propertyType,
     this.ulbName,
+    this.oldPropertyId,
+    this.existingPropertyId,
+    this.dateOfAssessment,
   });
 
   factory PropertyInfo.fromJson(Map<String, dynamic> json) {
@@ -4470,6 +4481,9 @@ class PropertyInfo {
       propertyUseAs: json['propertyUseAs']?.toString(),
       ulbName: json['ulbName']?.toString(),
       propertyType: json['propertyType']?.toString(),
+      oldPropertyId: json['oldPropertyId']?.toString(),
+      existingPropertyId: json['existingPropertyId']?.toString(),
+      dateOfAssessment: json['dateOfAssessment']?.toString(),
     );
   }
 }
@@ -4489,6 +4503,9 @@ class ReceiptDetailsItem {
   final String? otherTaxPaidAmount;
   final String? waterChargePaidAmount;
 
+  /// Manual receipt book the payment was entered from ("बुक संख्या").
+  final String? bookNo;
+
   ReceiptDetailsItem({
     this.receiptNo,
     this.billNo,
@@ -4503,6 +4520,7 @@ class ReceiptDetailsItem {
     this.sewerTaxPaidAmount,
     this.otherTaxPaidAmount,
     this.waterChargePaidAmount,
+    this.bookNo,
   });
 
   factory ReceiptDetailsItem.fromJson(Map<String, dynamic> json) {
@@ -4520,6 +4538,7 @@ class ReceiptDetailsItem {
       sewerTaxPaidAmount: json['sewerTaxPaidAmount']?.toString(),
       otherTaxPaidAmount: json['otherTaxPaidAmount']?.toString(),
       waterChargePaidAmount: json['waterChargePaidAmount']?.toString(),
+      bookNo: json['bookNo']?.toString(),
     );
   }
 }

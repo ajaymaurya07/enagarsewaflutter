@@ -4,7 +4,13 @@ import 'package:flutter_test/flutter_test.dart';
 
 /// Sample data mirrors a real "सम्पति कर बिल" print-out from the portal so the
 /// tax-head mapping, the Grand Total and the deposits table stay pinned to it.
-Future<String> _billHtml({bool paid = true, String? ulbType = 'Nagar Palika Parishad'}) {
+/// [apiIds] off stands for a ULB whose propertydetails response leaves the ids,
+/// the assessment date and the receipt's book number blank.
+Future<String> _billHtml({
+  bool paid = true,
+  String? ulbType = 'Nagar Palika Parishad',
+  bool apiIds = true,
+}) {
   return PropertyTaxBillPdf.buildHtml(
     propertyId: '0905601012137596R',
     bill: BillDetails(
@@ -34,6 +40,9 @@ Future<String> _billHtml({bool paid = true, String? ulbType = 'Nagar Palika Pari
       mohallaName: '02-RAHUL GARDEN-II',
       houseNo: '355',
       propertyType: 'RES-ResidentialSelf',
+      oldPropertyId: apiIds ? '05601011022018' : null,
+      existingPropertyId: apiIds ? '22018' : null,
+      dateOfAssessment: apiIds ? '01-04-2014' : null,
     ),
     ulbName: 'Loni',
     ulbType: ulbType,
@@ -47,13 +56,11 @@ Future<String> _billHtml({bool paid = true, String? ulbType = 'Nagar Palika Pari
               propertyTaxPaidAmount: '551.0',
               sewerTaxPaidAmount: '130.0',
               otherTaxPaidAmount: '480.0',
+              bookNo: apiIds ? '56001' : null,
             ),
           ]
         : const [],
     arv: '2600.00',
-    oldPropertyId: '05601011022018',
-    oldId: '22018',
-    assessmentDate: '01-APR-2014',
     isKrutidev: false,
   );
 }
@@ -67,10 +74,37 @@ void main() {
     expect(html, contains('B05626270073709'));
     expect(html, contains('05601011022018'));
     expect(html, contains('RES-ResidentialSelf'));
-    expect(html, contains('01-APR-2014'));
     // Mobile numbers are masked the way the portal masks them.
     expect(html, contains('#####96788'));
     expect(html, isNot(contains('9876596788')));
+  });
+
+  test('ids and assessment date come from the propertydetails API', () async {
+    final html = await _billHtml();
+
+    expect(html, contains('पुरानी प्रापर्टी आईडी0</td>\n    <td class="val">05601011022018'));
+    expect(html, contains('पुरानी आईडी0</td>\n    <td class="val">22018'));
+    expect(html, contains('Date of Assessment</td>\n    <td class="val">01-04-2014'));
+  });
+
+  test('the API is the only source for the ids and the assessment date',
+      () async {
+    final html = await _billHtml(apiIds: false);
+
+    expect(html, contains('पुरानी प्रापर्टी आईडी0</td>\n    <td class="val">-'));
+    expect(html, contains('पुरानी आईडी0</td>\n    <td class="val">-'));
+    expect(html, contains('Date of Assessment</td>\n    <td class="val">-'));
+  });
+
+  test('बुक संख्या is the receipt\'s own, and blank when the API omits it',
+      () async {
+    // The API's book number is unrelated to the financial year.
+    expect(await _billHtml(), contains('>56001</td>'));
+
+    final noBookNo = await _billHtml(apiIds: false);
+    expect(noBookNo, contains('<td style="text-align:center"></td>'));
+    // No stand-in derived from the financial year.
+    expect(noBookNo, isNot(contains('>2026</td>')));
   });
 
   test('Grand Total is the sum of the देय धनराशि row', () async {

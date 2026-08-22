@@ -68,9 +68,6 @@ class PropertyTaxBillPdf {
     String? arv,
     String? ulbName,
     String? ulbType,
-    String? oldPropertyId,
-    String? oldId,
-    String? assessmentDate,
   }) async {
     final isKrutidev = await UlbLanguageHelper.isKrutidev();
 
@@ -84,9 +81,6 @@ class PropertyTaxBillPdf {
         arv: arv,
         ulbName: ulbName,
         ulbType: ulbType,
-        oldPropertyId: oldPropertyId,
-        oldId: oldId,
-        assessmentDate: assessmentDate,
         isKrutidev: isKrutidev,
       );
       // Deprecated upstream, but it is the only API that hands the markup to a
@@ -117,9 +111,6 @@ class PropertyTaxBillPdf {
     required String? arv,
     String? ulbName,
     String? ulbType,
-    String? oldPropertyId,
-    String? oldId,
-    String? assessmentDate,
     required bool isKrutidev,
   }) async {
     final finYear = _text(bill?.finYear);
@@ -220,11 +211,11 @@ $depositsSection
     <td class="lbl">नयी 17-डिजिट प्रापर्टी आईडी0</td>
     <td class="val">${_esc(propertyId)}</td>
     <td class="lbl">पुरानी प्रापर्टी आईडी0</td>
-    <td class="val">${_esc(_text(oldPropertyId))}</td>
+    <td class="val">${_esc(_text(property?.oldPropertyId))}</td>
   </tr>
   <tr>
     <td class="lbl">पुरानी आईडी0</td>
-    <td class="val">${_esc(_text(oldId))}</td>
+    <td class="val">${_esc(_text(property?.existingPropertyId))}</td>
     <td class="lbl">वित्तीय वर्ष</td>
     <td class="val">${_esc(finYear)}</td>
   </tr>
@@ -252,7 +243,7 @@ $depositsSection
     <td class="lbl">AV/ARV</td>
     <td class="val">${_esc(_amount(arv))}</td>
     <td class="lbl">Date of Assessment</td>
-    <td class="val">${_esc(_text(assessmentDate))}</td>
+    <td class="val">${_esc(_text(property?.dateOfAssessment))}</td>
   </tr>
   <tr>
     <td class="lbl">Property Type</td>
@@ -331,7 +322,7 @@ ${amountRow(8, 'देय धनराशि', (c) => c.payable)}
         receipt.otherTaxPaidAmount,
       ]);
       return '  <tr>'
-          '<td style="text-align:center">${_esc(_bookNo(finYear))}</td>'
+          '<td style="text-align:center">${_esc(_bookNo(receipt.bookNo))}</td>'
           '<td style="text-align:center">${_esc(_text(receipt.receiptNo))}</td>'
           '<td style="text-align:center">${_esc(_text(receipt.receiptDate))}</td>'
           '<td style="text-align:center">${_esc(_text(receipt.paymentMode))}</td>'
@@ -487,10 +478,11 @@ $rows
   static double _sum(List<String?> values) =>
       values.fold<double>(0, (total, value) => total + _number(value));
 
-  /// The portal prints the financial year's opening year as the book number.
-  static String _bookNo(String finYear) {
-    final year = finYear.split(RegExp(r'[-/]')).first.trim();
-    return year.isEmpty || year == '-' ? '-' : year;
+  /// Only what the API sends. Receipts that come back without a book number
+  /// leave the cell empty rather than showing a made-up one.
+  static String _bookNo(String? bookNo) {
+    final text = _text(bookNo);
+    return text == '-' ? '' : text;
   }
 
   /// `9876596788` -> `#####96788`, matching the portal's masking.

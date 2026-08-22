@@ -1252,17 +1252,17 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
     );
   }
 
-  /// Purani property id aur ARV, dono propertysearch API se aati hain aur
-  /// property verify hote waqt DB me cache hoti hain. Us se pehle save hui
-  /// properties me ye columns khaali reh jate hain, isliye print se pehle ek
-  /// baar bhar dete hain — warna bill par "-" chhap jayega.
-  Future<PropertyEntity?> _cacheSearchInfoIfMissing(PropertyEntity? property) async {
+  /// ARV propertysearch API se aati hai aur property verify hote waqt DB me
+  /// cache hoti hai. Us se pehle save hui properties me ye column khaali reh
+  /// jata hai, isliye print se pehle ek baar bhar dete hain — warna bill par
+  /// "0.00" chhap jayega. Baaki sab bill ke fields propertydetails API se aate
+  /// hain, unke liye DB dekhne ki zarurat nahi.
+  Future<PropertyEntity?> _cacheArvIfMissing(PropertyEntity? property) async {
     final ulbId = property?.ulbId;
     if (property == null || ulbId == null || ulbId.isEmpty) return property;
-
-    final needsOldId = !_hasValue(property.oldPropertyId);
-    final needsArv = !_hasValue(property.arvValue) || _number(property.arvValue) <= 0;
-    if (!needsOldId && !needsArv) return property;
+    if (_hasValue(property.arvValue) && _number(property.arvValue) > 0) {
+      return property;
+    }
 
     try {
       final results = await ApiService.searchProperty(
@@ -1277,12 +1277,11 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
 
       await DatabaseService.updatePropertySearchInfo(
         propertyId: widget.propertyId,
-        oldPropertyId: needsOldId ? match.oldPropertyId : null,
-        arvValue: needsArv ? match.totalArv?.toString() : null,
+        arvValue: match.totalArv?.toString(),
       );
       return await DatabaseService.getPropertyById(widget.propertyId) ?? property;
     } catch (_) {
-      // Search fail ho to bill in dono ke bina bhi print ho jaye.
+      // Search fail ho to bill ARV ke bina bhi print ho jaye.
       return property;
     }
   }
@@ -1297,7 +1296,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
   Future<void> _printProperty() async {
     try {
       if (_ulbName == null) await _loadUlbInfo();
-      final property = await _cacheSearchInfoIfMissing(
+      final property = await _cacheArvIfMissing(
         await DatabaseService.getPropertyById(widget.propertyId),
       );
       final bytes = await PropertyTaxBillPdf.buildBytes(
@@ -1309,7 +1308,6 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
         arv: property?.arvValue,
         ulbName: _ulbName,
         ulbType: _ulbType,
-        oldPropertyId: property?.oldPropertyId,
       );
 
       await Printing.layoutPdf(
