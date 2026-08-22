@@ -35,7 +35,7 @@ class _AccountScreenState extends State<AccountScreen> {
   }
 
   Future<void> _loadData() async {
-    final email = await StorageService.getEmailId();
+    final email = await StorageService.getUserId();
     final type = await StorageService.getUserType();
 
     if (mounted) {
