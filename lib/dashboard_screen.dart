@@ -16,6 +16,7 @@ import 'services/notification_helper.dart';
 import 'tour_guides/dashboard_tour.dart';
 import 'arv_change_history_screen.dart';
 import 'water_connection_list_screen.dart';
+import 'widgets/urban_development_webview.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -535,6 +536,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               );
                             },
                           ),
+                          _buildServiceCard(
+                            'Urban Development Department, Uttar Pradesh',
+                            'Visit the department portal',
+                            Icons.account_balance_outlined,
+                            cardWidth,
+                            titleMaxLines: 3,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const UrbanDevelopmentWebView(),
+                                ),
+                              );
+                            },
+                          ),
                         ],
                       ),
                       const SizedBox(height: 24),
@@ -599,6 +616,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     double width, {
     Key? key,
     VoidCallback? onTap,
+    int titleMaxLines = 2,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -632,7 +650,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const SizedBox(height: 16),
             Text(
               title,
-              maxLines: 2,
+              maxLines: titleMaxLines,
+              overflow: TextOverflow.ellipsis,
               style: GoogleFonts.poppins(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
