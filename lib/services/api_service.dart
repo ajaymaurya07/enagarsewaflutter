@@ -168,22 +168,6 @@ class ApiService {
       PinnedHttpClient.getInstance()
           .then((c) => c.post(url, headers: headers, body: body, encoding: encoding));
 
-  // http.Client's get() doesn't allow a request body, but some backend
-  // endpoints here are declared as GET while still expecting a JSON body
-  // (e.g. getAssessmentDetails). Build the request manually to support that.
-  static Future<http.Response> _getWithBody(
-    Uri url, {
-    Map<String, String>? headers,
-    String? body,
-  }) async {
-    final client = await PinnedHttpClient.getInstance();
-    final request = http.Request('GET', url);
-    if (headers != null) request.headers.addAll(headers);
-    if (body != null) request.body = body;
-    final streamedResponse = await client.send(request);
-    return http.Response.fromStream(streamedResponse);
-  }
-
   // ─── Integrity-protected request helper ────────────────────────────────────────────
 
   /// Executes [requestFn] with an X-Integrity-Token header.
@@ -816,39 +800,6 @@ class ApiService {
     }
   }
 
-  // Property Assessment - Reassessment - Full Details: Fetch complete
-  // details (floors + tax breakdown) for a completed reassessment by Ack No.
-  static Future<ReassessmentFullDetailsResponse> getReassessmentFullDetails({
-    required String ackNo,
-  }) async {
-    final requestBody = {'ackNo': ackNo};
-    // debugPrint('[ReassessmentFullDetails] Request -> ${json.encode(requestBody)}');
-
-    try {
-      final response = await _makeAuthenticatedRequest(
-        (headers) => _post(
-              Uri.parse('${AppConstants.baseUrl}api/house_tax/getReassessmentDetails'),
-              headers: headers,
-              body: json.encode(requestBody),
-            )
-            .timeout(Duration(seconds: AppConstants.networkTimeout)),
-      );
-
-      // debugPrint(
-        // '[ReassessmentFullDetails] Response (${response.statusCode}) -> ${response.body}',
-      // );
-
-      if (response.statusCode == 200) {
-        return ReassessmentFullDetailsResponse.fromJson(jsonDecode(response.body));
-      } else {
-        throw Exception('Server error: ${response.statusCode}');
-      }
-    } catch (e) {
-      // debugPrint('[ReassessmentFullDetails] Error -> $e');
-      throw _userSafeException(e);
-    }
-  }
-
   // Property Assessment (fresh, not reassessment) - List: Fetch all
   // assessments for the user. Response shape is identical to
   // getReassessmentList, so the same model classes are reused.
@@ -884,19 +835,19 @@ class ApiService {
     }
   }
 
-  // Property Assessment (fresh, not reassessment) - Full Details: Fetch
-  // complete details (floors + tax breakdown) for an assessment by Ack No.
-  // Declared as GET by the backend but still expects a JSON body.
-  static Future<ReassessmentFullDetailsResponse> getAssessmentFullDetails({
+  // Property Assessment / Reassessment - Application Detail: single source
+  // for the "See Details" screen of both the fresh assessment and the
+  // reassessment flow.
+  static Future<AssessmentApplicationDetailResponse> getAssessmentApplicationDetail({
     required String ackNo,
   }) async {
     final requestBody = {'ackNo': ackNo};
-    // debugPrint('[AssessmentFullDetails] Request -> ${json.encode(requestBody)}');
+    // debugPrint('[AssessmentApplicationDetail] Request -> ${json.encode(requestBody)}');
 
     try {
       final response = await _makeAuthenticatedRequest(
-        (headers) => _getWithBody(
-              Uri.parse('${AppConstants.baseUrl}api/House_tax/getAssessmentDetails'),
+        (headers) => _post(
+              Uri.parse('${AppConstants.baseUrl}api/House_tax/assessmentApplicationDetail'),
               headers: headers,
               body: json.encode(requestBody),
             )
@@ -904,16 +855,49 @@ class ApiService {
       );
 
       // debugPrint(
-        // '[AssessmentFullDetails] Response (${response.statusCode}) -> ${response.body}',
+        // '[AssessmentApplicationDetail] Response (${response.statusCode}) -> ${response.body}',
       // );
 
       if (response.statusCode == 200) {
-        return ReassessmentFullDetailsResponse.fromJson(jsonDecode(response.body));
+        return AssessmentApplicationDetailResponse.fromJson(jsonDecode(response.body));
       } else {
         throw Exception('Server error: ${response.statusCode}');
       }
     } catch (e) {
-      // debugPrint('[AssessmentFullDetails] Error -> $e');
+      // debugPrint('[AssessmentApplicationDetail] Error -> $e');
+      throw _userSafeException(e);
+    }
+  }
+
+  // Property Assessment / Reassessment - Delete a mid-stage (not yet
+  // completed/finalized) application by Ack No.
+  static Future<AssessmentDeleteResponse> deleteAssessment({
+    required String ackNo,
+  }) async {
+    final requestBody = {'ackNo': ackNo};
+    // debugPrint('[AssessmentDelete] Request -> ${json.encode(requestBody)}');
+
+    try {
+      final response = await _makeAuthenticatedRequest(
+        (headers) => _post(
+              Uri.parse('${AppConstants.baseUrl}api/House_tax/assessmentDelete'),
+              headers: headers,
+              body: json.encode(requestBody),
+            )
+            .timeout(Duration(seconds: AppConstants.networkTimeout)),
+      );
+
+      // debugPrint(
+        // '[AssessmentDelete] Response (${response.statusCode}) -> ${response.body}',
+      // );
+
+      if (response.statusCode == 200) {
+        return AssessmentDeleteResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      // debugPrint('[AssessmentDelete] Error -> $e');
       throw _userSafeException(e);
     }
   }
@@ -3509,133 +3493,138 @@ class ReassessmentListItem {
   }
 }
 
-class ReassessmentFullDetailsResponse {
+/// Response of api/House_tax/assessmentApplicationDetail — used by the
+/// "See Details" screen of both the assessment and reassessment flows.
+class AssessmentApplicationDetailResponse {
   final bool? success;
   final String? message;
   final int? responseCode;
-  final ReassessmentFullDetailsData? data;
+  final AssessmentApplicationDetailData? data;
 
-  ReassessmentFullDetailsResponse({
+  AssessmentApplicationDetailResponse({
     this.success,
     this.message,
     this.responseCode,
     this.data,
   });
 
-  factory ReassessmentFullDetailsResponse.fromJson(Map<String, dynamic> json) {
-    return ReassessmentFullDetailsResponse(
+  factory AssessmentApplicationDetailResponse.fromJson(Map<String, dynamic> json) {
+    return AssessmentApplicationDetailResponse(
       success: json['success'],
       message: json['message'],
       responseCode: json['responseCode'],
       data: json['data'] != null
-          ? ReassessmentFullDetailsData.fromJson(json['data'])
+          ? AssessmentApplicationDetailData.fromJson(json['data'])
           : null,
     );
   }
 }
 
-class ReassessmentFullDetailsData {
-  final String? userId;
-  final String? mobileNo;
+class AssessmentApplicationDetailData {
+  final int? ulbId;
   final String? propertyId;
-  final String? ackNo;
-  final String? assessType;
+  final String? ackId;
+  final String? totalArv;
+  final String? netArv;
+  final String? oldArv;
   final String? assessDate;
+  final String? status;
+  final String? assessType;
+  final String? enteredTs;
+  final String? enteredBy;
+
+  final String? assessOrderNo;
+  final String? assessOrderIssuedBy;
+  final String? assessOrderTs;
+  final String? rebateType;
+  final String? rebateDate;
+
+  final String? roadLocationName;
+  final String? fileNo;
+  final double? totalAreaOfProperty;
+  final String? propertyTypeName;
+  final String? natureHouseName;
+  final String? detail;
+
   final String? ownerName;
   final String? fatherName;
+  final String? mobile;
+  final String? email;
   final String? houseNo;
   final String? address;
-  final String? totalArv;
-  final List<ReassessmentFloorDetail> floorDetails;
-  final ReassessmentTaxDetails? taxDetails;
-  final int? currentStage;
-  final String? isCompleted;
-  final String? createdAt;
-  final String? updatedAt;
-  final int? nextStage;
+  final String? landmark;
+  final String? popName;
+  final String? zoneName;
+  final String? wardName;
+  final String? mohallaName;
 
-  ReassessmentFullDetailsData({
-    this.userId,
-    this.mobileNo,
+  final double? currentTax;
+  final double? arrear;
+  final double? interest;
+  final String? modifiedCurrentTax;
+  final double? waterTax;
+  final double? waterTaxArrear;
+  final double? waterTaxInterest;
+  final double? sewerageTax;
+  final double? sewerageTaxArrear;
+  final double? sewerageTaxInterest;
+  final double? waterCharge;
+  final double? waterChargeArrear;
+  final double? waterChargeInterest;
+  final double? garbageTax;
+  final double? garbageTaxArrear;
+  final double? garbageTaxInterest;
+
+  AssessmentApplicationDetailData({
+    this.ulbId,
     this.propertyId,
-    this.ackNo,
-    this.assessType,
+    this.ackId,
+    this.totalArv,
+    this.netArv,
+    this.oldArv,
     this.assessDate,
+    this.status,
+    this.assessType,
+    this.enteredTs,
+    this.enteredBy,
+    this.assessOrderNo,
+    this.assessOrderIssuedBy,
+    this.assessOrderTs,
+    this.rebateType,
+    this.rebateDate,
+    this.roadLocationName,
+    this.fileNo,
+    this.totalAreaOfProperty,
+    this.propertyTypeName,
+    this.natureHouseName,
+    this.detail,
     this.ownerName,
     this.fatherName,
+    this.mobile,
+    this.email,
     this.houseNo,
     this.address,
-    this.totalArv,
-    this.floorDetails = const [],
-    this.taxDetails,
-    this.currentStage,
-    this.isCompleted,
-    this.createdAt,
-    this.updatedAt,
-    this.nextStage,
-  });
-
-  bool get isCompletedFlag => (isCompleted ?? '').toUpperCase() == 'YES';
-
-  factory ReassessmentFullDetailsData.fromJson(Map<String, dynamic> json) {
-    return ReassessmentFullDetailsData(
-      userId: json['user_id']?.toString(),
-      mobileNo: json['mobile_no']?.toString(),
-      propertyId: json['property_id']?.toString(),
-      ackNo: json['ack_no']?.toString(),
-      assessType: json['assess_type']?.toString(),
-      assessDate: json['assess_date']?.toString(),
-      ownerName: json['owner_name']?.toString(),
-      fatherName: json['father_name']?.toString(),
-      houseNo: json['house_no']?.toString(),
-      address: json['address']?.toString(),
-      totalArv: json['total_arv']?.toString(),
-      floorDetails: json['floor_details'] is List
-          ? (json['floor_details'] as List)
-              .map((e) => ReassessmentFloorDetail.fromJson(e))
-              .toList()
-          : const [],
-      taxDetails: json['tax_details'] != null
-          ? ReassessmentTaxDetails.fromJson(json['tax_details'])
-          : null,
-      currentStage: json['current_stage'] is int
-          ? json['current_stage']
-          : int.tryParse('${json['current_stage']}'),
-      isCompleted: json['is_completed']?.toString(),
-      createdAt: json['created_at']?.toString(),
-      updatedAt: json['updated_at']?.toString(),
-      nextStage: json['next_stage'] is int
-          ? json['next_stage']
-          : int.tryParse('${json['next_stage']}'),
-    );
-  }
-}
-
-class ReassessmentFloorDetail {
-  final int? floorNumber;
-  final String? floorName;
-  final double? carpetArea;
-  final String? floorTypeName;
-  final String? constructionTypeName;
-  final String? constructionDate;
-  final double? mrate;
-  final double? multiplier;
-  final double? rentalValue;
-  final double? arv;
-  final double? arvAfterRebate;
-
-  ReassessmentFloorDetail({
-    this.floorNumber,
-    this.floorName,
-    this.carpetArea,
-    this.floorTypeName,
-    this.constructionTypeName,
-    this.constructionDate,
-    this.mrate,
-    this.multiplier,
-    this.rentalValue,
-    this.arv,
-    this.arvAfterRebate,
+    this.landmark,
+    this.popName,
+    this.zoneName,
+    this.wardName,
+    this.mohallaName,
+    this.currentTax,
+    this.arrear,
+    this.interest,
+    this.modifiedCurrentTax,
+    this.waterTax,
+    this.waterTaxArrear,
+    this.waterTaxInterest,
+    this.sewerageTax,
+    this.sewerageTaxArrear,
+    this.sewerageTaxInterest,
+    this.waterCharge,
+    this.waterChargeArrear,
+    this.waterChargeInterest,
+    this.garbageTax,
+    this.garbageTaxArrear,
+    this.garbageTaxInterest,
   });
 
   static double? _toDouble(dynamic value) {
@@ -3644,176 +3633,75 @@ class ReassessmentFloorDetail {
     return double.tryParse(value.toString());
   }
 
-  factory ReassessmentFloorDetail.fromJson(Map<String, dynamic> json) {
-    return ReassessmentFloorDetail(
-      floorNumber: json['floorNumber'] is int
-          ? json['floorNumber']
-          : int.tryParse('${json['floorNumber']}'),
-      floorName: json['floorName']?.toString(),
-      carpetArea: _toDouble(json['carpetArea']),
-      floorTypeName: json['floorTypeName']?.toString(),
-      constructionTypeName: json['constructionTypeName']?.toString(),
-      constructionDate: json['constructionDate']?.toString(),
-      mrate: _toDouble(json['mrate']),
-      multiplier: _toDouble(json['multiplier']),
-      rentalValue: _toDouble(json['rentalValue']),
-      arv: _toDouble(json['arv']),
-      arvAfterRebate: _toDouble(json['arvAfterRebate']),
-    );
-  }
-}
-
-class ReassessmentTaxDetails {
-  final List<ReassessmentPwsItem> pwsList;
-  final String? ulbId;
-  final String? propertyId;
-  final String? acknowledgementId;
-  final double? totalArea;
-  final String? ownerName;
-  final String? fatherName;
-  final String? houseNo;
-  final String? address;
-  final String? zoneId;
-  final String? wardId;
-  final String? mohallaId;
-  final String? mobile;
-  final String? assessmentType;
-  final String? fileNo;
-  final String? propertyUse;
-  final String? roadLocation;
-  final String? propertyType;
-  final String? assessmentDate;
-  final String? oldArv;
-  final String? existingPropertyId;
-  final double? totalArv;
-  final String? rebateFinancialYear;
-  final String? taxRebateTypeName;
-
-  ReassessmentTaxDetails({
-    this.pwsList = const [],
-    this.ulbId,
-    this.propertyId,
-    this.acknowledgementId,
-    this.totalArea,
-    this.ownerName,
-    this.fatherName,
-    this.houseNo,
-    this.address,
-    this.zoneId,
-    this.wardId,
-    this.mohallaId,
-    this.mobile,
-    this.assessmentType,
-    this.fileNo,
-    this.propertyUse,
-    this.roadLocation,
-    this.propertyType,
-    this.assessmentDate,
-    this.oldArv,
-    this.existingPropertyId,
-    this.totalArv,
-    this.rebateFinancialYear,
-    this.taxRebateTypeName,
-  });
-
-  factory ReassessmentTaxDetails.fromJson(Map<String, dynamic> json) {
-    return ReassessmentTaxDetails(
-      pwsList: json['pwsList'] is List
-          ? (json['pwsList'] as List)
-              .map((e) => ReassessmentPwsItem.fromJson(e))
-              .toList()
-          : const [],
-      ulbId: json['ulbId']?.toString(),
+  factory AssessmentApplicationDetailData.fromJson(Map<String, dynamic> json) {
+    return AssessmentApplicationDetailData(
+      ulbId: json['ulbId'] is int ? json['ulbId'] : int.tryParse('${json['ulbId']}'),
       propertyId: json['propertyId']?.toString(),
-      acknowledgementId: json['acknowledgementId']?.toString(),
-      totalArea: ReassessmentFloorDetail._toDouble(json['totalArea']),
+      ackId: json['ackId']?.toString(),
+      totalArv: json['totalArv']?.toString(),
+      netArv: json['netArv']?.toString(),
+      oldArv: json['oldArv']?.toString(),
+      assessDate: json['assessDate']?.toString(),
+      status: json['status']?.toString(),
+      assessType: json['assessType']?.toString(),
+      enteredTs: json['enteredTs']?.toString(),
+      enteredBy: json['enteredBy']?.toString(),
+      assessOrderNo: json['assessOrderNo']?.toString(),
+      assessOrderIssuedBy: json['assessOrderIssuedBy']?.toString(),
+      assessOrderTs: json['assessOrderTs']?.toString(),
+      rebateType: json['rebateType']?.toString(),
+      rebateDate: json['rebateDate']?.toString(),
+      roadLocationName: json['roadLocationName']?.toString(),
+      fileNo: json['fileNo']?.toString(),
+      totalAreaOfProperty: _toDouble(json['totalAreaOfProperty']),
+      propertyTypeName: json['propertyTypeName']?.toString(),
+      natureHouseName: json['natureHouseName']?.toString(),
+      detail: json['detail']?.toString(),
       ownerName: json['ownerName']?.toString(),
       fatherName: json['fatherName']?.toString(),
+      mobile: json['mobile']?.toString(),
+      email: json['email']?.toString(),
       houseNo: json['houseNo']?.toString(),
       address: json['address']?.toString(),
-      zoneId: json['zoneId']?.toString(),
-      wardId: json['wardId']?.toString(),
-      mohallaId: json['mohallaId']?.toString(),
-      mobile: json['mobile']?.toString(),
-      assessmentType: json['assessmentType']?.toString(),
-      fileNo: json['fileNo']?.toString(),
-      propertyUse: json['propertyUse']?.toString(),
-      roadLocation: json['roadLocation']?.toString(),
-      propertyType: json['propertyType']?.toString(),
-      assessmentDate: json['assessmentDate']?.toString(),
-      oldArv: json['oldArv']?.toString(),
-      existingPropertyId: json['existingPropertyId']?.toString(),
-      totalArv: ReassessmentFloorDetail._toDouble(json['totalArv']),
-      rebateFinancialYear: json['rebateFinancialYear']?.toString(),
-      taxRebateTypeName: json['taxRebateTypeName']?.toString(),
+      landmark: json['landmark']?.toString(),
+      popName: json['popName']?.toString(),
+      zoneName: json['zoneName']?.toString(),
+      wardName: json['wardName']?.toString(),
+      mohallaName: json['mohallaName']?.toString(),
+      currentTax: _toDouble(json['currentTax']),
+      arrear: _toDouble(json['arrear']),
+      interest: _toDouble(json['interest']),
+      modifiedCurrentTax: json['modifiedCurrentTax']?.toString(),
+      waterTax: _toDouble(json['waterTax']),
+      waterTaxArrear: _toDouble(json['waterTaxArrear']),
+      waterTaxInterest: _toDouble(json['waterTaxInterest']),
+      sewerageTax: _toDouble(json['sewerageTax']),
+      sewerageTaxArrear: _toDouble(json['sewerageTaxArrear']),
+      sewerageTaxInterest: _toDouble(json['sewerageTaxInterest']),
+      waterCharge: _toDouble(json['waterCharge']),
+      waterChargeArrear: _toDouble(json['waterChargeArrear']),
+      waterChargeInterest: _toDouble(json['waterChargeInterest']),
+      garbageTax: _toDouble(json['garbageTax']),
+      garbageTaxArrear: _toDouble(json['garbageTaxArrear']),
+      garbageTaxInterest: _toDouble(json['garbageTaxInterest']),
     );
   }
 }
 
-class ReassessmentPwsItem {
-  final String? finYear;
-  final double? propertyTax;
-  final double? propertyArrear;
-  final double? propertyInterest;
-  final double? waterTax;
-  final double? waterArrear;
-  final double? waterInterest;
-  final double? sewerageTax;
-  final double? sewerageArrear;
-  final double? sewerageInterest;
-  final double? otherTax;
-  final double? otherArrear;
-  final double? otherInterest;
-  final double? waterCharge;
-  final double? waterChargeArrear;
-  final double? waterChargeInterest;
-  final double? totalTax;
-  final double? totalInterest;
-  final double? grandTotal;
+/// Response of api/House_tax/assessmentDelete (delete a mid-stage
+/// assessment/reassessment application).
+class AssessmentDeleteResponse {
+  final bool? success;
+  final String? message;
+  final int? responseCode;
 
-  ReassessmentPwsItem({
-    this.finYear,
-    this.propertyTax,
-    this.propertyArrear,
-    this.propertyInterest,
-    this.waterTax,
-    this.waterArrear,
-    this.waterInterest,
-    this.sewerageTax,
-    this.sewerageArrear,
-    this.sewerageInterest,
-    this.otherTax,
-    this.otherArrear,
-    this.otherInterest,
-    this.waterCharge,
-    this.waterChargeArrear,
-    this.waterChargeInterest,
-    this.totalTax,
-    this.totalInterest,
-    this.grandTotal,
-  });
+  AssessmentDeleteResponse({this.success, this.message, this.responseCode});
 
-  factory ReassessmentPwsItem.fromJson(Map<String, dynamic> json) {
-    return ReassessmentPwsItem(
-      finYear: json['finYear']?.toString(),
-      propertyTax: ReassessmentFloorDetail._toDouble(json['propertyTax']),
-      propertyArrear: ReassessmentFloorDetail._toDouble(json['propertyArrear']),
-      propertyInterest: ReassessmentFloorDetail._toDouble(json['propertyInterest']),
-      waterTax: ReassessmentFloorDetail._toDouble(json['waterTax']),
-      waterArrear: ReassessmentFloorDetail._toDouble(json['waterArrear']),
-      waterInterest: ReassessmentFloorDetail._toDouble(json['waterInterest']),
-      sewerageTax: ReassessmentFloorDetail._toDouble(json['sewerageTax']),
-      sewerageArrear: ReassessmentFloorDetail._toDouble(json['sewerageArrear']),
-      sewerageInterest: ReassessmentFloorDetail._toDouble(json['sewerageInterest']),
-      otherTax: ReassessmentFloorDetail._toDouble(json['otherTax']),
-      otherArrear: ReassessmentFloorDetail._toDouble(json['otherArrear']),
-      otherInterest: ReassessmentFloorDetail._toDouble(json['otherInterest']),
-      waterCharge: ReassessmentFloorDetail._toDouble(json['waterCharge']),
-      waterChargeArrear: ReassessmentFloorDetail._toDouble(json['waterChargeArrear']),
-      waterChargeInterest: ReassessmentFloorDetail._toDouble(json['waterChargeInterest']),
-      totalTax: ReassessmentFloorDetail._toDouble(json['totalTax']),
-      totalInterest: ReassessmentFloorDetail._toDouble(json['totalInterest']),
-      grandTotal: ReassessmentFloorDetail._toDouble(json['grandTotal']),
+  factory AssessmentDeleteResponse.fromJson(Map<String, dynamic> json) {
+    return AssessmentDeleteResponse(
+      success: json['success'],
+      message: json['message'],
+      responseCode: json['responseCode'],
     );
   }
 }

@@ -4,7 +4,7 @@ import 'services/api_service.dart';
 import 'services/database_service.dart';
 import 'services/otp_gate_service.dart';
 import 'utils/ulb_language_helper.dart';
-import 'assessment_details_screen.dart';
+import 'assessment_application_detail_screen.dart';
 import 'assessment_document_upload_screen.dart';
 import 'property_tax_assessment_screen.dart';
 
@@ -88,7 +88,92 @@ class _AssessmentListScreenState extends State<AssessmentListScreen> {
     if (result != null && mounted) _fetchList();
   }
 
-  // Completed -> getAssessmentDetails (See Details).
+  // See Details -> assessmentApplicationDetail; available for every
+  // assessment regardless of stage.
+  Future<void> _handleSeeDetails(ReassessmentListItem item) async {
+    final propertyId = item.propertyId;
+    final ackNo = item.ackNo;
+    if (ackNo == null) return;
+
+    final property = propertyId != null ? await DatabaseService.getPropertyById(propertyId) : null;
+    final mobileNo = property?.phoneNumber ?? '';
+    if (!mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AssessmentApplicationDetailScreen(
+          ackNo: ackNo,
+          propertyId: propertyId ?? '',
+          mobileNo: mobileNo,
+        ),
+      ),
+    );
+  }
+
+  // Delete -> assessmentDelete. Only offered for mid-stage (not yet
+  // completed/finalized) assessments.
+  Future<void> _handleDelete(ReassessmentListItem item) async {
+    final ackNo = item.ackNo;
+    if (ackNo == null || item.isCompletedFlag) return;
+
+    final confirmed = await _confirmDelete(ackNo);
+    if (confirmed != true || !mounted) return;
+
+    try {
+      final response = await OtpGateService.guard(
+        call: () => ApiService.deleteAssessment(ackNo: ackNo),
+        responseCode: (r) => r.responseCode,
+        propertyId: item.propertyId ?? '',
+        mobileNo: '',
+      );
+      if (!mounted) return;
+      _showSnackBar(
+        response.message ??
+            (response.success == true ? 'Assessment deleted successfully.' : 'Failed to delete assessment'),
+      );
+      if (response.success == true) _fetchList();
+    } catch (e) {
+      if (!mounted) return;
+      _showSnackBar(ApiService.getUserFriendlyErrorMessage(
+        e,
+        fallbackMessage: 'Unable to delete this assessment. Please try again.',
+      ));
+    }
+  }
+
+  Future<bool?> _confirmDelete(String ackNo) {
+    return showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          'Delete Assessment?',
+          style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w700, color: _textColor),
+        ),
+        content: Text(
+          'This will permanently remove the in-progress assessment $ackNo. This action cannot be undone.',
+          style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade700, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(
+              'Delete',
+              style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.red.shade700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Completed -> See Details (assessmentApplicationDetail).
   // next_stage 4 -> document upload screen (only needs ackNo, no
   // dependency on earlier-step dropdown data).
   // next_stage 1/2/3 -> no dedicated resume-fetch API exists for the
@@ -101,19 +186,7 @@ class _AssessmentListScreenState extends State<AssessmentListScreen> {
     if (ackNo == null) return;
 
     if (item.isCompletedFlag) {
-      final property = propertyId != null ? await DatabaseService.getPropertyById(propertyId) : null;
-      final mobileNo = property?.phoneNumber ?? '';
-      if (!mounted) return;
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => AssessmentDetailsScreen(
-            ackNo: ackNo,
-            propertyId: propertyId ?? '',
-            mobileNo: mobileNo,
-          ),
-        ),
-      );
+      await _handleSeeDetails(item);
       return;
     }
 
@@ -374,10 +447,92 @@ class _AssessmentListScreenState extends State<AssessmentListScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
+              // Footer: See Details on every card; Delete only while the
+              // application is still mid-stage.
+              Container(
+                margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                child: Column(
+                  children: [
+                    if (!item.isCompletedFlag) ...[
+                      Align(alignment: Alignment.centerRight, child: _buildStageBadge(item)),
+                      const SizedBox(height: 10),
+                    ],
+                    _buildCardActions(item),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildCardActions(ReassessmentListItem item) {
+    return Row(
+      children: [
+        Expanded(
+          child: SizedBox(
+            height: 40,
+            child: OutlinedButton.icon(
+              onPressed: () => _handleSeeDetails(item),
+              icon: const Icon(Icons.visibility_outlined, size: 16),
+              label: Text(
+                'See Details',
+                style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _primaryColor,
+                side: const BorderSide(color: _primaryColor),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ),
+        ),
+        if (!item.isCompletedFlag) ...[
+          const SizedBox(width: 10),
+          Expanded(
+            child: SizedBox(
+              height: 40,
+              child: OutlinedButton.icon(
+                onPressed: () => _handleDelete(item),
+                icon: const Icon(Icons.delete_outline_rounded, size: 16),
+                label: Text(
+                  'Delete',
+                  style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red.shade700,
+                  side: BorderSide(color: Colors.red.shade700),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildStageBadge(ReassessmentListItem item) {
+    final stage = item.currentStage ?? 0;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.timeline_rounded, size: 14, color: Colors.grey.shade600),
+          const SizedBox(width: 5),
+          Text(
+            'Stage $stage of 4',
+            style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
+          ),
+        ],
       ),
     );
   }

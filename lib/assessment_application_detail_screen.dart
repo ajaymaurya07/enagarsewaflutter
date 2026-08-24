@@ -4,32 +4,37 @@ import 'services/api_service.dart';
 import 'services/otp_gate_service.dart';
 import 'utils/ulb_language_helper.dart';
 
-/// Shows the full details (owner/property info, floor breakdown, tax
-/// breakdown) of a completed reassessment, fetched via
-/// api/house_tax/getReassessmentDetails.
-class ReassessmentDetailsScreen extends StatefulWidget {
+/// Shows the full details (owner/property info, assessment order, tax
+/// breakdown) of an assessment or reassessment application, fetched via
+/// api/House_tax/assessmentApplicationDetail. Used by the "See Details"
+/// action of both the assessment and reassessment cards.
+class AssessmentApplicationDetailScreen extends StatefulWidget {
   final String ackNo;
   final String propertyId;
   final String mobileNo;
+  final bool isReassessment;
 
-  const ReassessmentDetailsScreen({
+  const AssessmentApplicationDetailScreen({
     super.key,
     required this.ackNo,
     this.propertyId = '',
     this.mobileNo = '',
+    this.isReassessment = false,
   });
 
   @override
-  State<ReassessmentDetailsScreen> createState() => _ReassessmentDetailsScreenState();
+  State<AssessmentApplicationDetailScreen> createState() =>
+      _AssessmentApplicationDetailScreenState();
 }
 
-class _ReassessmentDetailsScreenState extends State<ReassessmentDetailsScreen> {
+class _AssessmentApplicationDetailScreenState
+    extends State<AssessmentApplicationDetailScreen> {
   static const Color _primaryColor = Color(0xFFE67514);
   static const Color _textColor = Color(0xFF333333);
 
   bool _isLoading = true;
   String? _errorMessage;
-  ReassessmentFullDetailsData? _data;
+  AssessmentApplicationDetailData? _data;
   bool _isKrutidev = false;
 
   @override
@@ -52,7 +57,7 @@ class _ReassessmentDetailsScreenState extends State<ReassessmentDetailsScreen> {
     });
     try {
       final response = await OtpGateService.guard(
-        call: () => ApiService.getReassessmentFullDetails(ackNo: widget.ackNo),
+        call: () => ApiService.getAssessmentApplicationDetail(ackNo: widget.ackNo),
         responseCode: (r) => r.responseCode,
         propertyId: widget.propertyId,
         mobileNo: widget.mobileNo,
@@ -61,7 +66,7 @@ class _ReassessmentDetailsScreenState extends State<ReassessmentDetailsScreen> {
       if (response.success != true || response.data == null) {
         setState(() {
           _isLoading = false;
-          _errorMessage = response.message ?? 'Failed to fetch reassessment details';
+          _errorMessage = response.message ?? 'Failed to fetch application details';
         });
         return;
       }
@@ -75,7 +80,7 @@ class _ReassessmentDetailsScreenState extends State<ReassessmentDetailsScreen> {
         _isLoading = false;
         _errorMessage = ApiService.getUserFriendlyErrorMessage(
           e,
-          fallbackMessage: 'Unable to fetch reassessment details. Please try again.',
+          fallbackMessage: 'Unable to fetch application details. Please try again.',
         );
       });
     }
@@ -94,7 +99,7 @@ class _ReassessmentDetailsScreenState extends State<ReassessmentDetailsScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Reassessment Details',
+          widget.isReassessment ? 'Reassessment Details' : 'Assessment Details',
           style: GoogleFonts.poppins(fontSize: 17, fontWeight: FontWeight.w600, color: _textColor),
         ),
       ),
@@ -132,8 +137,7 @@ class _ReassessmentDetailsScreenState extends State<ReassessmentDetailsScreen> {
     );
   }
 
-  Widget _buildContent(ReassessmentFullDetailsData data) {
-    final tax = data.taxDetails;
+  Widget _buildContent(AssessmentApplicationDetailData data) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -151,58 +155,98 @@ class _ReassessmentDetailsScreenState extends State<ReassessmentDetailsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Ack No: ${data.ackNo ?? '-'}',
+                  'Ack No: ${_text(data.ackId)}',
                   style: GoogleFonts.poppins(fontWeight: FontWeight.w700, fontSize: 15, color: _textColor),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Total ARV: ₹${data.totalArv ?? '-'}',
+                  'Total ARV: ₹${_text(data.totalArv)}',
                   style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade800),
                 ),
+                if (data.status?.trim().isNotEmpty ?? false) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    data.status!.trim(),
+                    style: GoogleFonts.poppins(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: _primaryColor,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
           const SizedBox(height: 20),
-          _sectionTitle('Property Details', Icons.badge_outlined),
+          _sectionTitle('Owner Details', Icons.badge_outlined),
           const SizedBox(height: 10),
           _buildInfoCard([
-            _InfoRow('Owner Name', data.ownerName ?? '-', isLanguageSensitive: true),
-            _InfoRow('Father/Husband Name', data.fatherName ?? '-', isLanguageSensitive: true),
-            _InfoRow('House No.', data.houseNo ?? '-'),
-            _InfoRow('Address', data.address ?? '-', isLanguageSensitive: true),
-            _InfoRow('Mobile Number', data.mobileNo ?? '-'),
-            _InfoRow('Assess Date', data.assessDate ?? '-'),
-            if (tax != null) ...[
-              _InfoRow('File No.', tax.fileNo ?? '-'),
-              _InfoRow('Total Area', tax.totalArea != null ? '${tax.totalArea} sq.ft.' : '-'),
-              _InfoRow('Old ARV', tax.oldArv ?? '-'),
-            ],
+            _InfoRow('Owner Name', _text(data.ownerName), isLanguageSensitive: true),
+            _InfoRow('Father/Husband Name', _text(data.fatherName), isLanguageSensitive: true),
+            _InfoRow('Mobile Number', _text(data.mobile)),
+            _InfoRow('Email', _text(data.email)),
           ]),
-          if (data.floorDetails.isNotEmpty) ...[
-            const SizedBox(height: 20),
-            _sectionTitle('Floor Details', Icons.layers_outlined),
-            const SizedBox(height: 10),
-            ...data.floorDetails.map(_buildFloorCard),
-          ],
-          if (tax?.pwsList.isNotEmpty == true) ...[
-            const SizedBox(height: 20),
-            _sectionTitle('Tax Breakdown', Icons.receipt_long_outlined),
-            const SizedBox(height: 10),
-            ...tax!.pwsList.map(_buildTaxCard),
-          ],
-          if (tax != null && ((tax.rebateFinancialYear?.isNotEmpty ?? false) || (tax.taxRebateTypeName?.isNotEmpty ?? false))) ...[
-            const SizedBox(height: 20),
-            _sectionTitle('Rebate', Icons.percent_rounded),
-            const SizedBox(height: 10),
-            _buildInfoCard([
-              _InfoRow('Rebate Financial Year', tax.rebateFinancialYear ?? '-'),
-              _InfoRow('Rebate Type', tax.taxRebateTypeName ?? '-'),
-            ]),
-          ],
+          const SizedBox(height: 20),
+          _sectionTitle('Property Details', Icons.home_work_outlined),
+          const SizedBox(height: 10),
+          _buildInfoCard([
+            _InfoRow('Property ID', _text(data.propertyId)),
+            _InfoRow('House No.', _text(data.houseNo)),
+            _InfoRow('Address', _text(data.address), isLanguageSensitive: true),
+            _InfoRow('Landmark', _text(data.landmark), isLanguageSensitive: true),
+            _InfoRow('Point of Presence', _text(data.popName)),
+            _InfoRow('Zone', _text(data.zoneName)),
+            _InfoRow('Ward', _text(data.wardName)),
+            _InfoRow('Mohalla', _text(data.mohallaName)),
+            _InfoRow('Property Type', _text(data.propertyTypeName)),
+            _InfoRow('Nature of House', _text(data.natureHouseName)),
+            _InfoRow('Road Location', _text(data.roadLocationName)),
+            _InfoRow('Usage Detail', _text(data.detail)),
+            _InfoRow('File No.', _text(data.fileNo)),
+            _InfoRow(
+              'Total Area',
+              data.totalAreaOfProperty != null ? '${_num(data.totalAreaOfProperty)} sq.ft.' : '-',
+            ),
+          ]),
+          const SizedBox(height: 20),
+          _sectionTitle('Assessment Details', Icons.assignment_outlined),
+          const SizedBox(height: 10),
+          _buildInfoCard([
+            _InfoRow('Assess Type', _text(data.assessType)),
+            _InfoRow('Assess Date', _text(data.assessDate)),
+            _InfoRow('Total ARV', _text(data.totalArv)),
+            _InfoRow('Net ARV', _text(data.netArv)),
+            _InfoRow('Old ARV', _text(data.oldArv)),
+            _InfoRow('Entered On', _text(data.enteredTs)),
+            _InfoRow('Entered By', _text(data.enteredBy)),
+            _InfoRow('Assessment Order No.', _text(data.assessOrderNo)),
+            _InfoRow('Order Issued By', _text(data.assessOrderIssuedBy)),
+            _InfoRow('Order Date', _text(data.assessOrderTs)),
+            _InfoRow('Rebate Type', _text(data.rebateType)),
+            _InfoRow('Rebate Date', _text(data.rebateDate)),
+          ]),
+          const SizedBox(height: 20),
+          _sectionTitle('Tax Breakdown', Icons.receipt_long_outlined),
+          const SizedBox(height: 10),
+          _buildTaxCard(data),
           const SizedBox(height: 24),
         ],
       ),
     );
+  }
+
+  // The backend sends '-' / 'NA' for values it has nothing for; normalise
+  // those to '-' so _buildInfoCard can drop the row entirely.
+  String _text(String? value) {
+    final trimmed = value?.trim() ?? '';
+    if (trimmed.isEmpty || trimmed == '-' || trimmed.toUpperCase() == 'NA') return '-';
+    return trimmed;
+  }
+
+  String _num(double? value) {
+    if (value == null) return '-';
+    return value == value.roundToDouble() ? value.toStringAsFixed(0) : value.toStringAsFixed(2);
   }
 
   Widget _sectionTitle(String text, IconData icon) {
@@ -274,52 +318,26 @@ class _ReassessmentDetailsScreenState extends State<ReassessmentDetailsScreen> {
     );
   }
 
-  Widget _buildFloorCard(ReassessmentFloorDetail floor) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            floor.floorName ?? 'Floor ${floor.floorNumber ?? ''}',
-            style: GoogleFonts.poppins(fontWeight: FontWeight.w700, fontSize: 14, color: _textColor),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '${floor.floorTypeName ?? '-'} • ${floor.constructionTypeName ?? '-'}',
-            style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey.shade600),
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Area: ${floor.carpetArea ?? '-'} sq.ft.',
-                  style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey.shade700),
-                ),
-              ),
-              Text(
-                'ARV: ₹${floor.arv?.toStringAsFixed(2) ?? '-'}',
-                style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w700, color: _primaryColor),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildTaxCard(AssessmentApplicationDetailData data) {
+    final modifiedCurrentTax = double.tryParse(data.modifiedCurrentTax ?? '');
+    final grandTotal = (data.currentTax ?? 0) +
+        (data.arrear ?? 0) +
+        (data.interest ?? 0) +
+        (data.waterTax ?? 0) +
+        (data.waterTaxArrear ?? 0) +
+        (data.waterTaxInterest ?? 0) +
+        (data.sewerageTax ?? 0) +
+        (data.sewerageTaxArrear ?? 0) +
+        (data.sewerageTaxInterest ?? 0) +
+        (data.waterCharge ?? 0) +
+        (data.waterChargeArrear ?? 0) +
+        (data.waterChargeInterest ?? 0) +
+        (data.garbageTax ?? 0) +
+        (data.garbageTaxArrear ?? 0) +
+        (data.garbageTaxInterest ?? 0);
 
-  Widget _buildTaxCard(ReassessmentPwsItem pws) {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -329,18 +347,28 @@ class _ReassessmentDetailsScreenState extends State<ReassessmentDetailsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'FY ${pws.finYear ?? '-'}',
-            style: GoogleFonts.poppins(fontWeight: FontWeight.w700, fontSize: 14, color: _textColor),
-          ),
-          const SizedBox(height: 8),
-          _taxRow('Property Tax', pws.propertyTax),
-          _taxRow('Water Tax', pws.waterTax),
-          _taxRow('Sewerage Tax', pws.sewerageTax),
-          _taxRow('Other Tax', pws.otherTax),
-          _taxRow('Water Charge', pws.waterCharge),
+          _taxRow('Property Tax', data.currentTax),
+          _taxRow('Property Tax Arrear', data.arrear),
+          _taxRow('Property Tax Interest', data.interest),
+          if (modifiedCurrentTax != null) _taxRow('Modified Property Tax', modifiedCurrentTax),
           const Divider(height: 18),
-          _taxRow('Grand Total', pws.grandTotal, isBold: true),
+          _taxRow('Water Tax', data.waterTax),
+          _taxRow('Water Tax Arrear', data.waterTaxArrear),
+          _taxRow('Water Tax Interest', data.waterTaxInterest),
+          const Divider(height: 18),
+          _taxRow('Sewerage Tax', data.sewerageTax),
+          _taxRow('Sewerage Tax Arrear', data.sewerageTaxArrear),
+          _taxRow('Sewerage Tax Interest', data.sewerageTaxInterest),
+          const Divider(height: 18),
+          _taxRow('Water Charge', data.waterCharge),
+          _taxRow('Water Charge Arrear', data.waterChargeArrear),
+          _taxRow('Water Charge Interest', data.waterChargeInterest),
+          const Divider(height: 18),
+          _taxRow('Garbage Tax', data.garbageTax),
+          _taxRow('Garbage Tax Arrear', data.garbageTaxArrear),
+          _taxRow('Garbage Tax Interest', data.garbageTaxInterest),
+          const Divider(height: 18),
+          _taxRow('Grand Total', grandTotal, isBold: true),
         ],
       ),
     );

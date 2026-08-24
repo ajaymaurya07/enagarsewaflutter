@@ -7,7 +7,7 @@ import 'utils/ulb_language_helper.dart';
 import 'assessment_document_upload_screen.dart';
 import 'assessment_step2_screen.dart';
 import 'new_reassessment_screen.dart';
-import 'reassessment_details_screen.dart';
+import 'assessment_application_detail_screen.dart';
 
 class ReassessmentScreen extends StatefulWidget {
   const ReassessmentScreen({super.key});
@@ -91,7 +91,96 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
   //            its own "Continue" then calls reassessmentFetchFloorConfig
   //            and pushes Step 3 (floor entry + finalize).
   //   4 -> reassessmentSubmitS4 (document upload)
-  //   null + completed -> getReassessmentDetails (See Details)
+  //   null + completed -> See Details (assessmentApplicationDetail)
+
+  // See Details -> assessmentApplicationDetail; available for every
+  // reassessment regardless of stage.
+  Future<void> _handleSeeDetails(ReassessmentListItem item) async {
+    final propertyId = item.propertyId;
+    final ackNo = item.ackNo;
+    if (ackNo == null) return;
+
+    final property = propertyId != null ? await DatabaseService.getPropertyById(propertyId) : null;
+    final mobileNo = property?.phoneNumber ?? '';
+    if (!mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AssessmentApplicationDetailScreen(
+          ackNo: ackNo,
+          propertyId: propertyId ?? '',
+          mobileNo: mobileNo,
+          isReassessment: true,
+        ),
+      ),
+    );
+  }
+
+  // Delete -> assessmentDelete. Only offered for mid-stage (not yet
+  // completed/finalized) reassessments.
+  Future<void> _handleDelete(ReassessmentListItem item) async {
+    final ackNo = item.ackNo;
+    if (ackNo == null || item.isCompletedFlag) return;
+
+    final confirmed = await _confirmDelete(ackNo);
+    if (confirmed != true || !mounted) return;
+
+    try {
+      final response = await OtpGateService.guard(
+        call: () => ApiService.deleteAssessment(ackNo: ackNo),
+        responseCode: (r) => r.responseCode,
+        propertyId: item.propertyId ?? '',
+        mobileNo: '',
+      );
+      if (!mounted) return;
+      _showSnackBar(
+        response.message ??
+            (response.success == true
+                ? 'Reassessment deleted successfully.'
+                : 'Failed to delete reassessment'),
+      );
+      if (response.success == true) _fetchList();
+    } catch (e) {
+      if (!mounted) return;
+      _showSnackBar(ApiService.getUserFriendlyErrorMessage(
+        e,
+        fallbackMessage: 'Unable to delete this reassessment. Please try again.',
+      ));
+    }
+  }
+
+  Future<bool?> _confirmDelete(String ackNo) {
+    return showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          'Delete Reassessment?',
+          style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w700, color: _textColor),
+        ),
+        content: Text(
+          'This will permanently remove the in-progress reassessment $ackNo. This action cannot be undone.',
+          style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade700, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(
+              'Delete',
+              style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.red.shade700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _handleCardTap(ReassessmentListItem item) async {
     final propertyId = item.propertyId;
     final ackNo = item.ackNo;
@@ -105,16 +194,7 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
     final nextStage = item.nextStage;
     if (nextStage == null) {
       if (item.isCompletedFlag) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ReassessmentDetailsScreen(
-              ackNo: ackNo,
-              propertyId: propertyId,
-              mobileNo: mobileNo,
-            ),
-          ),
-        );
+        await _handleSeeDetails(item);
       } else {
         _showSnackBar('No further action is available for this reassessment right now.');
       }
@@ -409,36 +489,70 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
                   ],
                 ),
               ),
-              // Footer: See Details (completed) or stage progress
+              // Footer: See Details on every card; Delete only while the
+              // application is still mid-stage.
               Container(
                 margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                child: item.isCompletedFlag
-                    ? SizedBox(
-                        width: double.infinity,
-                        height: 40,
-                        child: OutlinedButton.icon(
-                          onPressed: () => _handleCardTap(item),
-                          icon: const Icon(Icons.visibility_outlined, size: 16),
-                          label: Text(
-                            'See Details',
-                            style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: _primaryColor,
-                            side: const BorderSide(color: _primaryColor),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
-                        ),
-                      )
-                    : Align(
-                        alignment: Alignment.centerRight,
-                        child: _buildStageBadge(item),
-                      ),
+                child: Column(
+                  children: [
+                    if (!item.isCompletedFlag) ...[
+                      Align(alignment: Alignment.centerRight, child: _buildStageBadge(item)),
+                      const SizedBox(height: 10),
+                    ],
+                    _buildCardActions(item),
+                  ],
+                ),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildCardActions(ReassessmentListItem item) {
+    return Row(
+      children: [
+        Expanded(
+          child: SizedBox(
+            height: 40,
+            child: OutlinedButton.icon(
+              onPressed: () => _handleSeeDetails(item),
+              icon: const Icon(Icons.visibility_outlined, size: 16),
+              label: Text(
+                'See Details',
+                style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _primaryColor,
+                side: const BorderSide(color: _primaryColor),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ),
+        ),
+        if (!item.isCompletedFlag) ...[
+          const SizedBox(width: 10),
+          Expanded(
+            child: SizedBox(
+              height: 40,
+              child: OutlinedButton.icon(
+                onPressed: () => _handleDelete(item),
+                icon: const Icon(Icons.delete_outline_rounded, size: 16),
+                label: Text(
+                  'Delete',
+                  style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red.shade700,
+                  side: BorderSide(color: Colors.red.shade700),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 
