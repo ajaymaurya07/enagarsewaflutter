@@ -543,7 +543,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             },
                           ),
                           _buildServiceCard(
-                            'Urban Development Department, Uttar Pradesh',
+                            'Urban Development Department,UP',
                             'Visit the department portal',
                             Icons.account_balance_outlined,
                             cardWidth,

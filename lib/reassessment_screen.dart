@@ -21,6 +21,7 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
   static const Color _textColor = Color(0xFF333333);
 
   bool _isLoading = true;
+  String? _deletingAckNo;
   String? _errorMessage;
   List<ReassessmentListItem> _items = [];
   bool _isKrutidev = false;
@@ -125,6 +126,7 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
     final confirmed = await _confirmDelete(ackNo);
     if (confirmed != true || !mounted) return;
 
+    setState(() => _deletingAckNo = ackNo);
     try {
       final response = await OtpGateService.guard(
         call: () => ApiService.deleteAssessment(ackNo: ackNo),
@@ -146,6 +148,8 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
         e,
         fallbackMessage: 'Unable to delete this reassessment. Please try again.',
       ));
+    } finally {
+      if (mounted) setState(() => _deletingAckNo = null);
     }
   }
 
@@ -511,13 +515,14 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
   }
 
   Widget _buildCardActions(ReassessmentListItem item) {
+    final isDeleting = item.ackNo != null && _deletingAckNo == item.ackNo;
     return Row(
       children: [
         Expanded(
           child: SizedBox(
             height: 40,
             child: OutlinedButton.icon(
-              onPressed: () => _handleSeeDetails(item),
+              onPressed: isDeleting ? null : () => _handleSeeDetails(item),
               icon: const Icon(Icons.visibility_outlined, size: 16),
               label: Text(
                 'See Details',
@@ -537,10 +542,19 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
             child: SizedBox(
               height: 40,
               child: OutlinedButton.icon(
-                onPressed: () => _handleDelete(item),
-                icon: const Icon(Icons.delete_outline_rounded, size: 16),
+                onPressed: isDeleting ? null : () => _handleDelete(item),
+                icon: isDeleting
+                    ? SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.red.shade700),
+                        ),
+                      )
+                    : const Icon(Icons.delete_outline_rounded, size: 16),
                 label: Text(
-                  'Delete',
+                  isDeleting ? 'Deleting...' : 'Delete',
                   style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600),
                 ),
                 style: OutlinedButton.styleFrom(

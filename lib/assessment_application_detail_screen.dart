@@ -160,7 +160,7 @@ class _AssessmentApplicationDetailScreenState
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Total ARV: ₹${_text(data.totalArv)}',
+                  'Total ARV: ${_money(data.totalArv)}',
                   style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade800),
                 ),
                 if (data.status?.trim().isNotEmpty ?? false) ...[
@@ -204,10 +204,7 @@ class _AssessmentApplicationDetailScreenState
             _InfoRow('Road Location', _text(data.roadLocationName)),
             _InfoRow('Usage Detail', _text(data.detail)),
             _InfoRow('File No.', _text(data.fileNo)),
-            _InfoRow(
-              'Total Area',
-              data.totalAreaOfProperty != null ? '${_num(data.totalAreaOfProperty)} sq.ft.' : '-',
-            ),
+            _InfoRow('Total Area', _area(data.totalAreaOfProperty)),
           ]),
           const SizedBox(height: 20),
           _sectionTitle('Assessment Details', Icons.assignment_outlined),
@@ -236,17 +233,25 @@ class _AssessmentApplicationDetailScreenState
     );
   }
 
-  // The backend sends '-' / 'NA' for values it has nothing for; normalise
-  // those to '-' so _buildInfoCard can drop the row entirely.
+  // Every value is shown exactly as the API sent it: '-' stays '-', 'NA' stays
+  // 'NA', 0 stays 0. Only a null/blank value falls back to '-'.
   String _text(String? value) {
     final trimmed = value?.trim() ?? '';
-    if (trimmed.isEmpty || trimmed == '-' || trimmed.toUpperCase() == 'NA') return '-';
-    return trimmed;
+    return trimmed.isEmpty ? '-' : trimmed;
   }
 
-  String _num(double? value) {
-    if (value == null) return '-';
-    return value == value.roundToDouble() ? value.toStringAsFixed(0) : value.toStringAsFixed(2);
+  // Prefixes ₹ only when the API sent an actual amount; placeholders like
+  // '-' / 'NA' are rendered as-is.
+  String _money(String? value) {
+    final trimmed = _text(value);
+    if (AssessmentApplicationDetailData.asNumber(trimmed) == null) return trimmed;
+    return '₹$trimmed';
+  }
+
+  String _area(String? value) {
+    final trimmed = _text(value);
+    if (AssessmentApplicationDetailData.asNumber(trimmed) == null) return trimmed;
+    return '$trimmed sq.ft.';
   }
 
   Widget _sectionTitle(String text, IconData icon) {
@@ -270,7 +275,7 @@ class _AssessmentApplicationDetailScreenState
   }
 
   Widget _buildInfoCard(List<_InfoRow> rows) {
-    final visibleRows = rows.where((r) => r.value.trim().isNotEmpty && r.value.trim() != '-').toList();
+    final visibleRows = rows;
     if (visibleRows.isEmpty) return const SizedBox.shrink();
     return Container(
       width: double.infinity,
@@ -319,22 +324,24 @@ class _AssessmentApplicationDetailScreenState
   }
 
   Widget _buildTaxCard(AssessmentApplicationDetailData data) {
-    final modifiedCurrentTax = double.tryParse(data.modifiedCurrentTax ?? '');
-    final grandTotal = (data.currentTax ?? 0) +
-        (data.arrear ?? 0) +
-        (data.interest ?? 0) +
-        (data.waterTax ?? 0) +
-        (data.waterTaxArrear ?? 0) +
-        (data.waterTaxInterest ?? 0) +
-        (data.sewerageTax ?? 0) +
-        (data.sewerageTaxArrear ?? 0) +
-        (data.sewerageTaxInterest ?? 0) +
-        (data.waterCharge ?? 0) +
-        (data.waterChargeArrear ?? 0) +
-        (data.waterChargeInterest ?? 0) +
-        (data.garbageTax ?? 0) +
-        (data.garbageTaxArrear ?? 0) +
-        (data.garbageTaxInterest ?? 0);
+    // Placeholders ('-', 'NA', blank) count as 0 towards the computed total but
+    // are still displayed verbatim in their own row.
+    double amount(String? raw) => AssessmentApplicationDetailData.asNumber(raw) ?? 0;
+    final grandTotal = amount(data.currentTax) +
+        amount(data.arrear) +
+        amount(data.interest) +
+        amount(data.waterTax) +
+        amount(data.waterTaxArrear) +
+        amount(data.waterTaxInterest) +
+        amount(data.sewerageTax) +
+        amount(data.sewerageTaxArrear) +
+        amount(data.sewerageTaxInterest) +
+        amount(data.waterCharge) +
+        amount(data.waterChargeArrear) +
+        amount(data.waterChargeInterest) +
+        amount(data.garbageTax) +
+        amount(data.garbageTaxArrear) +
+        amount(data.garbageTaxInterest);
 
     return Container(
       width: double.infinity,
@@ -350,7 +357,7 @@ class _AssessmentApplicationDetailScreenState
           _taxRow('Property Tax', data.currentTax),
           _taxRow('Property Tax Arrear', data.arrear),
           _taxRow('Property Tax Interest', data.interest),
-          if (modifiedCurrentTax != null) _taxRow('Modified Property Tax', modifiedCurrentTax),
+          _taxRow('Modified Property Tax', data.modifiedCurrentTax),
           const Divider(height: 18),
           _taxRow('Water Tax', data.waterTax),
           _taxRow('Water Tax Arrear', data.waterTaxArrear),
@@ -368,13 +375,13 @@ class _AssessmentApplicationDetailScreenState
           _taxRow('Garbage Tax Arrear', data.garbageTaxArrear),
           _taxRow('Garbage Tax Interest', data.garbageTaxInterest),
           const Divider(height: 18),
-          _taxRow('Grand Total', grandTotal, isBold: true),
+          _taxRow('Grand Total', grandTotal.toStringAsFixed(2), isBold: true),
         ],
       ),
     );
   }
 
-  Widget _taxRow(String label, double? value, {bool isBold = false}) {
+  Widget _taxRow(String label, String? value, {bool isBold = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
@@ -389,7 +396,7 @@ class _AssessmentApplicationDetailScreenState
             ),
           ),
           Text(
-            '₹${(value ?? 0).toStringAsFixed(2)}',
+            _money(value),
             style: GoogleFonts.poppins(
               fontSize: 13,
               fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,

@@ -5,7 +5,6 @@ import 'services/database_service.dart';
 import 'services/otp_gate_service.dart';
 import 'utils/ulb_language_helper.dart';
 import 'assessment_application_detail_screen.dart';
-import 'assessment_document_upload_screen.dart';
 import 'property_tax_assessment_screen.dart';
 
 /// Home screen for the fresh (non-reassessment) property tax assessment
@@ -23,6 +22,7 @@ class _AssessmentListScreenState extends State<AssessmentListScreen> {
   static const Color _textColor = Color(0xFF333333);
 
   bool _isLoading = true;
+  String? _deletingAckNo;
   String? _errorMessage;
   List<ReassessmentListItem> _items = [];
   bool _isKrutidev = false;
@@ -119,6 +119,7 @@ class _AssessmentListScreenState extends State<AssessmentListScreen> {
     final confirmed = await _confirmDelete(ackNo);
     if (confirmed != true || !mounted) return;
 
+    setState(() => _deletingAckNo = ackNo);
     try {
       final response = await OtpGateService.guard(
         call: () => ApiService.deleteAssessment(ackNo: ackNo),
@@ -138,6 +139,8 @@ class _AssessmentListScreenState extends State<AssessmentListScreen> {
         e,
         fallbackMessage: 'Unable to delete this assessment. Please try again.',
       ));
+    } finally {
+      if (mounted) setState(() => _deletingAckNo = null);
     }
   }
 
@@ -171,55 +174,6 @@ class _AssessmentListScreenState extends State<AssessmentListScreen> {
         ],
       ),
     );
-  }
-
-  // Completed -> See Details (assessmentApplicationDetail).
-  // next_stage 4 -> document upload screen (only needs ackNo, no
-  // dependency on earlier-step dropdown data).
-  // next_stage 1/2/3 -> no dedicated resume-fetch API exists for the
-  // Road Location/Property Type/Floor Config dropdown data needed by
-  // those steps, so restart the full Step 1-4 form instead of trying to
-  // resume mid-flow.
-  Future<void> _handleCardTap(ReassessmentListItem item) async {
-    final propertyId = item.propertyId;
-    final ackNo = item.ackNo;
-    if (ackNo == null) return;
-
-    if (item.isCompletedFlag) {
-      await _handleSeeDetails(item);
-      return;
-    }
-
-    final nextStage = item.nextStage;
-    if (nextStage == null) {
-      _showSnackBar('No further action is available for this assessment right now.');
-      return;
-    }
-
-    if (nextStage >= 4) {
-      final property = propertyId != null ? await DatabaseService.getPropertyById(propertyId) : null;
-      final mobileNo = property?.phoneNumber ?? '';
-      if (!mounted) return;
-      final result = await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => AssessmentDocumentUploadScreen(
-            ackNo: ackNo,
-            isReassessment: false,
-            propertyId: propertyId ?? '',
-            mobileNo: mobileNo,
-          ),
-        ),
-      );
-      if (result != null && mounted) _fetchList();
-      return;
-    }
-
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const PropertyTaxAssessmentScreen()),
-    );
-    if (result != null && mounted) _fetchList();
   }
 
   @override
@@ -382,7 +336,7 @@ class _AssessmentListScreenState extends State<AssessmentListScreen> {
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () => _handleCardTap(item),
+        onTap: () => _handleSeeDetails(item),
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
@@ -451,15 +405,7 @@ class _AssessmentListScreenState extends State<AssessmentListScreen> {
               // application is still mid-stage.
               Container(
                 margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                child: Column(
-                  children: [
-                    if (!item.isCompletedFlag) ...[
-                      Align(alignment: Alignment.centerRight, child: _buildStageBadge(item)),
-                      const SizedBox(height: 10),
-                    ],
-                    _buildCardActions(item),
-                  ],
-                ),
+                child: _buildCardActions(item),
               ),
             ],
           ),
@@ -469,13 +415,14 @@ class _AssessmentListScreenState extends State<AssessmentListScreen> {
   }
 
   Widget _buildCardActions(ReassessmentListItem item) {
+    final isDeleting = item.ackNo != null && _deletingAckNo == item.ackNo;
     return Row(
       children: [
         Expanded(
           child: SizedBox(
             height: 40,
             child: OutlinedButton.icon(
-              onPressed: () => _handleSeeDetails(item),
+              onPressed: isDeleting ? null : () => _handleSeeDetails(item),
               icon: const Icon(Icons.visibility_outlined, size: 16),
               label: Text(
                 'See Details',
@@ -495,10 +442,19 @@ class _AssessmentListScreenState extends State<AssessmentListScreen> {
             child: SizedBox(
               height: 40,
               child: OutlinedButton.icon(
-                onPressed: () => _handleDelete(item),
-                icon: const Icon(Icons.delete_outline_rounded, size: 16),
+                onPressed: isDeleting ? null : () => _handleDelete(item),
+                icon: isDeleting
+                    ? SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.red.shade700),
+                        ),
+                      )
+                    : const Icon(Icons.delete_outline_rounded, size: 16),
                 label: Text(
-                  'Delete',
+                  isDeleting ? 'Deleting...' : 'Delete',
                   style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600),
                 ),
                 style: OutlinedButton.styleFrom(
@@ -511,29 +467,6 @@ class _AssessmentListScreenState extends State<AssessmentListScreen> {
           ),
         ],
       ],
-    );
-  }
-
-  Widget _buildStageBadge(ReassessmentListItem item) {
-    final stage = item.currentStage ?? 0;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.timeline_rounded, size: 14, color: Colors.grey.shade600),
-          const SizedBox(width: 5),
-          Text(
-            'Stage $stage of 4',
-            style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
-          ),
-        ],
-      ),
     );
   }
 

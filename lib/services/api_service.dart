@@ -3541,7 +3541,7 @@ class AssessmentApplicationDetailData {
 
   final String? roadLocationName;
   final String? fileNo;
-  final double? totalAreaOfProperty;
+  final String? totalAreaOfProperty;
   final String? propertyTypeName;
   final String? natureHouseName;
   final String? detail;
@@ -3558,22 +3558,22 @@ class AssessmentApplicationDetailData {
   final String? wardName;
   final String? mohallaName;
 
-  final double? currentTax;
-  final double? arrear;
-  final double? interest;
+  final String? currentTax;
+  final String? arrear;
+  final String? interest;
   final String? modifiedCurrentTax;
-  final double? waterTax;
-  final double? waterTaxArrear;
-  final double? waterTaxInterest;
-  final double? sewerageTax;
-  final double? sewerageTaxArrear;
-  final double? sewerageTaxInterest;
-  final double? waterCharge;
-  final double? waterChargeArrear;
-  final double? waterChargeInterest;
-  final double? garbageTax;
-  final double? garbageTaxArrear;
-  final double? garbageTaxInterest;
+  final String? waterTax;
+  final String? waterTaxArrear;
+  final String? waterTaxInterest;
+  final String? sewerageTax;
+  final String? sewerageTaxArrear;
+  final String? sewerageTaxInterest;
+  final String? waterCharge;
+  final String? waterChargeArrear;
+  final String? waterChargeInterest;
+  final String? garbageTax;
+  final String? garbageTaxArrear;
+  final String? garbageTaxInterest;
 
   AssessmentApplicationDetailData({
     this.ulbId,
@@ -3627,10 +3627,12 @@ class AssessmentApplicationDetailData {
     this.garbageTaxInterest,
   });
 
-  static double? _toDouble(dynamic value) {
-    if (value == null) return null;
-    if (value is num) return value.toDouble();
-    return double.tryParse(value.toString());
+  /// Parses a raw API value into a number when it is numeric. Returns null for
+  /// placeholder values like '-' / 'NA' so callers can render them verbatim.
+  static double? asNumber(String? value) {
+    final trimmed = value?.trim() ?? '';
+    if (trimmed.isEmpty) return null;
+    return double.tryParse(trimmed.replaceAll(',', ''));
   }
 
   factory AssessmentApplicationDetailData.fromJson(Map<String, dynamic> json) {
@@ -3653,7 +3655,7 @@ class AssessmentApplicationDetailData {
       rebateDate: json['rebateDate']?.toString(),
       roadLocationName: json['roadLocationName']?.toString(),
       fileNo: json['fileNo']?.toString(),
-      totalAreaOfProperty: _toDouble(json['totalAreaOfProperty']),
+      totalAreaOfProperty: json['totalAreaOfProperty']?.toString(),
       propertyTypeName: json['propertyTypeName']?.toString(),
       natureHouseName: json['natureHouseName']?.toString(),
       detail: json['detail']?.toString(),
@@ -3668,22 +3670,22 @@ class AssessmentApplicationDetailData {
       zoneName: json['zoneName']?.toString(),
       wardName: json['wardName']?.toString(),
       mohallaName: json['mohallaName']?.toString(),
-      currentTax: _toDouble(json['currentTax']),
-      arrear: _toDouble(json['arrear']),
-      interest: _toDouble(json['interest']),
+      currentTax: json['currentTax']?.toString(),
+      arrear: json['arrear']?.toString(),
+      interest: json['interest']?.toString(),
       modifiedCurrentTax: json['modifiedCurrentTax']?.toString(),
-      waterTax: _toDouble(json['waterTax']),
-      waterTaxArrear: _toDouble(json['waterTaxArrear']),
-      waterTaxInterest: _toDouble(json['waterTaxInterest']),
-      sewerageTax: _toDouble(json['sewerageTax']),
-      sewerageTaxArrear: _toDouble(json['sewerageTaxArrear']),
-      sewerageTaxInterest: _toDouble(json['sewerageTaxInterest']),
-      waterCharge: _toDouble(json['waterCharge']),
-      waterChargeArrear: _toDouble(json['waterChargeArrear']),
-      waterChargeInterest: _toDouble(json['waterChargeInterest']),
-      garbageTax: _toDouble(json['garbageTax']),
-      garbageTaxArrear: _toDouble(json['garbageTaxArrear']),
-      garbageTaxInterest: _toDouble(json['garbageTaxInterest']),
+      waterTax: json['waterTax']?.toString(),
+      waterTaxArrear: json['waterTaxArrear']?.toString(),
+      waterTaxInterest: json['waterTaxInterest']?.toString(),
+      sewerageTax: json['sewerageTax']?.toString(),
+      sewerageTaxArrear: json['sewerageTaxArrear']?.toString(),
+      sewerageTaxInterest: json['sewerageTaxInterest']?.toString(),
+      waterCharge: json['waterCharge']?.toString(),
+      waterChargeArrear: json['waterChargeArrear']?.toString(),
+      waterChargeInterest: json['waterChargeInterest']?.toString(),
+      garbageTax: json['garbageTax']?.toString(),
+      garbageTaxArrear: json['garbageTaxArrear']?.toString(),
+      garbageTaxInterest: json['garbageTaxInterest']?.toString(),
     );
   }
 }
