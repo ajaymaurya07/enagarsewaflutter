@@ -44,7 +44,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String _userType = "";
   String _displayName = "";
 
-  bool get _canSearchProperty => _userType.toLowerCase() == "admin";
+  // Add-more-property (Search New Property) card admin aur citizen dono ke
+  // liye enable hai.
+  bool get _canSearchProperty {
+    final normalizedType = _userType.toLowerCase();
+    return normalizedType == "admin" || normalizedType == "citizen";
+  }
+
   final PageController _paymentPageController = PageController(
     viewportFraction: 0.95,
   );
@@ -351,7 +357,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                       if (_sliderCardCount > 1) _buildSliderIndicator(),
 
-                      // Refined "Search Property" Card - Admin only
+                      // Refined "Search Property" Card - Admin + Citizen
                       if (_canSearchProperty) ...[
                         const SizedBox(height: 24),
                         GestureDetector(

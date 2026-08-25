@@ -32,7 +32,7 @@ class DashboardTourGuide {
           icon: Icons.add_business_outlined,
           title: 'Search New Property',
           body:
-              'Admin users can use this option to search and add more properties to their list before proceeding with further services.',
+              'Use this option to search and add more properties to your list before proceeding with further services.',
           radius: 16,
         ),
       _buildStep(
