@@ -522,7 +522,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           _buildServiceCard(
                             'OTS',
                             'Visit the department portal',
-                            Icons.account_balance_outlined,
+                            Icons.public_outlined,
                             cardWidth,
                             titleMaxLines: 3,
                             onTap: () {
