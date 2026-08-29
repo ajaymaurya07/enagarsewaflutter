@@ -32,8 +32,10 @@
         </pin-set>
     </domain-config>
 
-    <!-- Default policy: block HTTP for all other domains, use system trust store -->
-    <base-config cleartextTrafficPermitted="false">
+    <!-- Default policy: HTTP is permitted so the department portal WebView can
+         load any linked site, including plain-http ones. The payment gateways
+         and our own API above stay HTTPS-only (and pinned). -->
+    <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
             <certificates src="system"/>
         </trust-anchors>

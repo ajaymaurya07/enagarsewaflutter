@@ -2,7 +2,7 @@ name: enagarsewa
 description: "Property Tax & Municipal Grievance Management - SECURE VERSION"
 publish_to: 'none'
 
-version: 2.3.11+45
+version: 2.3.13+47
 
 environment:
   sdk: ^3.11.3
@@ -33,6 +33,11 @@ dependencies:
   intl: ^0.19.0
   tutorial_coach_mark: ^1.2.11
   webview_flutter: ^4.10.0
+  url_launcher: ^6.3.1
+  # Imported directly for the unrestricted WebView settings
+  # (mixed content on Android, inline media on iOS).
+  webview_flutter_android: ^4.12.0
+  webview_flutter_wkwebview: ^3.25.1
   firebase_core: ^3.14.0
   firebase_crashlytics: ^4.3.0
   firebase_messaging: ^15.2.7

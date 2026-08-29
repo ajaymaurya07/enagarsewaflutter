@@ -117,6 +117,17 @@
 		<string>sms</string>
 		<string>tel</string>
 		<string>mailto</string>
+		<string>https</string>
+		<string>http</string>
 	</array>
+	<!-- The department portal WebView must be able to load any linked site,
+	     including plain-http ones, so ATS is relaxed for web content. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+		<key>NSAllowsArbitraryLoadsInWebContent</key>
+		<true/>
+	</dict>
 </dict>
 </plist>

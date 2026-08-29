@@ -520,11 +520,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             },
                           ),
                           _buildServiceCard(
-                            'Mutation',
-                            'Manage name transfer and mutation',
-                            Icons.swap_horiz_outlined,
+                            'OTS',
+                            'Visit the department portal',
+                            Icons.account_balance_outlined,
                             cardWidth,
-                            key: _keyMutation,
+                            titleMaxLines: 3,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const UrbanDevelopmentWebView(),
+                                ),
+                              );
+                            },
                           ),
                           _buildServiceCard(
                             'Water & Sewerage',
@@ -543,20 +552,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             },
                           ),
                           _buildServiceCard(
-                            'Urban Development Department,UP',
-                            'Visit the department portal',
-                            Icons.account_balance_outlined,
+                            'Mutation',
+                            'Manage name transfer and mutation',
+                            Icons.swap_horiz_outlined,
                             cardWidth,
-                            titleMaxLines: 3,
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      const UrbanDevelopmentWebView(),
-                                ),
-                              );
-                            },
+                            key: _keyMutation,
                           ),
                         ],
                       ),
