@@ -452,6 +452,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         runSpacing: 14,
                         children: [
                           _buildServiceCard(
+                            'OTS',
+                            'Visit the department portal',
+                            Icons.public_outlined,
+                            cardWidth,
+                            titleMaxLines: 3,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const UrbanDevelopmentWebView(),
+                                ),
+                              );
+                            },
+                          ),
+                          _buildServiceCard(
                             'Property Tax',
                             'Manage all property tax',
                             Icons.home_work_outlined,
@@ -515,22 +531,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 MaterialPageRoute(
                                   builder: (context) =>
                                       const AssessmentTypeSelectionScreen(),
-                                ),
-                              );
-                            },
-                          ),
-                          _buildServiceCard(
-                            'OTS',
-                            'Visit the department portal',
-                            Icons.public_outlined,
-                            cardWidth,
-                            titleMaxLines: 3,
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      const UrbanDevelopmentWebView(),
                                 ),
                               );
                             },
