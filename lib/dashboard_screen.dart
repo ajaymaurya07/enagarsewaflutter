@@ -963,10 +963,11 @@ class _PropertyPaymentStatus {
     final dueDate = _DashboardScreenState._parseDate(billDate);
     final isPaid = netPayable != null && netPayable <= 0;
 
+    // Payment ho chuka hai to card dashboard par dikhana hi nahi hai.
+    if (isPaid) return null;
+
     final String status;
-    if (isPaid) {
-      status = 'Payment Done';
-    } else if (dueDate != null) {
+    if (dueDate != null) {
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
       if (dueDate.isBefore(today)) {
