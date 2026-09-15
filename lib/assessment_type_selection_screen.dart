@@ -82,7 +82,7 @@ class _AssessmentTypeSelectionScreenState
                 const SizedBox(width: 12),
                 Expanded(
                   child: _buildTypeTab(
-                    label: 'Reassessment',
+                    label: 'Re-Assessment',
                     description: 'Reassess an already assessed property',
                     icon: Icons.fact_check_outlined,
                     type: _AssessmentType.reassessment,

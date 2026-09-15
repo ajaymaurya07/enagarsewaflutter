@@ -99,7 +99,7 @@ class _AssessmentApplicationDetailScreenState
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          widget.isReassessment ? 'Reassessment Details' : 'Assessment Details',
+          widget.isReassessment ? 'Re-Assessment Details' : 'Assessment Details',
           style: GoogleFonts.poppins(fontSize: 17, fontWeight: FontWeight.w600, color: _textColor),
         ),
       ),

@@ -240,7 +240,7 @@ class _AssessmentDocumentUploadScreenState
                   onPressed: () => handleAssessmentBack(context),
                 ),
           title: Text(
-            widget.isReassessment ? 'Finalize Reassessment' : 'Finalize Assessment',
+            widget.isReassessment ? 'Finalize Re-Assessment' : 'Finalize Assessment',
             style: GoogleFonts.poppins(
               fontSize: 17,
               fontWeight: FontWeight.w600,
@@ -286,7 +286,7 @@ class _AssessmentDocumentUploadScreenState
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Upload the supporting document to complete your ${widget.isReassessment ? 'reassessment' : 'assessment'} application.',
+                  'Upload the supporting document to complete your ${widget.isReassessment ? 're-assessment' : 'assessment'} application.',
                   style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade800),
                 ),
               ],
@@ -392,7 +392,7 @@ class _AssessmentDocumentUploadScreenState
             ),
             const SizedBox(height: 20),
             Text(
-              widget.isReassessment ? 'Reassessment Submitted' : 'Assessment Submitted',
+              widget.isReassessment ? 'Re-Assessment Submitted' : 'Assessment Submitted',
               style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w700, color: const Color(0xFF333333)),
               textAlign: TextAlign.center,
             ),

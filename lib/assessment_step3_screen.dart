@@ -411,7 +411,7 @@ class _AssessmentStep3ScreenState extends State<AssessmentStep3Screen> {
           onPressed: () => handleAssessmentBack(context),
         ),
         title: Text(
-          'Property Tax Assessment',
+          widget.isReassessment ? 'Property Tax Re-Assessment' : 'Property Tax Assessment',
           style: GoogleFonts.poppins(
             fontSize: 17,
             fontWeight: FontWeight.w600,

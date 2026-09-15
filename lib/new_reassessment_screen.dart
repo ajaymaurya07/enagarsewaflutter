@@ -142,7 +142,7 @@ class _NewReassessmentScreenState extends State<NewReassessmentScreen> {
       setState(() => _isInitializing = false);
 
       if (response.success != true || response.data == null) {
-        _showSnackBar(response.message ?? 'Failed to initialize reassessment');
+        _showSnackBar(response.message ?? 'Failed to initialize re-assessment');
         return;
       }
       setState(() {
@@ -155,7 +155,7 @@ class _NewReassessmentScreenState extends State<NewReassessmentScreen> {
       _showSnackBar(
         ApiService.getUserFriendlyErrorMessage(
           e,
-          fallbackMessage: 'Unable to initialize reassessment. Please try again.',
+          fallbackMessage: 'Unable to initialize re-assessment. Please try again.',
         ),
       );
     }
@@ -241,7 +241,7 @@ class _NewReassessmentScreenState extends State<NewReassessmentScreen> {
           onPressed: () => Navigator.pop(context, _didStartAnyReassessment),
         ),
         title: Text(
-          'New Reassessment',
+          'Re-Assessment',
           style: GoogleFonts.poppins(
             fontSize: 17,
             fontWeight: FontWeight.w600,
@@ -265,7 +265,7 @@ class _NewReassessmentScreenState extends State<NewReassessmentScreen> {
 
             if (_preCheckData != null) ...[
               const SizedBox(height: 24),
-              _sectionTitle('Last Assessment Details'),
+              _sectionTitle('Last Re-Assessment Details'),
               const SizedBox(height: 12),
               _buildInfoCard([
                 _InfoRow('Date of Last Assessment', _preCheckData!.dateOfLastAssessment ?? '-'),

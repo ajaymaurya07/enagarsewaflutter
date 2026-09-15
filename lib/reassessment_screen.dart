@@ -55,7 +55,7 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
       if (response.success != true) {
         setState(() {
           _isLoading = false;
-          _errorMessage = response.message ?? 'Failed to fetch reassessment list';
+          _errorMessage = response.message ?? 'Failed to fetch re-assessment list';
         });
         return;
       }
@@ -69,7 +69,7 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
         _isLoading = false;
         _errorMessage = ApiService.getUserFriendlyErrorMessage(
           e,
-          fallbackMessage: 'Unable to fetch reassessment list. Please try again.',
+          fallbackMessage: 'Unable to fetch re-assessment list. Please try again.',
         );
       });
     }
@@ -138,15 +138,15 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
       _showSnackBar(
         response.message ??
             (response.success == true
-                ? 'Reassessment deleted successfully.'
-                : 'Failed to delete reassessment'),
+                ? 'Re-Assessment deleted successfully.'
+                : 'Failed to delete re-assessment'),
       );
       if (response.success == true) _fetchList();
     } catch (e) {
       if (!mounted) return;
       _showSnackBar(ApiService.getUserFriendlyErrorMessage(
         e,
-        fallbackMessage: 'Unable to delete this reassessment. Please try again.',
+        fallbackMessage: 'Unable to delete this re-assessment. Please try again.',
       ));
     } finally {
       if (mounted) setState(() => _deletingAckNo = null);
@@ -158,11 +158,11 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(
-          'Delete Reassessment?',
+          'Delete Re-Assessment?',
           style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w700, color: _textColor),
         ),
         content: Text(
-          'This will permanently remove the in-progress reassessment $ackNo. This action cannot be undone.',
+          'This will permanently remove the in-progress re-assessment $ackNo. This action cannot be undone.',
           style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade700, height: 1.5),
         ),
         actions: [
@@ -200,7 +200,7 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
       if (item.isCompletedFlag) {
         await _handleSeeDetails(item);
       } else {
-        _showSnackBar('No further action is available for this reassessment right now.');
+        _showSnackBar('No further action is available for this re-assessment right now.');
       }
       return;
     }
@@ -253,7 +253,7 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Property Reassessment',
+          'Property Re-Assessment',
           style: GoogleFonts.poppins(
             fontSize: 17,
             fontWeight: FontWeight.w600,
@@ -277,7 +277,7 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
         _buildNewReassessmentButton(),
         const SizedBox(height: 24),
         Text(
-          'Assessment Summary',
+          'Re-Assessment Summary',
           style: GoogleFonts.poppins(
             fontSize: 16,
             fontWeight: FontWeight.w700,
@@ -298,7 +298,7 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
         onPressed: _handleNewReassessment,
         icon: const Icon(Icons.add_circle_outline_rounded, size: 20),
         label: Text(
-          'New Reassessment',
+          'Re-Assessment',
           style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600),
         ),
         style: ElevatedButton.styleFrom(
@@ -331,8 +331,8 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
     if (_items.isEmpty) {
       return _buildMessageState(
         icon: Icons.description_outlined,
-        title: 'No reassessments yet',
-        subtitle: 'Reassessments you start will appear here so you can track their progress.',
+        title: 'No re-assessments yet',
+        subtitle: 'Re-Assessments you start will appear here so you can track their progress.',
         showRetry: false,
       );
     }
