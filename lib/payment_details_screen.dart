@@ -347,9 +347,57 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
         billDate: data.billDetails?.billDate,
         netPayable: data.billDetails?.netPayble,
       );
+      await _syncPropertyInfoIfChanged(data);
     } catch (_) {
       // Cache likhna optional hai — fail hone par screen normal chalti rahe.
     }
+  }
+
+  /// propertydetails API se aaya fresh owner/father name, address aur arv,
+  /// DB me pehle se saved values (property_selection/search se) se compare
+  /// karta hai. Kuch alag mila to DB update kar deta hai, taki stale data
+  /// is screen aur bill print par na dikhe.
+  Future<void> _syncPropertyInfoIfChanged(PropertyDetailsData data) async {
+    final existing = await DatabaseService.getPropertyById(widget.propertyId);
+    if (existing == null) return;
+
+    final freshOwnerName = data.ownerDetails?.ownerName?.trim();
+    final freshFatherName = data.ownerDetails?.fatherName?.trim();
+    final freshAddress = data.propertyDetailsInfo?.address?.trim();
+    final freshArv = data.propertyDetailsInfo?.arv?.trim();
+
+    String? ownerNameUpdate;
+    String? fatherNameUpdate;
+    String? addressUpdate;
+    String? arvUpdate;
+
+    if (_hasValue(freshOwnerName) && freshOwnerName != existing.ownerName) {
+      ownerNameUpdate = freshOwnerName;
+    }
+    if (_hasValue(freshFatherName) && freshFatherName != existing.fatherName) {
+      fatherNameUpdate = freshFatherName;
+    }
+    if (_hasValue(freshAddress) && freshAddress != existing.address) {
+      addressUpdate = freshAddress;
+    }
+    if (_hasValue(freshArv) && freshArv != existing.arvValue) {
+      arvUpdate = freshArv;
+    }
+
+    if (ownerNameUpdate == null &&
+        fatherNameUpdate == null &&
+        addressUpdate == null &&
+        arvUpdate == null) {
+      return;
+    }
+
+    await DatabaseService.updatePropertyDetailsInfo(
+      propertyId: widget.propertyId,
+      ownerName: ownerNameUpdate,
+      fatherName: fatherNameUpdate,
+      address: addressUpdate,
+      arvValue: arvUpdate,
+    );
   }
 
   Future<void> _autoStartTourIfFirstVisit() async {

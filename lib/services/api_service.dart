@@ -4343,6 +4343,9 @@ class PropertyInfo {
 
   final String? dateOfAssessment;
 
+  /// Property ki current ARV — propertydetails API ke `propertyDetails.arv` se.
+  final String? arv;
+
   PropertyInfo({
     this.address,
     this.houseNo,
@@ -4357,6 +4360,7 @@ class PropertyInfo {
     this.oldPropertyId,
     this.existingPropertyId,
     this.dateOfAssessment,
+    this.arv,
   });
 
   factory PropertyInfo.fromJson(Map<String, dynamic> json) {
@@ -4374,6 +4378,7 @@ class PropertyInfo {
       oldPropertyId: json['oldPropertyId']?.toString(),
       existingPropertyId: json['existingPropertyId']?.toString(),
       dateOfAssessment: json['dateOfAssessment']?.toString(),
+      arv: json['arv']?.toString(),
     );
   }
 }

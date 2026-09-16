@@ -194,6 +194,33 @@ class DatabaseService {
     );
   }
 
+  /// propertydetails API se aaya fresh data (owner/father name, address, arv)
+  /// DB me likhta hai. Sirf non-null values hi update hoti hain, taki naya
+  /// response me koi field khaali aane se maujood data wipe na ho.
+  static Future<void> updatePropertyDetailsInfo({
+    required String propertyId,
+    String? ownerName,
+    String? fatherName,
+    String? address,
+    String? arvValue,
+  }) async {
+    final values = <String, Object?>{
+      'ownerName': ?ownerName,
+      'fatherName': ?fatherName,
+      'address': ?address,
+      'arvValue': ?arvValue,
+    };
+    if (values.isEmpty) return;
+
+    final db = await database;
+    await db.update(
+      'property_table',
+      values,
+      where: 'propertyId = ?',
+      whereArgs: [propertyId],
+    );
+  }
+
   static Future<PropertyEntity?> getPropertyById(String propertyId) async {
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.query(
