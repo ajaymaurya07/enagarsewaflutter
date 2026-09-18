@@ -103,7 +103,6 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
   bool _isLoadingWards = false;
   bool _isLoadingMohallas = false;
   bool _isLoadingCategories = true;
-  bool _isKrutidev = false;
 
   @override
   void initState() {
@@ -111,16 +110,9 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
     _fetchUlbs();
     _fetchGrievanceCategories();
     _loadSavedProperties();
-    _loadUlbLanguagePreference();
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => _autoStartTourIfFirstVisit(),
     );
-  }
-
-  Future<void> _loadUlbLanguagePreference() async {
-    final isKrutidev = await UlbLanguageHelper.isKrutidev();
-    if (!mounted) return;
-    setState(() => _isKrutidev = isKrutidev);
   }
 
   Future<void> _autoStartTourIfFirstVisit() async {
@@ -1054,7 +1046,10 @@ class _ApplyGrievanceScreenState extends State<ApplyGrievanceScreen> {
     String? helpMessage,
     String? Function(String?)? validator,
   }) {
-    final useKrutidev = !enabled && isLanguageSensitive && _isKrutidev;
+    // Global cache ki bajay chuni hui property ka apna ulbLang use karo.
+    final useKrutidev = !enabled &&
+        isLanguageSensitive &&
+        UlbLanguageHelper.isKrutidevValue(_selectedProperty?.ulbLang);
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: TextFormField(

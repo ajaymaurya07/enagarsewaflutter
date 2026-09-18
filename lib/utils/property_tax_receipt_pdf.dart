@@ -10,6 +10,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 import '../services/api_service.dart';
+import '../services/database_service.dart';
 import 'ulb_language_helper.dart';
 
 /// Builds the "संपत्ति कर रसीद" print-out in the same layout the
@@ -60,7 +61,9 @@ class PropertyTaxReceiptPdf {
     String? ulbName,
     String? ulbType,
   }) async {
-    final isKrutidev = await UlbLanguageHelper.isKrutidev();
+    // Global cache ki bajay is receipt ki property ka apna ulbLang column use karo.
+    final propertyEntity = await DatabaseService.getPropertyById(propertyId);
+    final isKrutidev = UlbLanguageHelper.isKrutidevValue(propertyEntity?.ulbLang);
 
     try {
       final html = await buildHtml(

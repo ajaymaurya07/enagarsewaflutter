@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'services/api_service.dart';
+import 'services/database_service.dart';
 import 'services/storage_service.dart';
 import 'utils/ulb_language_helper.dart';
 import 'payment_result_screen.dart';
@@ -51,19 +52,10 @@ class _SbiPaymentScreenState extends State<SbiPaymentScreen> {
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
 
-  bool _isKrutidev = false;
-
   @override
   void initState() {
     super.initState();
     _initWebView();
-    _loadUlbLanguagePreference();
-  }
-
-  Future<void> _loadUlbLanguagePreference() async {
-    final isKrutidev = await UlbLanguageHelper.isKrutidev();
-    if (!mounted) return;
-    setState(() => _isKrutidev = isKrutidev);
   }
 
   void _initWebView() {
@@ -251,7 +243,15 @@ class _SbiPaymentScreenState extends State<SbiPaymentScreen> {
 
   // ── Navigation Helpers ─────────────────────────────────────────────────────
 
-  void _navigateToResult(SbiPaymentDetails data) {
+  Future<void> _navigateToResult(SbiPaymentDetails data) async {
+    // Global cache ki bajay is transaction ki property ka apna ulbLang use karo.
+    final propertyId = data.propertyId;
+    final property = (propertyId != null && propertyId.isNotEmpty)
+        ? await DatabaseService.getPropertyById(propertyId)
+        : null;
+    if (!mounted) return;
+    final isKrutidev = UlbLanguageHelper.isKrutidevValue(property?.ulbLang);
+
     final statusStr = data.paymentStatus?.toUpperCase() ?? '';
     final PaymentStatus paymentStatus;
     if (statusStr == 'SUCCESS') {
@@ -286,13 +286,15 @@ class _SbiPaymentScreenState extends State<SbiPaymentScreen> {
           txnId: data.txnid ?? widget.sbiData.txnid,
           amount: data.netPayable,
           details: details,
-          isKrutidev: _isKrutidev,
+          isKrutidev: isKrutidev,
         ),
       ),
     );
   }
 
   void _navigateFromPrelim(PaymentStatus? status) {
+    // Verification hi fail ho gaya, isliye property resolve nahi ho sakti —
+    // default font par fall back karo.
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
@@ -300,7 +302,7 @@ class _SbiPaymentScreenState extends State<SbiPaymentScreen> {
           status: status ?? PaymentStatus.pending,
           txnId: widget.sbiData.txnid,
           details: const {},
-          isKrutidev: _isKrutidev,
+          isKrutidev: false,
         ),
       ),
     );

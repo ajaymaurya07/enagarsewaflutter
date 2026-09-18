@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'services/api_service.dart';
+import 'services/database_service.dart';
 import 'services/otp_gate_service.dart';
 import 'utils/ulb_language_helper.dart';
 
@@ -45,9 +46,12 @@ class _AssessmentApplicationDetailScreenState
   }
 
   Future<void> _loadUlbLanguagePreference() async {
-    final isKrutidev = await UlbLanguageHelper.isKrutidev();
+    // App-wide cache ki bajay is property ka apna ulbLang column use karo,
+    // taki alag-alag ULB ki properties apna sahi font dikhayein.
+    if (widget.propertyId.isEmpty) return;
+    final property = await DatabaseService.getPropertyById(widget.propertyId);
     if (!mounted) return;
-    setState(() => _isKrutidev = isKrutidev);
+    setState(() => _isKrutidev = UlbLanguageHelper.isKrutidevValue(property?.ulbLang));
   }
 
   Future<void> _fetchDetails() async {

@@ -283,9 +283,10 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
   }
 
   Future<void> _loadUlbLanguagePreference() async {
-    final isKrutidev = await UlbLanguageHelper.isKrutidev();
+    // App-wide cache ki bajay is property ka apna ulbLang column use karo.
+    final property = await DatabaseService.getPropertyById(widget.propertyId);
     if (!mounted) return;
-    setState(() => _isKrutidev = isKrutidev);
+    setState(() => _isKrutidev = UlbLanguageHelper.isKrutidevValue(property?.ulbLang));
   }
 
   String _getCurrentTime() {

@@ -28,21 +28,13 @@ class _ArvChangeHistoryScreenState extends State<ArvChangeHistoryScreen> {
 
   String? _initError;
   String? _historyError;
-  bool _isKrutidev = false;
   Map<String, String> _ulbNameById = {};
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadProperties());
-    _loadUlbLanguagePreference();
     _loadUlbNames();
-  }
-
-  Future<void> _loadUlbLanguagePreference() async {
-    final isKrutidev = await UlbLanguageHelper.isKrutidev();
-    if (!mounted) return;
-    setState(() => _isKrutidev = isKrutidev);
   }
 
   Future<void> _loadUlbNames() async {
@@ -331,7 +323,7 @@ class _ArvChangeHistoryScreenState extends State<ArvChangeHistoryScreen> {
                           color: const Color(0xFF222222))),
                   const SizedBox(height: 3),
                   Text(p.ownerName,
-                      style: _isKrutidev
+                      style: UlbLanguageHelper.isKrutidevValue(p.ulbLang)
                           ? const TextStyle(
                               fontFamily: UlbLanguageHelper.krutidevFontFamily,
                               fontSize: 12,
@@ -697,7 +689,9 @@ class _ArvChangeHistoryScreenState extends State<ArvChangeHistoryScreen> {
   }
 
   Widget _detailRow(String label, String value, {bool highlight = false, bool isLanguageSensitive = false}) {
-    final useKrutidev = isLanguageSensitive && _isKrutidev;
+    // Yeh history saari _selectedProperty ki hi hai, isliye usi ka ulbLang lo.
+    final useKrutidev = isLanguageSensitive &&
+        UlbLanguageHelper.isKrutidevValue(_selectedProperty?.ulbLang);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 9),
       child: Row(

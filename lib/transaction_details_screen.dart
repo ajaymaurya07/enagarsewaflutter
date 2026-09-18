@@ -12,6 +12,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 
 import 'services/api_service.dart';
+import 'services/database_service.dart';
 import 'tour_guides/transaction_details_tour.dart';
 import 'utils/ulb_language_helper.dart';
 
@@ -44,9 +45,13 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
   }
 
   Future<void> _loadUlbLanguagePreference() async {
-    final isKrutidev = await UlbLanguageHelper.isKrutidev();
+    // App-wide cache ki bajay is transaction ki property ka apna ulbLang use karo.
+    final propertyId = widget.transaction.propertyId;
+    final property = (propertyId != null && propertyId.isNotEmpty)
+        ? await DatabaseService.getPropertyById(propertyId)
+        : null;
     if (!mounted) return;
-    setState(() => _isKrutidev = isKrutidev);
+    setState(() => _isKrutidev = UlbLanguageHelper.isKrutidevValue(property?.ulbLang));
   }
 
   Future<void> _autoStartTourIfFirstVisit() async {
@@ -184,8 +189,13 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
     final txn = widget.transaction;
     // Owner Name / Father Name / Address are stored in the ULB's legacy
     // Krutidev encoding, so the PDF needs the same face the receipt card uses
-    // or those rows render as garbage Latin text.
-    final isKrutidev = await UlbLanguageHelper.isKrutidev();
+    // or those rows render as garbage Latin text. Property ka apna ulbLang
+    // use karo, na ki app-wide cache.
+    final propertyId = txn.propertyId;
+    final property = (propertyId != null && propertyId.isNotEmpty)
+        ? await DatabaseService.getPropertyById(propertyId)
+        : null;
+    final isKrutidev = UlbLanguageHelper.isKrutidevValue(property?.ulbLang);
     final languageFont = await UlbLanguageHelper.pdfFontIfKrutidev(isKrutidev);
     final regularFont = await PdfGoogleFonts.notoSansRegular();
     final boldFont = await PdfGoogleFonts.notoSansBold();

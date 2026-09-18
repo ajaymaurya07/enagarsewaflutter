@@ -41,13 +41,6 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
   void initState() {
     super.initState();
     _loadUlbInfo();
-    _loadUlbLanguagePreference();
-  }
-
-  Future<void> _loadUlbLanguagePreference() async {
-    final isKrutidev = await UlbLanguageHelper.isKrutidev();
-    if (!mounted) return;
-    setState(() => _isKrutidev = isKrutidev);
   }
 
   Future<void> _loadUlbInfo() async {
@@ -57,9 +50,14 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
     });
     try {
       final property = await DatabaseService.getPropertyById(widget.propertyId);
+      // Global cache ki bajay is property ka apna ulbLang use karo.
+      final isKrutidev = UlbLanguageHelper.isKrutidevValue(property?.ulbLang);
       final ulbId = property?.ulbId;
       if (ulbId == null || ulbId.isEmpty) {
-        setState(() => _ulbError = 'ULB details not found for this property.');
+        setState(() {
+          _ulbError = 'ULB details not found for this property.';
+          _isKrutidev = isKrutidev;
+        });
         return;
       }
 
@@ -67,13 +65,17 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
       final match = ulbList.where((u) => u.ulbId == ulbId).firstOrNull;
       if (!mounted) return;
       if (match == null) {
-        setState(() => _ulbError = 'ULB details not found for this property.');
+        setState(() {
+          _ulbError = 'ULB details not found for this property.';
+          _isKrutidev = isKrutidev;
+        });
         return;
       }
 
       setState(() {
         _ulbName = match.ulbName;
         _ulbType = match.ulbType;
+        _isKrutidev = isKrutidev;
       });
     } catch (e) {
       if (!mounted) return;

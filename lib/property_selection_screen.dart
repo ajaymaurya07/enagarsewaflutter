@@ -27,7 +27,6 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
   PropertyDetailsData? _currentPropertyDetails;
   PropertyData? _selectedProperty;
   TutorialCoachMark? _tutorialCoachMark;
-  bool _isKrutidev = false;
 
   @override
   void initState() {
@@ -35,13 +34,6 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => _autoStartTourIfFirstVisit(),
     );
-    _loadUlbLanguagePreference();
-  }
-
-  Future<void> _loadUlbLanguagePreference() async {
-    final isKrutidev = await UlbLanguageHelper.isKrutidev();
-    if (!mounted) return;
-    setState(() => _isKrutidev = isKrutidev);
   }
 
   Future<void> _autoStartTourIfFirstVisit() async {
@@ -316,6 +308,10 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
         // arvValue ki tarah propertysearch response se — bill print isi row se
         // "पुरानी प्रापर्टी आईडी0" bharta hai.
         oldPropertyId: _selectedProperty?.oldPropertyId,
+        // propertysearch API ka ulbLang — is property ke Name/Father Name/
+        // Address ko Krutidev font me dikhana hai ya nahi, isi se decide hota
+        // hai (poore app me ab isi saved value ko reference kiya jata hai).
+        ulbLang: _selectedProperty?.ulbLang,
         // Dashboard ka payment-status card in dono par chalta hai. insert
         // ConflictAlgorithm.replace use karta hai, isliye yahan bhi bharna
         // zaroori hai warna dobara verify karne par cache wipe ho jayega.
@@ -489,13 +485,13 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildDetailRow('Owner Name', property.ownerName, isLanguageSensitive: true),
+                _buildDetailRow('Owner Name', property.ownerName, isLanguageSensitive: true, property: property),
                 const SizedBox(height: 8),
-                _buildDetailRow('Father/Husband', property.fatherHusbandName, isLanguageSensitive: true),
+                _buildDetailRow('Father/Husband', property.fatherHusbandName, isLanguageSensitive: true, property: property),
                 const SizedBox(height: 8),
                 _buildDetailRow('House No', property.houseNo),
                 const SizedBox(height: 8),
-                _buildDetailRow('Address', property.address, isLanguageSensitive: true),
+                _buildDetailRow('Address', property.address, isLanguageSensitive: true, property: property),
               ],
             ),
           ),
@@ -504,8 +500,14 @@ class _PropertySelectionScreenState extends State<PropertySelectionScreen> {
     );
   }
 
-  Widget _buildDetailRow(String label, String? value, {bool isLanguageSensitive = false}) {
-    final useKrutidev = isLanguageSensitive && _isKrutidev;
+  Widget _buildDetailRow(
+    String label,
+    String? value, {
+    bool isLanguageSensitive = false,
+    PropertyData? property,
+  }) {
+    final useKrutidev = isLanguageSensitive &&
+        UlbLanguageHelper.isKrutidevValue(property?.ulbLang);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

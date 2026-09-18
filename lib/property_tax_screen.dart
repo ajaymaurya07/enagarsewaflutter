@@ -21,19 +21,11 @@ class _PropertyTaxScreenState extends State<PropertyTaxScreen> {
   List<PropertyEntity> _savedProperties = [];
   bool _isLoading = true;
   TutorialCoachMark? _tutorialCoachMark;
-  bool _isKrutidev = false;
 
   @override
   void initState() {
     super.initState();
     _loadProperties();
-    _loadUlbLanguagePreference();
-  }
-
-  Future<void> _loadUlbLanguagePreference() async {
-    final isKrutidev = await UlbLanguageHelper.isKrutidev();
-    if (!mounted) return;
-    setState(() => _isKrutidev = isKrutidev);
   }
 
   Future<void> _loadProperties() async {
@@ -299,7 +291,7 @@ class _PropertyTaxScreenState extends State<PropertyTaxScreen> {
               padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
-                  _buildModernDetailRow('Owner', property.ownerName, isLanguageSensitive: true),
+                  _buildModernDetailRow('Owner', property.ownerName, isLanguageSensitive: true, property: property),
                   const SizedBox(height: 12),
                   _buildModernDetailRow('Ward', property.ward),
                   const SizedBox(height: 12),
@@ -315,9 +307,17 @@ class _PropertyTaxScreenState extends State<PropertyTaxScreen> {
     );
   }
 
-  Widget _buildModernDetailRow(String label, String value, {bool isLanguageSensitive = false}) {
+  Widget _buildModernDetailRow(
+    String label,
+    String value, {
+    bool isLanguageSensitive = false,
+    PropertyEntity? property,
+  }) {
     final colorScheme = Theme.of(context).colorScheme;
-    final useKrutidev = isLanguageSensitive && _isKrutidev;
+    // Global cache ki bajay is row ki apni property ka ulbLang use karo, kyunki
+    // list me alag-alag ULB ki properties ho sakti hain.
+    final useKrutidev =
+        isLanguageSensitive && UlbLanguageHelper.isKrutidevValue(property?.ulbLang);
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,

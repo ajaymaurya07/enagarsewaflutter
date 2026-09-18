@@ -29,6 +29,11 @@ class PropertyEntity {
   /// "0" ka matlab payment ho chuka hai.
   final String? netPayable;
 
+  /// propertysearch API ke `ulbLang` se — "English" ya "Krutidev". Owner
+  /// Name/Father Name/Address ki font isi ke aadhar par decide hoti hai
+  /// (poore app me global cache ki jagah is property-specific value se).
+  final String? ulbLang;
+
   PropertyEntity({
     required this.propertyId,
     required this.ownerName,
@@ -48,6 +53,7 @@ class PropertyEntity {
     this.oldPropertyId,
     this.billDate,
     this.netPayable,
+    this.ulbLang,
   });
 
   Map<String, dynamic> toMap() {
@@ -70,6 +76,7 @@ class PropertyEntity {
       'oldPropertyId': oldPropertyId,
       'billDate': billDate,
       'netPayable': netPayable,
+      'ulbLang': ulbLang,
     };
   }
 
@@ -93,6 +100,7 @@ class PropertyEntity {
       oldPropertyId: map['oldPropertyId'],
       billDate: map['billDate'],
       netPayable: map['netPayable'],
+      ulbLang: map['ulbLang'],
     );
   }
 }
@@ -110,10 +118,10 @@ class DatabaseService {
     String path = join(await getDatabasesPath(), 'property_database.db');
     return await openDatabase(
       path,
-      version: 8,
+      version: 9,
       onCreate: (db, version) {
         return db.execute(
-          'CREATE TABLE property_table(propertyId TEXT PRIMARY KEY, ownerName TEXT, ward TEXT, mohalla TEXT, phoneNumber TEXT, email TEXT, userType TEXT, ulbId TEXT, arvValue TEXT, userId TEXT, fatherName TEXT, address TEXT, zone TEXT, houseNo TEXT, totalArea TEXT, billDate TEXT, netPayable TEXT, oldPropertyId TEXT)',
+          'CREATE TABLE property_table(propertyId TEXT PRIMARY KEY, ownerName TEXT, ward TEXT, mohalla TEXT, phoneNumber TEXT, email TEXT, userType TEXT, ulbId TEXT, arvValue TEXT, userId TEXT, fatherName TEXT, address TEXT, zone TEXT, houseNo TEXT, totalArea TEXT, billDate TEXT, netPayable TEXT, oldPropertyId TEXT, ulbLang TEXT)',
         );
       },
       onUpgrade: (db, oldVersion, newVersion) async {
@@ -141,6 +149,9 @@ class DatabaseService {
         }
         if (oldVersion < 8) {
           await db.execute('ALTER TABLE property_table ADD COLUMN oldPropertyId TEXT');
+        }
+        if (oldVersion < 9) {
+          await db.execute('ALTER TABLE property_table ADD COLUMN ulbLang TEXT');
         }
       },
     );

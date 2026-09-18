@@ -4056,6 +4056,7 @@ class PropertyData {
   final String? propertyId;
   final String? billNo;
   final String? totalArea;
+  final String? ulbLang;
 
   PropertyData({
     this.oldPropertyId,
@@ -4070,6 +4071,7 @@ class PropertyData {
     this.propertyId,
     this.billNo,
     this.totalArea,
+    this.ulbLang,
   });
 
   factory PropertyData.fromJson(Map<String, dynamic> json) {
@@ -4088,6 +4090,7 @@ class PropertyData {
       propertyId: json['propertyId']?.toString(),
       billNo: json['billNo'],
       totalArea: json['totalArea']?.toString(),
+      ulbLang: json['ulbLang'],
     );
   }
 }

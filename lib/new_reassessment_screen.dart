@@ -31,20 +31,12 @@ class _NewReassessmentScreenState extends State<NewReassessmentScreen> {
   bool _isFetchingFloorConfig = false;
   final TextEditingController _fileNoController = TextEditingController();
 
-  bool _isKrutidev = false;
   bool _didStartAnyReassessment = false;
 
   @override
   void initState() {
     super.initState();
     _loadSavedProperties();
-    _loadUlbLanguagePreference();
-  }
-
-  Future<void> _loadUlbLanguagePreference() async {
-    final isKrutidev = await UlbLanguageHelper.isKrutidev();
-    if (!mounted) return;
-    setState(() => _isKrutidev = isKrutidev);
   }
 
   @override
@@ -408,7 +400,8 @@ class _NewReassessmentScreenState extends State<NewReassessmentScreen> {
                   flex: 6,
                   child: Text(
                     rows[i].value,
-                    style: (rows[i].isLanguageSensitive && _isKrutidev)
+                    style: (rows[i].isLanguageSensitive &&
+                            UlbLanguageHelper.isKrutidevValue(_selectedProperty?.ulbLang))
                         ? const TextStyle(
                             fontFamily: UlbLanguageHelper.krutidevFontFamily,
                             fontSize: 13,

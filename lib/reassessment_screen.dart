@@ -24,19 +24,25 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
   String? _deletingAckNo;
   String? _errorMessage;
   List<ReassessmentListItem> _items = [];
-  bool _isKrutidev = false;
+  // propertyId -> ulbLang, taki har card apni property ki language se render ho,
+  // na ki ek hi app-wide cache se (alag ULB ki properties alag font chahti hain).
+  Map<String, String?> _ulbLangByPropertyId = {};
 
   @override
   void initState() {
     super.initState();
-    _loadUlbLanguagePreference();
+    _loadUlbLangMap();
     _fetchList();
   }
 
-  Future<void> _loadUlbLanguagePreference() async {
-    final isKrutidev = await UlbLanguageHelper.isKrutidev();
+  Future<void> _loadUlbLangMap() async {
+    final properties = await DatabaseService.getAllProperties();
     if (!mounted) return;
-    setState(() => _isKrutidev = isKrutidev);
+    setState(() {
+      _ulbLangByPropertyId = {
+        for (final p in properties) p.propertyId: p.ulbLang,
+      };
+    });
   }
 
   Future<void> _fetchList() async {
@@ -445,7 +451,8 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
                             item.ownerName?.trim().isNotEmpty == true
                                 ? item.ownerName!.trim()
                                 : 'Unknown Owner',
-                            style: _isKrutidev
+                            style: UlbLanguageHelper.isKrutidevValue(
+                                    _ulbLangByPropertyId[item.propertyId])
                                 ? const TextStyle(
                                     fontFamily: UlbLanguageHelper.krutidevFontFamily,
                                     fontSize: 15,

@@ -15,6 +15,7 @@ Example:
 ```bash
 flutter run --dart-define=BASE_URL=https://iamsup.in/ulb_property_tax/ --dart-define=PAYU_ENV=0
 flutter build apk --dart-define=BASE_URL=https://iamsup.in/ulb_property_tax/ --dart-define=PAYU_ENV=0
+flutter build appbundle --release --obfuscate --split-debug-info=build/debug-info/ --dart-define=BASE_URL=https://iamsup.in/ulb_property_tax/ --dart-define=PAYU_ENV=0
 ```
 
 Use `PAYU_ENV=0` for production and `PAYU_ENV=1` for test/sandbox. You can supply a staging or production API URL through the same `BASE_URL` define.

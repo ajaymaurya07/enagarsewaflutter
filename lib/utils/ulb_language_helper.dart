@@ -21,6 +21,13 @@ class UlbLanguageHelper {
 
   static Future<bool> isKrutidev() async {
     final language = await StorageService.getLanguageCache();
+    return isKrutidevValue(language);
+  }
+
+  /// Same check as [isKrutidev] but on an already-known language string —
+  /// e.g. a property's own `ulbLang` (propertysearch API / DB column),
+  /// instead of the app-wide cached preference.
+  static bool isKrutidevValue(String? language) {
     return (language?.trim().toLowerCase() ?? '') == 'krutidev';
   }
 

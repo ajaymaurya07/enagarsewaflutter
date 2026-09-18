@@ -44,19 +44,10 @@ class _PaymentGrievanceScreenState extends State<PaymentGrievanceScreen> {
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
 
-  bool _isKrutidev = false;
-
   @override
   void initState() {
     super.initState();
     _loadSavedProperties();
-    _loadUlbLanguagePreference();
-  }
-
-  Future<void> _loadUlbLanguagePreference() async {
-    final isKrutidev = await UlbLanguageHelper.isKrutidev();
-    if (!mounted) return;
-    setState(() => _isKrutidev = isKrutidev);
   }
 
   @override
@@ -360,7 +351,10 @@ class _PaymentGrievanceScreenState extends State<PaymentGrievanceScreen> {
     String? helpTitle,
     String? helpMessage,
   }) {
-    final useKrutidev = !enabled && isLanguageSensitive && _isKrutidev;
+    // Global cache ki bajay chuni hui property ka apna ulbLang use karo.
+    final useKrutidev = !enabled &&
+        isLanguageSensitive &&
+        UlbLanguageHelper.isKrutidevValue(_selectedProperty?.ulbLang);
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: TextFormField(
