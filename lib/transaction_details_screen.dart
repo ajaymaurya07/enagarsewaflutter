@@ -50,8 +50,59 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
     final property = (propertyId != null && propertyId.isNotEmpty)
         ? await DatabaseService.getPropertyById(propertyId)
         : null;
+
+    if (property?.ulbLang != null && property!.ulbLang!.trim().isNotEmpty) {
+      if (!mounted) return;
+      setState(() => _isKrutidev = UlbLanguageHelper.isKrutidevValue(property.ulbLang));
+      return;
+    }
+
+    // Property DB me nahi hai (ya ulbLang khaali hai) — propertysearch API se
+    // sirf language pata karo, kuch bhi DB me save nahi karna.
+    final ulbLang = await _fetchUlbLangFromApi(
+      propertyId,
+      ulbId: property?.ulbId ?? widget.transaction.ulbId,
+      ulbName: widget.transaction.ulbName,
+    );
     if (!mounted) return;
-    setState(() => _isKrutidev = UlbLanguageHelper.isKrutidevValue(property?.ulbLang));
+    setState(() => _isKrutidev = UlbLanguageHelper.isKrutidevValue(ulbLang));
+  }
+
+  /// Property ke ulbId se ulbName (getUlbData list se) match karke uska ulbId
+  /// resolve karta hai — jab property ka apna ulbId maujood na ho.
+  Future<String?> _resolveUlbIdFromName(String? ulbName) async {
+    debugPrint('========== _resolveUlbIdFromName ==========');
+    if (ulbName == null || ulbName.trim().isEmpty) return null;
+    try {
+      final ulbList = await ApiService.getUlbData();
+      final match = ulbList
+          .where((u) => (u.ulbName?.trim().toLowerCase() ?? '') == ulbName.trim().toLowerCase())
+          .firstOrNull;
+      return match?.ulbId;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// propertysearch API se property ka ulbLang nikalta hai (DB me save nahi
+  /// karta) — jab property local DB me maujood nahi ho.
+  Future<String?> _fetchUlbLangFromApi(String? propertyId, {String? ulbId, String? ulbName}) async {
+    if (propertyId == null || propertyId.isEmpty) return null;
+    try {
+      final resolvedUlbId = (ulbId != null && ulbId.isNotEmpty)
+          ? ulbId
+          : await _resolveUlbIdFromName(ulbName);
+      final results = await ApiService.searchProperty(
+        ulbId: resolvedUlbId ?? '',
+        searchType: 'PROPERTY',
+        propertyId: propertyId,
+      );
+      final match = results.where((p) => p.propertyId == propertyId).firstOrNull;
+      return match?.ulbLang;
+    } catch (_) {
+      // Language lookup fail ho to default font se hi receipt dikha do.
+      return null;
+    }
   }
 
   Future<void> _autoStartTourIfFirstVisit() async {
@@ -195,7 +246,14 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
     final property = (propertyId != null && propertyId.isNotEmpty)
         ? await DatabaseService.getPropertyById(propertyId)
         : null;
-    final isKrutidev = UlbLanguageHelper.isKrutidevValue(property?.ulbLang);
+    final ulbLang = (property?.ulbLang != null && property!.ulbLang!.trim().isNotEmpty)
+        ? property.ulbLang
+        : await _fetchUlbLangFromApi(
+            propertyId,
+            ulbId: property?.ulbId ?? txn.ulbId,
+            ulbName: txn.ulbName,
+          );
+    final isKrutidev = UlbLanguageHelper.isKrutidevValue(ulbLang);
     final languageFont = await UlbLanguageHelper.pdfFontIfKrutidev(isKrutidev);
     final regularFont = await PdfGoogleFonts.notoSansRegular();
     final boldFont = await PdfGoogleFonts.notoSansBold();

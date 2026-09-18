@@ -1562,7 +1562,7 @@ class ApiService {
     }
   }
 
-  // Search Property API
+    // Search Property API
   static Future<List<PropertyData>> searchProperty({
     required String ulbId,
     required String searchType,
@@ -1613,7 +1613,7 @@ class ApiService {
       throw _userSafeException(e);
     }
   }
-
+  
   // Fetch Property Details API
   static Future<PropertyDetailsResponse> getPropertyDetails(
     String propertyId,
@@ -5012,6 +5012,7 @@ class TransactionData {
   final String? userCode;
   final String? ulbName;
   final String? ulbType;
+  final String? ulbId;
   final String? receiptNo;
   final String? billDate;
 
@@ -5033,6 +5034,7 @@ class TransactionData {
     this.userCode,
     this.ulbName,
     this.ulbType,
+    this.ulbId,
     this.receiptNo,
     this.billDate,
   });
@@ -5056,6 +5058,7 @@ class TransactionData {
       userCode: json['user_code']?.toString(),
       ulbName: json['ulb_name']?.toString(),
       ulbType: json['ulb_type']?.toString(),
+      ulbId: json['ulb_id']?.toString(),
       receiptNo: json['receiptNo']?.toString(),
       billDate: json['bill_date']?.toString(),
     );

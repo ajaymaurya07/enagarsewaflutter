@@ -1316,7 +1316,7 @@ class _PaymentDetailsScreenState extends State<PaymentDetailsScreen> {
     try {
       final results = await ApiService.searchProperty(
         ulbId: ulbId,
-        searchType: 'PID',
+        searchType: 'PROPERTY',
         propertyId: widget.propertyId,
       );
       final match =

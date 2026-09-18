@@ -468,7 +468,7 @@ class _SearchPropertyScreenState extends State<SearchPropertyScreen> {
       String searchType = "";
       switch (_searchMode) {
         case 'By Owner': searchType = "OWNER"; break;
-        case 'By Property ID': searchType = "PID"; break;
+        case 'By Property ID': searchType = "PROPERTY"; break;
         case 'By House No': searchType = "HOUSE"; break;
         case 'By Location': searchType = "LOCATION"; break;
         case 'By Mobile No': searchType = "MOBILE"; break;

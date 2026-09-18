@@ -495,7 +495,9 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
                         (item.houseNo?.trim().isNotEmpty == true) ? item.houseNo!.trim() : '-'),
                     _buildDetailRow(
                         'Address',
-                        (item.address?.trim().isNotEmpty == true) ? item.address!.trim() : '-'),
+                        (item.address?.trim().isNotEmpty == true) ? item.address!.trim() : '-',
+                        isKrutidev: UlbLanguageHelper.isKrutidevValue(
+                            _ulbLangByPropertyId[item.propertyId])),
                     _buildDetailRow('Assess Date', item.assessDate ?? '-'),
                   ],
                 ),
@@ -625,7 +627,7 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
+  Widget _buildDetailRow(String label, String value, {bool isKrutidev = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -641,7 +643,14 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
           Expanded(
             child: Text(
               value,
-              style: GoogleFonts.poppins(fontSize: 12.5, fontWeight: FontWeight.w600, color: _textColor),
+              style: isKrutidev
+                  ? const TextStyle(
+                      fontFamily: UlbLanguageHelper.krutidevFontFamily,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: _textColor,
+                    )
+                  : GoogleFonts.poppins(fontSize: 12.5, fontWeight: FontWeight.w600, color: _textColor),
               textAlign: TextAlign.right,
             ),
           ),
