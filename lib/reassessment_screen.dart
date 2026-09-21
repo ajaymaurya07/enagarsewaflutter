@@ -24,25 +24,19 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
   String? _deletingAckNo;
   String? _errorMessage;
   List<ReassessmentListItem> _items = [];
-  // propertyId -> ulbLang, taki har card apni property ki language se render ho,
-  // na ki ek hi app-wide cache se (alag ULB ki properties alag font chahti hain).
-  Map<String, String?> _ulbLangByPropertyId = {};
+  bool _isKrutidev = false;
 
   @override
   void initState() {
     super.initState();
-    _loadUlbLangMap();
+    _loadUlbLanguagePreference();
     _fetchList();
   }
 
-  Future<void> _loadUlbLangMap() async {
-    final properties = await DatabaseService.getAllProperties();
+  Future<void> _loadUlbLanguagePreference() async {
+    final isKrutidev = await UlbLanguageHelper.isKrutidev();
     if (!mounted) return;
-    setState(() {
-      _ulbLangByPropertyId = {
-        for (final p in properties) p.propertyId: p.ulbLang,
-      };
-    });
+    setState(() => _isKrutidev = isKrutidev);
   }
 
   Future<void> _fetchList() async {
@@ -451,8 +445,7 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
                             item.ownerName?.trim().isNotEmpty == true
                                 ? item.ownerName!.trim()
                                 : 'Unknown Owner',
-                            style: UlbLanguageHelper.isKrutidevValue(
-                                    _ulbLangByPropertyId[item.propertyId])
+                            style: _isKrutidev
                                 ? const TextStyle(
                                     fontFamily: UlbLanguageHelper.krutidevFontFamily,
                                     fontSize: 15,
@@ -496,8 +489,7 @@ class _ReassessmentScreenState extends State<ReassessmentScreen> {
                     _buildDetailRow(
                         'Address',
                         (item.address?.trim().isNotEmpty == true) ? item.address!.trim() : '-',
-                        isKrutidev: UlbLanguageHelper.isKrutidevValue(
-                            _ulbLangByPropertyId[item.propertyId])),
+                        isKrutidev: _isKrutidev),
                     _buildDetailRow('Assess Date', item.assessDate ?? '-'),
                   ],
                 ),

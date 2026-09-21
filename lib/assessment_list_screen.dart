@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'services/api_service.dart';
 import 'services/database_service.dart';
 import 'services/otp_gate_service.dart';
-import 'utils/ulb_language_helper.dart';
 import 'assessment_application_detail_screen.dart';
 import 'property_tax_assessment_screen.dart';
 
@@ -25,25 +24,11 @@ class _AssessmentListScreenState extends State<AssessmentListScreen> {
   String? _deletingAckNo;
   String? _errorMessage;
   List<ReassessmentListItem> _items = [];
-  // propertyId -> ulbLang, taki har card apni property ki language se render ho,
-  // na ki ek hi app-wide cache se (alag ULB ki properties alag font chahti hain).
-  Map<String, String?> _ulbLangByPropertyId = {};
 
   @override
   void initState() {
     super.initState();
-    _loadUlbLangMap();
     _fetchList();
-  }
-
-  Future<void> _loadUlbLangMap() async {
-    final properties = await DatabaseService.getAllProperties();
-    if (!mounted) return;
-    setState(() {
-      _ulbLangByPropertyId = {
-        for (final p in properties) p.propertyId: p.ulbLang,
-      };
-    });
   }
 
   Future<void> _fetchList() async {
@@ -370,15 +355,7 @@ class _AssessmentListScreenState extends State<AssessmentListScreen> {
                             item.ownerName?.trim().isNotEmpty == true
                                 ? item.ownerName!.trim()
                                 : 'Unknown Owner',
-                            style: UlbLanguageHelper.isKrutidevValue(
-                                    _ulbLangByPropertyId[item.propertyId])
-                                ? const TextStyle(
-                                    fontFamily: UlbLanguageHelper.krutidevFontFamily,
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w700,
-                                    color: _textColor,
-                                  )
-                                : GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w700, color: _textColor),
+                            style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w700, color: _textColor),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),

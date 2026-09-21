@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'services/api_service.dart';
-import 'services/database_service.dart';
 import 'services/otp_gate_service.dart';
 import 'utils/ulb_language_helper.dart';
 
@@ -46,12 +45,12 @@ class _AssessmentApplicationDetailScreenState
   }
 
   Future<void> _loadUlbLanguagePreference() async {
-    // App-wide cache ki bajay is property ka apna ulbLang column use karo,
-    // taki alag-alag ULB ki properties apna sahi font dikhayein.
-    if (widget.propertyId.isEmpty) return;
-    final property = await DatabaseService.getPropertyById(widget.propertyId);
+    // Re-Assessment Details follows the login-time (app-wide) language;
+    // plain Assessment Details always shows the backend data as-is.
+    if (!widget.isReassessment) return;
+    final isKrutidev = await UlbLanguageHelper.isKrutidev();
     if (!mounted) return;
-    setState(() => _isKrutidev = UlbLanguageHelper.isKrutidevValue(property?.ulbLang));
+    setState(() => _isKrutidev = isKrutidev);
   }
 
   Future<void> _fetchDetails() async {
@@ -198,7 +197,7 @@ class _AssessmentApplicationDetailScreenState
             _InfoRow('Property ID', _text(data.propertyId)),
             _InfoRow('House No.', _text(data.houseNo)),
             _InfoRow('Address', _text(data.address), isLanguageSensitive: true),
-            _InfoRow('Landmark', _text(data.landmark), isLanguageSensitive: true),
+            _InfoRow('Landmark', _text(data.landmark)),
             _InfoRow('Point of Presence', _text(data.popName)),
             _InfoRow('Zone', _text(data.zoneName)),
             _InfoRow('Ward', _text(data.wardName)),
