@@ -16,6 +16,7 @@ import 'services/notification_helper.dart';
 import 'tour_guides/dashboard_tour.dart';
 import 'arv_change_history_screen.dart';
 import 'water_connection_list_screen.dart';
+import 'mutation_screen.dart';
 import 'widgets/urban_development_webview.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -557,6 +558,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             Icons.swap_horiz_outlined,
                             cardWidth,
                             key: _keyMutation,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const MutationScreen(),
+                                ),
+                              );
+                            },
                           ),
                         ],
                       ),

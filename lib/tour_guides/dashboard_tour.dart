@@ -82,7 +82,7 @@ class DashboardTourGuide {
         icon: Icons.swap_horiz_outlined,
         title: 'Mutation',
         body:
-            'Use this option for property name transfer and mutation related services when available.',
+            'Use this option for property name transfer and mutation related services.',
         radius: 16,
       ),
       _buildStep(

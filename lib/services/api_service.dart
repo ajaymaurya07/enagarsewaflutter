@@ -4,6 +4,7 @@ import 'dart:math';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'storage_service.dart';
@@ -1562,6 +1563,287 @@ class ApiService {
     }
   }
 
+  // ─── Property Mutation ──────────────────────────────────────────────────
+
+  // Mutation - Fetch Basic Property Details
+  static Future<MutationPropertyDataResponse> getMutationPropertyData({
+    required String propertyId,
+  }) async {
+    final requestBody = {'propertyId': propertyId};
+    debugPrint('[MutationPropertyData] Request -> ${json.encode(requestBody)}');
+
+    try {
+      final response = await _makeAuthenticatedRequest(
+        (headers) {
+          debugPrint('[MutationPropertyData] Authorization -> ${headers['Authorization']}');
+          return _post(
+                Uri.parse(
+                  '${AppConstants.baseUrl}api/House_tax/mutation/get-property-data',
+                ),
+                headers: headers,
+                body: json.encode(requestBody),
+              )
+              .timeout(Duration(seconds: AppConstants.networkTimeout));
+        },
+      );
+
+      debugPrint(
+        '[MutationPropertyData] Response (${response.statusCode}) -> ${response.body}',
+      );
+
+      if (response.statusCode == 200) {
+        return MutationPropertyDataResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('[MutationPropertyData] Error -> $e');
+      throw _userSafeException(e);
+    }
+  }
+
+  // Mutation - Fetch Applicable Fees
+  static Future<MutationFeesResponse> getMutationFees({
+    required String ulbId,
+    required String propertyCost,
+    required String mutationCause,
+    required String currentArv,
+    required String registryDate,
+  }) async {
+    final requestBody = {
+      'ulbId': int.tryParse(ulbId) ?? ulbId,
+      'propertyCost': num.tryParse(propertyCost) ?? propertyCost,
+      'mutationCause': int.tryParse(mutationCause) ?? mutationCause,
+      'currentArv': num.tryParse(currentArv) ?? currentArv,
+      'registryDate': registryDate,
+    };
+    debugPrint('[MutationFees] Request -> ${json.encode(requestBody)}');
+
+    try {
+      final response = await _makeAuthenticatedRequest(
+        (headers) {
+          debugPrint('[MutationFees] Authorization -> ${headers['Authorization']}');
+          return _post(
+                Uri.parse('${AppConstants.baseUrl}api/House_tax/mutation/fees'),
+                headers: headers,
+                body: json.encode(requestBody),
+              )
+              .timeout(Duration(seconds: AppConstants.networkTimeout));
+        },
+      );
+
+      debugPrint(
+        '[MutationFees] Response (${response.statusCode}) -> ${response.body}',
+      );
+
+      if (response.statusCode == 200) {
+        return MutationFeesResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('[MutationFees] Error -> $e');
+      throw _userSafeException(e);
+    }
+  }
+
+  // Mutation - Submit Application (Multipart)
+  //
+  // `flagJuj` is 0 for a normal mutation application and 1 when another
+  // applicant applies for Jujbhag against an existing property/application.
+  static Future<MutationApplyResponse> applyMutation({
+    required String propertyId,
+    required String ulbId,
+    required String oldOwnerName,
+    required String oldFatherHusbandName,
+    required String oldAddress,
+    required String oldMobileNo,
+    required String zoneName,
+    required String zoneId,
+    required String wardName,
+    required String wardId,
+    required String mohallaName,
+    required String currentArv,
+    required String propertyOccupiedBy,
+    required String occupierName,
+    required String occupierFatherName,
+    required String occupierMobile,
+    required String occupierTime,
+    required String propertyCost,
+    required String registryDate,
+    required String mutationCause,
+    required String idProofType,
+    required String newOwnerName,
+    required String fatherHusbandSalutation,
+    required String fatherHusbandName,
+    required String mobileNo,
+    required String alternateMobileNo,
+    required String emailId,
+    required String communicationAddress,
+    required String pinCode,
+    required int flagJuj,
+    required File idProofDoc,
+    required File affidavitDoc,
+    required File occupierPhotoDoc,
+    required File registryFirstFront,
+    required File registryFirstBack,
+    required File registryLastFront,
+    required File registryLastBack,
+    File? additionalDoc,
+  }) async {
+    try {
+      final response = await _makeAuthenticatedMultipartRequest((headers) async {
+        debugPrint('[ApplyMutation] Authorization -> ${headers['Authorization']}');
+
+        final request = http.MultipartRequest(
+          'POST',
+          Uri.parse('${AppConstants.baseUrl}api/House_tax/mutation/apply'),
+        );
+
+        final data = {
+          'propertyId': propertyId,
+          'ulbId': int.tryParse(ulbId) ?? ulbId,
+          'oldOwnerName': oldOwnerName,
+          'oldFatherHusbandName': oldFatherHusbandName,
+          'oldAddress': oldAddress,
+          'oldMobileNo': oldMobileNo,
+          'zoneName': zoneName,
+          'zoneId': int.tryParse(zoneId) ?? zoneId,
+          'wardName': wardName,
+          'wardId': int.tryParse(wardId) ?? wardId,
+          'mohallaName': mohallaName,
+          'currentArv': num.tryParse(currentArv) ?? currentArv,
+          'propertyOccupiedBy': propertyOccupiedBy,
+          'occupierName': occupierName,
+          'occupierFatherName': occupierFatherName,
+          'occupierMobile': occupierMobile,
+          'occupierTime': occupierTime,
+          'propertyCost': num.tryParse(propertyCost) ?? propertyCost,
+          'registryDate': registryDate,
+          'mutationCause': int.tryParse(mutationCause) ?? mutationCause,
+          'idProofType': int.tryParse(idProofType) ?? idProofType,
+          'newOwnerName': newOwnerName,
+          'fatherHusbandSalutation': fatherHusbandSalutation,
+          'fatherHusbandName': fatherHusbandName,
+          'mobileNo': mobileNo,
+          'alternateMobileNo': alternateMobileNo,
+          'emailId': emailId,
+          'communicationAddress': communicationAddress,
+          'pinCode': pinCode,
+          'flagJuj': flagJuj,
+        };
+
+        request.files.add(
+          http.MultipartFile.fromString(
+            'data',
+            json.encode(data),
+            contentType: MediaType('application', 'json'),
+          ),
+        );
+
+        request.files.add(
+          await http.MultipartFile.fromPath('idProofDoc', idProofDoc.path),
+        );
+        request.files.add(
+          await http.MultipartFile.fromPath('affidavitDoc', affidavitDoc.path),
+        );
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'occupierPhotoDoc',
+            occupierPhotoDoc.path,
+          ),
+        );
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'registryFirstFront',
+            registryFirstFront.path,
+          ),
+        );
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'registryFirstBack',
+            registryFirstBack.path,
+          ),
+        );
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'registryLastFront',
+            registryLastFront.path,
+          ),
+        );
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'registryLastBack',
+            registryLastBack.path,
+          ),
+        );
+        if (additionalDoc != null) {
+          request.files.add(
+            await http.MultipartFile.fromPath(
+              'additionalDoc',
+              additionalDoc.path,
+            ),
+          );
+        }
+
+        debugPrint('[ApplyMutation] Request -> ${json.encode(data)}');
+        debugPrint(
+          '[ApplyMutation] Files -> '
+          '${request.files.map((f) => '${f.field}=${f.filename ?? ''} (${f.length} bytes)').join(', ')}',
+        );
+        return request;
+      });
+
+      debugPrint(
+        '[ApplyMutation] Response (${response.statusCode}) -> ${response.body}',
+      );
+
+      if (response.statusCode == 200) {
+        return MutationApplyResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('[ApplyMutation] Error -> $e');
+      throw _userSafeException(e);
+    }
+  }
+
+  // Mutation - Application Detail by Acknowledgement Number
+  static Future<MutationApplicationDetailResponse> getMutationApplicationDetail({
+    required String ackNo,
+  }) async {
+    try {
+      final response = await _makeAuthenticatedRequest(
+        (headers) {
+          debugPrint('[MutationApplicationDetail] Authorization -> ${headers['Authorization']}');
+          return _post(
+                Uri.parse(
+                  '${AppConstants.baseUrl}api/House_tax/mutation/app-details/$ackNo',
+                ),
+                headers: headers,
+              )
+              .timeout(Duration(seconds: AppConstants.networkTimeout));
+        },
+      );
+
+      debugPrint(
+        '[MutationApplicationDetail] Response (${response.statusCode}) -> ${response.body}',
+      );
+
+      if (response.statusCode == 200) {
+        return MutationApplicationDetailResponse.fromJson(
+          jsonDecode(response.body),
+        );
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('[MutationApplicationDetail] Error -> $e');
+      throw _userSafeException(e);
+    }
+  }
+
     // Search Property API
   static Future<List<PropertyData>> searchProperty({
     required String ulbId,
@@ -2982,6 +3264,342 @@ class WaterConnectionDetailsResponse {
       message: json['message'] ?? '',
       data: rawData is Map<String, dynamic>
           ? WaterConnectionDetails.fromJson(rawData)
+          : null,
+    );
+  }
+}
+
+// ─── Property Mutation models ────────────────────────────────────────────
+
+/// Basic property/owner details fetched for a Property ID before starting a
+/// mutation application, along with the ULB-specific mutation-cause and
+/// ID-proof-type option lists the applicant must choose from.
+class MutationPropertyData {
+  final String propertyId;
+  final String address;
+  final String mobile;
+  final String fatherName;
+  final String ownerName;
+  final String zoneId;
+  final String wardId;
+  final String zoneName;
+  final String wardName;
+  final String mohallaName;
+  final String arv;
+  // Keyed by the ID the backend expects back as `mutationCause` / `idProofType`.
+  final Map<String, String> causeList;
+  final Map<String, String> idList;
+
+  MutationPropertyData({
+    required this.propertyId,
+    required this.address,
+    required this.mobile,
+    required this.fatherName,
+    required this.ownerName,
+    required this.zoneId,
+    required this.wardId,
+    required this.zoneName,
+    required this.wardName,
+    required this.mohallaName,
+    required this.arv,
+    required this.causeList,
+    required this.idList,
+  });
+
+  factory MutationPropertyData.fromJson(Map<String, dynamic> json) {
+    String value(String key) => json[key]?.toString().trim() ?? '';
+    Map<String, String> options(String key) {
+      final raw = json[key];
+      if (raw is! Map) return {};
+      return raw.map((k, v) => MapEntry(k.toString(), v?.toString() ?? ''));
+    }
+
+    return MutationPropertyData(
+      propertyId: value('propertyId'),
+      address: value('address'),
+      mobile: value('mobile'),
+      fatherName: value('fatherName'),
+      ownerName: value('ownerName'),
+      zoneId: value('zoneId'),
+      wardId: value('wardId'),
+      zoneName: value('zoneName'),
+      wardName: value('wardName'),
+      mohallaName: value('mohallaName'),
+      arv: value('arv'),
+      causeList: options('causeList'),
+      idList: options('idList'),
+    );
+  }
+}
+
+class MutationPropertyDataResponse {
+  final bool success;
+  final int responseCode;
+  final String message;
+  final MutationPropertyData? data;
+
+  MutationPropertyDataResponse({
+    required this.success,
+    required this.responseCode,
+    required this.message,
+    this.data,
+  });
+
+  factory MutationPropertyDataResponse.fromJson(Map<String, dynamic> json) {
+    final rawData = json['data'];
+    return MutationPropertyDataResponse(
+      success: json['success'] ?? false,
+      responseCode: json['responseCode'] ?? 0,
+      message: json['message'] ?? '',
+      data: rawData is Map<String, dynamic>
+          ? MutationPropertyData.fromJson(rawData)
+          : null,
+    );
+  }
+}
+
+/// Mutation fee breakdown for the selected cause/property cost/ARV/registry
+/// date. `fees` is the total the applicant is asked to pay.
+class MutationFees {
+  final String mutationFees;
+  final String lateFees;
+  final String publicationFees;
+  final String processingFees;
+  final String ulbProcessingFees;
+  final String discountRate;
+  final String onlineDiscountAmount;
+  final String evidence;
+  final String fees;
+
+  MutationFees({
+    required this.mutationFees,
+    required this.lateFees,
+    required this.publicationFees,
+    required this.processingFees,
+    required this.ulbProcessingFees,
+    required this.discountRate,
+    required this.onlineDiscountAmount,
+    required this.evidence,
+    required this.fees,
+  });
+
+  factory MutationFees.fromJson(Map<String, dynamic> json) {
+    String value(String key) => json[key] == null ? '0' : json[key].toString();
+    return MutationFees(
+      mutationFees: value('mutationFees'),
+      lateFees: value('lateFees'),
+      publicationFees: value('publicationFees'),
+      processingFees: value('processingFees'),
+      ulbProcessingFees: value('ulbProcessingFees'),
+      discountRate: value('discountRate'),
+      onlineDiscountAmount: value('onlineDiscountAmount'),
+      evidence: json['evidence']?.toString() ?? '',
+      fees: value('fees'),
+    );
+  }
+}
+
+class MutationFeesResponse {
+  final bool success;
+  final int responseCode;
+  final String message;
+  final MutationFees? data;
+
+  MutationFeesResponse({
+    required this.success,
+    required this.responseCode,
+    required this.message,
+    this.data,
+  });
+
+  factory MutationFeesResponse.fromJson(Map<String, dynamic> json) {
+    final rawData = json['data'];
+    return MutationFeesResponse(
+      success: json['success'] ?? false,
+      responseCode: json['responseCode'] ?? 0,
+      message: json['message'] ?? '',
+      data: rawData is Map<String, dynamic>
+          ? MutationFees.fromJson(rawData)
+          : null,
+    );
+  }
+}
+
+class MutationApplyResponse {
+  final bool success;
+  final int responseCode;
+  final String message;
+  final String? ackNo;
+  final String? propertyId;
+  final String? applicationDate;
+  final num? totalFees;
+  final num? processingFees;
+  final num? residualFees;
+
+  MutationApplyResponse({
+    required this.success,
+    required this.responseCode,
+    required this.message,
+    this.ackNo,
+    this.propertyId,
+    this.applicationDate,
+    this.totalFees,
+    this.processingFees,
+    this.residualFees,
+  });
+
+  factory MutationApplyResponse.fromJson(Map<String, dynamic> json) {
+    final rawData = json['data'];
+    final data = rawData is Map ? rawData : const {};
+    return MutationApplyResponse(
+      success: json['success'] ?? false,
+      responseCode: json['responseCode'] ?? 0,
+      message: json['message'] ?? '',
+      ackNo: data['ackNo']?.toString(),
+      propertyId: data['propertyId']?.toString(),
+      applicationDate: data['applicationDate']?.toString(),
+      totalFees: data['totalFees'] is num ? data['totalFees'] as num : null,
+      processingFees:
+          data['processingFees'] is num ? data['processingFees'] as num : null,
+      residualFees:
+          data['residualFees'] is num ? data['residualFees'] as num : null,
+    );
+  }
+}
+
+class MutationApplicationDetail {
+  final String ackNo;
+  final String ackDate;
+  final String propertyId;
+  final String oldOwnerName;
+  final String oldFatherHusbandName;
+  final String oldMobileNo;
+  final String zoneName;
+  final String wardName;
+  final String mohallaName;
+  final String oldAddress;
+  final String currentArv;
+  final String propertyOccupiedBy;
+  final String propertyCost;
+  final String registryDate;
+  final String mutationCauseString;
+  final String evidence;
+  final String idProofType;
+  final String mutationFees;
+  final String lateFees;
+  final String publicationFees;
+  final String processingFees;
+  final String ulbProcessingFees;
+  final String residualFees;
+  final String totalFees;
+  final String amountToPayNow;
+  final String occupierName;
+  final String fatherHusbandName;
+  final String mobileNo;
+  final String alternateMobileNo;
+  final String emailId;
+  final String occPinCode;
+  final String communicationAddress;
+
+  MutationApplicationDetail({
+    required this.ackNo,
+    required this.ackDate,
+    required this.propertyId,
+    required this.oldOwnerName,
+    required this.oldFatherHusbandName,
+    required this.oldMobileNo,
+    required this.zoneName,
+    required this.wardName,
+    required this.mohallaName,
+    required this.oldAddress,
+    required this.currentArv,
+    required this.propertyOccupiedBy,
+    required this.propertyCost,
+    required this.registryDate,
+    required this.mutationCauseString,
+    required this.evidence,
+    required this.idProofType,
+    required this.mutationFees,
+    required this.lateFees,
+    required this.publicationFees,
+    required this.processingFees,
+    required this.ulbProcessingFees,
+    required this.residualFees,
+    required this.totalFees,
+    required this.amountToPayNow,
+    required this.occupierName,
+    required this.fatherHusbandName,
+    required this.mobileNo,
+    required this.alternateMobileNo,
+    required this.emailId,
+    required this.occPinCode,
+    required this.communicationAddress,
+  });
+
+  factory MutationApplicationDetail.fromJson(Map<String, dynamic> json) {
+    String value(String key) {
+      final raw = json[key];
+      return raw == null ? '' : raw.toString();
+    }
+
+    return MutationApplicationDetail(
+      ackNo: value('ackNo'),
+      ackDate: value('ackDate'),
+      propertyId: value('propertyId'),
+      oldOwnerName: value('oldOwnerName'),
+      oldFatherHusbandName: value('oldFatherHusbandName'),
+      oldMobileNo: value('oldMobileNo'),
+      zoneName: value('zoneName'),
+      wardName: value('wardName'),
+      mohallaName: value('mohallaName'),
+      oldAddress: value('oldAddress'),
+      currentArv: value('currentArv'),
+      propertyOccupiedBy: value('propertyOccupiedBy'),
+      propertyCost: value('propertyCost'),
+      registryDate: value('registryDate'),
+      mutationCauseString: value('mutationCauseString'),
+      evidence: value('evidence'),
+      idProofType: value('idProofType'),
+      mutationFees: value('mutationFees'),
+      lateFees: value('lateFees'),
+      publicationFees: value('publicationFees'),
+      processingFees: value('processingFees'),
+      ulbProcessingFees: value('ulbProcessingFees'),
+      residualFees: value('residualFees'),
+      totalFees: value('totalFees'),
+      amountToPayNow: value('amountToPayNow'),
+      occupierName: value('occupierName'),
+      fatherHusbandName: value('fatherHusbandName'),
+      mobileNo: value('mobileNo'),
+      alternateMobileNo: value('alternateMobileNo'),
+      emailId: value('emailId'),
+      occPinCode: value('occPinCode'),
+      communicationAddress: value('communicationAddress'),
+    );
+  }
+}
+
+class MutationApplicationDetailResponse {
+  final bool success;
+  final int responseCode;
+  final String message;
+  final MutationApplicationDetail? data;
+
+  MutationApplicationDetailResponse({
+    required this.success,
+    required this.responseCode,
+    required this.message,
+    this.data,
+  });
+
+  factory MutationApplicationDetailResponse.fromJson(Map<String, dynamic> json) {
+    final rawData = json['data'];
+    return MutationApplicationDetailResponse(
+      success: json['success'] ?? false,
+      responseCode: json['responseCode'] ?? 0,
+      message: json['message'] ?? '',
+      data: rawData is Map<String, dynamic>
+          ? MutationApplicationDetail.fromJson(rawData)
           : null,
     );
   }

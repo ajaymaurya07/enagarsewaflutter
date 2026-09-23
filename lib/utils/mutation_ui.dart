@@ -1,0 +1,131 @@
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
+
+/// Presentation helpers shared by the property mutation screens. Mirrors
+/// [WaterConnectionUi] so the Mutation service visually matches the
+/// Water & Sewerage Connection module.
+class MutationUi {
+  MutationUi._();
+
+  static const Color primaryColor = Color(0xFFE67514);
+  static const Color textColor = Color(0xFF333333);
+  static const Color backgroundColor = Color(0xFFF8F9FB);
+
+  static const Color _submitted = Color(0xFF2563EB);
+  static const Color _approved = Color(0xFF1E9E5A);
+  static const Color _rejected = Color(0xFFD92D20);
+  static const Color _pending = primaryColor;
+  static const Color _unknown = Color(0xFF667085);
+
+  static Color statusColor(String status) {
+    switch (status.toUpperCase()) {
+      case 'SUBMITTED':
+        return _submitted;
+      case 'APPROVED':
+      case 'COMPLETED':
+      case 'MUTATED':
+        return _approved;
+      case 'REJECTED':
+      case 'CANCELLED':
+        return _rejected;
+      case 'PENDING':
+      case 'IN_PROGRESS':
+      case 'UNDER_REVIEW':
+        return _pending;
+      default:
+        return _unknown;
+    }
+  }
+
+  static IconData statusIcon(String status) {
+    switch (status.toUpperCase()) {
+      case 'SUBMITTED':
+        return Icons.task_alt_rounded;
+      case 'APPROVED':
+      case 'COMPLETED':
+      case 'MUTATED':
+        return Icons.check_circle_rounded;
+      case 'REJECTED':
+      case 'CANCELLED':
+        return Icons.cancel_rounded;
+      case 'PENDING':
+      case 'IN_PROGRESS':
+      case 'UNDER_REVIEW':
+        return Icons.hourglass_bottom_rounded;
+      default:
+        return Icons.info_outline_rounded;
+    }
+  }
+
+  /// `IN_PROGRESS` -> `In Progress`
+  static String statusLabel(String status) {
+    if (status.trim().isEmpty) return 'Unknown';
+    return status
+        .split(RegExp(r'[_\s]+'))
+        .where((word) => word.isNotEmpty)
+        .map((word) => word[0].toUpperCase() + word.substring(1).toLowerCase())
+        .join(' ');
+  }
+
+  static Widget statusChip(String status, {bool compact = true}) {
+    final color = statusColor(status);
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 10 : 12,
+        vertical: compact ? 5 : 7,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(statusIcon(status), size: compact ? 13 : 15, color: color),
+          const SizedBox(width: 5),
+          Text(
+            statusLabel(status),
+            style: GoogleFonts.poppins(
+              fontSize: compact ? 11 : 12.5,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// `2026-07-30` / `2026-07-30 18:38:13` -> `30 Jul 2026`. Also accepts the
+  /// `dd-MM-yyyy` acknowledgement date format returned by the Apply API.
+  static String formatDate(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return '-';
+    final isoParsed = DateTime.tryParse(trimmed);
+    if (isoParsed != null) return DateFormat('dd MMM yyyy').format(isoParsed);
+    final ddMMyyyy = RegExp(r'^(\d{2})-(\d{2})-(\d{4})$').firstMatch(trimmed);
+    if (ddMMyyyy != null) {
+      final parsed = DateTime.tryParse(
+        '${ddMMyyyy.group(3)}-${ddMMyyyy.group(2)}-${ddMMyyyy.group(1)}',
+      );
+      if (parsed != null) return DateFormat('dd MMM yyyy').format(parsed);
+    }
+    return trimmed;
+  }
+
+  /// Formats a numeric amount string as Indian Rupees, e.g. `5000` -> `5,000`.
+  static String formatAmount(String raw) {
+    final parsed = num.tryParse(raw.trim());
+    if (parsed == null) return raw.trim().isEmpty ? '-' : raw.trim();
+    return NumberFormat('#,##,##0.##', 'en_IN').format(parsed);
+  }
+
+  /// Mutation cause / status codes arrive as backend labels (e.g. `SALE_DEED`).
+  static String prettify(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return '-';
+    if (!trimmed.contains('_')) return trimmed;
+    return statusLabel(trimmed);
+  }
+}
