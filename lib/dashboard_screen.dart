@@ -559,12 +559,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             cardWidth,
                             key: _keyMutation,
                             onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const MutationScreen(),
-                                ),
-                              );
+                              // Navigator.push(
+                              //   context,
+                              //   MaterialPageRoute(
+                              //     builder: (context) => const MutationScreen(),
+                              //   ),
+                              // );
                             },
                           ),
                         ],

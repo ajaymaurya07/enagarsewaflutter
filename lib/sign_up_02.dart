@@ -398,22 +398,19 @@ class _SignUp02ScreenState extends State<SignUp02Screen>
       bool? mobileOtpRequired = registerResult.mobileOtpRequired;
       bool? emailOtpRequired = registerResult.emailOtpRequired;
 
-      // responseCode 0 -> register itself needs a captcha-verified OTP
-      // (re)send, so the rest of the flow continues on a dedicated
-      // mobile/captcha verification screen instead of an in-place dialog.
+      // responseCode 0 -> show whatever message the API returned and stay
+      // on this screen.
       if (registerResult.responseCode == 0) {
-        // debugPrint('[SignUp] responseCode=0 -> navigating to verify screen.');
         if (!mounted) return;
         setState(() => _isLoading = false);
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => SignUpVerifyScreen(
-              initialMobile: mobile,
-              email: email,
-              initialMessage: registerResult.message,
-            ),
-          ),
+        _fetchCaptcha();
+        showMessageDialog(
+          title: 'Registration Failed',
+          message: (message != null && message.trim().isNotEmpty)
+              ? message
+              : 'Registration failed. Please try again.',
+          icon: Icons.error_outline_rounded,
+          iconColor: Colors.red.shade600,
         );
         return;
       }
