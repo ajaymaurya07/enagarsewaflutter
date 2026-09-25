@@ -386,12 +386,12 @@ class _SignUp02ScreenState extends State<SignUp02Screen>
         captcha: _captchaController.text.trim(),
       );
 
-      // debugPrint(
-        // '[SignUp] register response -> status=${registerResult.status}, '
-        // 'responseCode=${registerResult.responseCode}, message=${registerResult.message}, '
-        // 'mobileOtpRequired=${registerResult.mobileOtpRequired}, '
-        // 'emailOtpRequired=${registerResult.emailOtpRequired}',
-      // );
+      debugPrint(
+        '[SignUp] register response -> status=${registerResult.status}, '
+        'responseCode=${registerResult.responseCode}, message=${registerResult.message}, '
+        'mobileOtpRequired=${registerResult.mobileOtpRequired}, '
+        'emailOtpRequired=${registerResult.emailOtpRequired}',
+      );
 
       bool? status = registerResult.status;
       String? message = registerResult.message;

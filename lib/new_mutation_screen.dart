@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'apply_grievance_screen.dart' show SelectionSheet;
 import 'services/api_service.dart';
+import 'services/database_service.dart';
 import 'services/otp_gate_service.dart';
 import 'services/storage_service.dart';
 import 'utils/mutation_ui.dart';
@@ -14,8 +15,8 @@ import 'widgets/assessment_progress_bar.dart';
 
 /// Four-part "Property Mutation" application form.
 ///
-/// Step 1 Property & Mutation Cause   (Property ID lookup via the Mutation
-///                                     Basic Details API)
+/// Step 1 Property & Mutation Cause   (saved Property ID lookup via the
+///                                     Mutation Basic Details API)
 /// Step 2 Owner & Occupier Details    (new owner, occupier, communication)
 /// Step 3 Registry, Cost & Fees       (Mutation Fetch Fees API)
 /// Step 4 Upload Documents            (Mutation Apply API, multipart)
@@ -47,7 +48,9 @@ class _NewMutationScreenState extends State<NewMutationScreen> {
   int _currentStep = 0;
 
   // Step 1 - Property lookup
-  final _propertyIdController = TextEditingController();
+  bool _isLoadingSavedProperties = true;
+  List<PropertyEntity> _savedProperties = [];
+  PropertyEntity? _selectedProperty;
   bool _isLoadingProperty = false;
   String? _propertyError;
   MutationPropertyData? _propertyData;
@@ -94,11 +97,11 @@ class _NewMutationScreenState extends State<NewMutationScreen> {
   void initState() {
     super.initState();
     _loadUlbId();
+    _loadSavedProperties();
   }
 
   @override
   void dispose() {
-    _propertyIdController.dispose();
     _occupierNameController.dispose();
     _occupierFatherNameController.dispose();
     _occupierMobileController.dispose();
@@ -121,16 +124,27 @@ class _NewMutationScreenState extends State<NewMutationScreen> {
     setState(() => _ulbId = ulbId);
   }
 
+  Future<void> _loadSavedProperties() async {
+    final properties = await DatabaseService.getAllProperties();
+    if (!mounted) return;
+    setState(() {
+      _savedProperties = properties;
+      _isLoadingSavedProperties = false;
+    });
+  }
+
   // ------------------------------------------------------------- step 1: lookup
 
-  Future<void> _fetchPropertyData() async {
-    final propertyId = _propertyIdController.text.trim();
-    if (propertyId.isEmpty) {
-      _showSnackBar('Please enter a Property ID');
-      return;
-    }
+  Future<void> _onPropertySelected(PropertyEntity property) async {
     FocusManager.instance.primaryFocus?.unfocus();
+    final propertyId = property.propertyId;
     setState(() {
+      _selectedProperty = property;
+      _propertyData = null;
+      _selectedCauseId = null;
+      _selectedIdProofId = null;
+      _fees = null;
+      _feesError = null;
       _isLoadingProperty = true;
       _propertyError = null;
     });
@@ -140,9 +154,9 @@ class _NewMutationScreenState extends State<NewMutationScreen> {
         call: () => ApiService.getMutationPropertyData(propertyId: propertyId),
         responseCode: (r) => r.responseCode,
         propertyId: propertyId,
-        mobileNo: '',
+        mobileNo: property.phoneNumber,
       );
-      if (!mounted) return;
+      if (!mounted || _selectedProperty != property) return;
       if (!response.success || response.data == null) {
         setState(() {
           _isLoadingProperty = false;
@@ -162,7 +176,7 @@ class _NewMutationScreenState extends State<NewMutationScreen> {
             : response.data!.mobile;
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || _selectedProperty != property) return;
       setState(() {
         _isLoadingProperty = false;
         _propertyError = e.toString().replaceFirst('Exception: ', '');
@@ -334,10 +348,17 @@ class _NewMutationScreenState extends State<NewMutationScreen> {
     setState(() => _currentStep--);
   }
 
+  // TODO: set back to false before release - skips per-step validation so
+  // every step can be opened for UI testing.
+  static const bool _skipStepValidation = true;
+
   void _handleContinue() {
     FocusManager.instance.primaryFocus?.unfocus();
-    if (!_validateCurrentStep()) return;
-    if (_currentStep < _totalSteps - 1) {
+    final isLastStep = _currentStep == _totalSteps - 1;
+    if (!(_skipStepValidation && !isLastStep) && !_validateCurrentStep()) {
+      return;
+    }
+    if (!isLastStep) {
       setState(() => _currentStep++);
       return;
     }
@@ -359,7 +380,7 @@ class _NewMutationScreenState extends State<NewMutationScreen> {
 
   bool _validateStep1() {
     if (_propertyData == null) {
-      _showSnackBar('Please fetch the property details first');
+      _showSnackBar('Please select a Property ID first');
       return false;
     }
     if (_selectedCauseId == null) {
@@ -626,52 +647,15 @@ class _NewMutationScreenState extends State<NewMutationScreen> {
         children: [
           _sectionTitle('Property Details'),
           const SizedBox(height: 4),
-          _sectionHint('Enter the Property ID to fetch the current record.'),
+          _sectionHint('Select Property ID first.'),
           const SizedBox(height: 14),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _buildTextField(
-                  'Property ID',
-                  _propertyIdController,
-                  isRequired: true,
-                  hintText: 'Property ID alloted by ULB',
-                ),
-              ),
-              const SizedBox(width: 10),
-              SizedBox(
-                height: 58,
-                child: ElevatedButton(
-                  onPressed: _isLoadingProperty ? null : _fetchPropertyData,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _primaryColor,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 18),
-                  ),
-                  child: _isLoadingProperty
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2.2,
-                          ),
-                        )
-                      : Text(
-                          'Fetch',
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
-                        ),
-                ),
-              ),
-            ],
-          ),
+          _buildPropertySelector(),
+          if (_isLoadingProperty) ...[
+            const SizedBox(height: 16),
+            const Center(
+              child: CircularProgressIndicator(color: _primaryColor),
+            ),
+          ],
           if (_propertyError != null) ...[
             const SizedBox(height: 10),
             Text(
@@ -733,6 +717,36 @@ class _NewMutationScreenState extends State<NewMutationScreen> {
           ],
         ],
       ),
+    );
+  }
+
+  Widget _buildPropertySelector() {
+    if (_isLoadingSavedProperties) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 16),
+          child: CircularProgressIndicator(color: _primaryColor),
+        ),
+      );
+    }
+
+    if (_savedProperties.isEmpty) {
+      return _buildSelectableField(
+        label: 'Property ID',
+        hint: 'No saved property found',
+      );
+    }
+
+    return _buildSelectableField(
+      label: 'Property ID',
+      hint: _selectedProperty?.propertyId ?? 'Select Property ID',
+      onTap: _isLoadingProperty
+          ? null
+          : () => _showSelectionSheet(
+                title: 'Select Property',
+                items: _savedProperties.map((e) => e.propertyId).toList(),
+                onSelected: (index) => _onPropertySelected(_savedProperties[index]),
+              ),
     );
   }
 
