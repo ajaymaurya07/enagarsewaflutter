@@ -26,7 +26,7 @@ import DeviceCheck
         switch call.method {
         case "isDeveloperModeEnabled":
           if #available(iOS 16.0, *) {
-            result(DCDeveloperModeQuery.isEnabled)
+            // result(DCDeveloperModeQuery.isEnabled)
           } else {
             result(false)
           }
