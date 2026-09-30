@@ -85,3 +85,7 @@ flutter:
     - family: Krutidev010
       fonts:
         - asset: assets/font/Kruti Dev 010 Regular.ttf
+
+dependency_overrides:
+  printing:
+    path: third_party/printing

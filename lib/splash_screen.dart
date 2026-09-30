@@ -234,14 +234,14 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     }
 
     // Block rooted / jailbroken devices
-    final bool rooted = await DeviceService.isDeviceRooted();
-    if (rooted) {
-      if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const RootedDeviceScreen()),
-      );
-      return;
-    }
+    // final bool rooted = await DeviceService.isDeviceRooted();
+    // if (rooted) {
+    //   if (!mounted) return;
+    //   Navigator.of(context).pushReplacement(
+    //     MaterialPageRoute(builder: (_) => const RootedDeviceScreen()),
+    //   );
+    //   return;
+    // }
 
     // Play Integrity (Android) / App Attest (iOS) — verifies device & app genuineness
     final bool integrityPassed = await IntegrityService.verify();
