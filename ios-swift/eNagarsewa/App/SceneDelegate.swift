@@ -8,7 +8,9 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
                options connectionOptions: UIScene.ConnectionOptions) {
         guard let windowScene = scene as? UIWindowScene else { return }
         let window = UIWindow(windowScene: windowScene)
+        window.backgroundColor = .white
         self.window = window
         AppRouter.shared.start(in: window)
+        print("[Launch] window attached, splash shown")
     }
 }

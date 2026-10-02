@@ -12,6 +12,7 @@ final class PushNotificationService: NSObject {
     // MARK: - Setup (call from AppDelegate after FirebaseApp.configure())
 
     func configure() {
+        guard AppDelegate.isFirebaseConfigured else { return }
         Messaging.messaging().delegate = self
         UNUserNotificationCenter.current().delegate = self
         requestPermission()

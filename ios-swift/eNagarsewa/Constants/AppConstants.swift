@@ -4,6 +4,18 @@ enum AppConstants {
 
     static let appName = "eNagarSewa"
 
+    /// TEMPORARY (testing only): skips the splash launch checks — App Store update check,
+    /// developer-mode / tamper / integrity checks — so the app opens straight away in the
+    /// simulator. Only Debug or simulator builds are affected; Release on a device is unchanged.
+    /// Set to `false` (or delete) before shipping.
+    static let bypassLaunchChecks: Bool = {
+        #if DEBUG || targetEnvironment(simulator)
+        return true
+        #else
+        return false
+        #endif
+    }()
+
     /// `BASE_URL` comes from Info.plist (set per configuration in project.yml), the iOS
     /// counterpart of Flutter's `--dart-define=BASE_URL`. Always normalised to end with `/`.
     static let baseURL: String = {

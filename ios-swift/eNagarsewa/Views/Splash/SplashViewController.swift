@@ -90,6 +90,12 @@ final class SplashViewController: BaseViewController {
         PushNotificationService.shared.configure()
         try? await Task.sleep(nanoseconds: 3_000_000_000)
 
+        if AppConstants.bypassLaunchChecks {
+            print("[Launch] launch checks bypassed (AppConstants.bypassLaunchChecks)")
+            routeAfterChecks()
+            return
+        }
+
         // Forced update check (Flutter shows a non-dismissible sheet).
         if let update = await AppUpdateService.shared.checkForUpdate() {
             present(UpdateSheetViewController(updateInfo: update), animated: true)
@@ -109,7 +115,11 @@ final class SplashViewController: BaseViewController {
             AppRouter.shared.replaceStack(with: RootedDeviceViewController(reason: .rooted))
             return
         }
+        routeAfterChecks()
+    }
 
+    private func routeAfterChecks() {
+        print("[Launch] routing — loggedIn=\(StorageService.isLoggedIn) propertyVerified=\(StorageService.isPropertyVerified)")
         if StorageService.isLoggedIn {
             if StorageService.isPropertyVerified {
                 AppRouter.shared.showDashboard()

@@ -31,6 +31,10 @@ targets:
           - "Resources/Info.plist"
           - "Resources/eNagarsewa.entitlements"
           - "Resources/Fonts/OFL.txt"
+          - "Resources/GoogleService-Info.plist"
+      # Firebase config must be copied into the bundle (Copy Bundle Resources).
+      - path: eNagarsewa/Resources/GoogleService-Info.plist
+        buildPhase: resources
     info:
       path: eNagarsewa/Resources/Info.plist
     entitlements:
