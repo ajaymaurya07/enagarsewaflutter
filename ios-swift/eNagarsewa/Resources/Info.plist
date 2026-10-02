@@ -50,12 +50,11 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 
-	<!-- Plain white launch screen (the Flutter launch image is a blank placeholder). -->
-	<key>UILaunchScreen</key>
-	<dict>
-		<key>UIColorName</key>
-		<string></string>
-	</dict>
+	<!-- Plain white launch screen (the Flutter launch image is a blank placeholder).
+	     Required: without a launch screen iOS runs the app in a small letterboxed
+	     compatibility mode instead of full screen. -->
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
 
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
