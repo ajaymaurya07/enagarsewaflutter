@@ -264,7 +264,7 @@ final class PaymentDetailsViewController: BaseViewController {
         let b = PrimaryButton(title, height: 50, radius: 10, fontSize: 12, weight: .semibold, icon: icon)
         b.setImage(.symbol(icon, size: 14, weight: .semibold), for: .normal)
         b.titleLabel?.lineBreakMode = .byTruncatingTail
-        b.onEvent(action)
+        b.onEvent(.touchUpInside, action)
         return b
     }
 

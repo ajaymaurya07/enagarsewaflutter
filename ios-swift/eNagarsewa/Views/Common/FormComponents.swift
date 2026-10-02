@@ -48,7 +48,7 @@ final class ENSTextField: UIView, UITextFieldDelegate, UITextViewDelegate {
     private let floatHolder = UIView()
     private var accessoryButton: UIButton?
     private var hasError = false
-    private var isFocused = false
+    private var isEditingActive = false
 
     var validator: ((String) -> String?)?
     var onChange: ((String) -> Void)?
@@ -238,10 +238,10 @@ final class ENSTextField: UIView, UITextFieldDelegate, UITextViewDelegate {
 
     private func updateFloatingLabel() {
         guard config.floatingLabel else { return }
-        let floating = isFocused || !text.isEmpty
+        let floating = isEditingActive || !text.isEmpty
         floatHolder.isHidden = !floating
-        floatLabel.textColor = isFocused ? .appPrimary : config.labelColor
-        let placeholder = floating ? (isFocused ? hint ?? "" : "") : config.placeholder
+        floatLabel.textColor = isEditingActive ? .appPrimary : config.labelColor
+        let placeholder = floating ? (isEditingActive ? hint ?? "" : "") : config.placeholder
         textField?.attributedPlaceholder = NSAttributedString(string: placeholder, attributes: [
             .font: UIFont.poppins(floating ? 12 : 14), .foregroundColor: floating ? UIColor.grey500 : config.labelColor,
         ])
@@ -250,7 +250,7 @@ final class ENSTextField: UIView, UITextFieldDelegate, UITextViewDelegate {
 
     private func updateBorder() {
         updateFloatingLabel()
-        if isFocused {
+        if isEditingActive {
             box.layer.borderColor = (hasError ? UIColor.appRedError : .appPrimary).cgColor
             box.layer.borderWidth = 1.5
         } else {
@@ -307,13 +307,13 @@ final class ENSTextField: UIView, UITextFieldDelegate, UITextViewDelegate {
     }
 
     func textFieldDidBeginEditing(_ textField: UITextField) {
-        isFocused = true
+        isEditingActive = true
         updateBorder()
         onBeginEditing?()
     }
 
     func textFieldDidEndEditing(_ textField: UITextField) {
-        isFocused = false
+        isEditingActive = false
         updateBorder()
     }
 
@@ -346,13 +346,13 @@ final class ENSTextField: UIView, UITextFieldDelegate, UITextViewDelegate {
     }
 
     func textViewDidBeginEditing(_ textView: UITextView) {
-        isFocused = true
+        isEditingActive = true
         updateBorder()
         onBeginEditing?()
     }
 
     func textViewDidEndEditing(_ textView: UITextView) {
-        isFocused = false
+        isEditingActive = false
         updateBorder()
     }
 }
@@ -605,7 +605,7 @@ func textButton(_ title: String, color: UIColor = .appPrimary, size: CGFloat = 1
     b.setTitleColor(color, for: .normal)
     b.setTitleColor(color.withAlphaComponent(0.4), for: .disabled)
     b.titleLabel?.font = .poppins(size, weight)
-    b.onEvent(action)
+    b.onEvent(.touchUpInside, action)
     return b
 }
 
@@ -615,6 +615,6 @@ func iconButton(_ symbol: String, color: UIColor, size: CGFloat = 22, action: @e
     b.setImage(.symbol(symbol, size: size), for: .normal)
     b.tintColor = color
     b.setSize(width: 44, height: 44)
-    b.onEvent(action)
+    b.onEvent(.touchUpInside, action)
     return b
 }

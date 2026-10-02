@@ -813,7 +813,7 @@ final class NewWaterConnectionViewController: BaseViewController {
         choose.contentEdgeInsets = UIEdgeInsets(top: 0, left: 14, bottom: 0, right: 14)
         choose.setContentHuggingPriority(.required, for: .horizontal)
         choose.setContentCompressionResistancePriority(.required, for: .horizontal)
-        choose.onEvent(onPick)
+        choose.onEvent(.touchUpInside, onPick)
         let name = UILabel(file?.filename ?? hint, font: .poppins(13), color: file == nil ? .grey600 : WaterConnectionUI.textColor)
         name.lineBreakMode = .byTruncatingTail
         var views: [UIView] = [choose, name]

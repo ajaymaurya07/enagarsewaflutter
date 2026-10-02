@@ -130,7 +130,7 @@ final class ArvChangeHistoryViewController: BaseViewController {
     private func errorView(icon: String, message: String, button: String, action: @escaping () -> Void) -> UIView {
         let b = PrimaryButton(button, height: 46, radius: 12, fontSize: 14, weight: .semibold)
         b.contentEdgeInsets = UIEdgeInsets(top: 0, left: 28, bottom: 0, right: 28)
-        b.onEvent(action)
+        b.onEvent(.touchUpInside, action)
         let l = UILabel(message, font: .poppins(14), color: .grey600, lines: 0, alignment: .center)
         l.setLineHeight(1.4)
         let stack = UIStackView.v(0, alignment: .center, [UIImageView(symbol: icon, size: 56, color: .mRed300), l, b])

@@ -210,10 +210,10 @@ final class TransactionDetailsViewController: BaseViewController {
             wrapper.addShadow(opacity: 0.2, blur: 8, offsetY: 4)
             wrapper.addSubview(b)
             b.pinToEdges(of: wrapper)
-            b.onEvent(action)
+            b.onEvent(.touchUpInside, action)
             return wrapper
         }
-        b.onEvent(action)
+        b.onEvent(.touchUpInside, action)
         return b
     }
 

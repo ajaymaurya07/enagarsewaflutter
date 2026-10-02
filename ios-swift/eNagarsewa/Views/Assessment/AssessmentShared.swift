@@ -85,7 +85,7 @@ enum AssessmentUI {
         if let retry {
             let b = PrimaryButton("Retry", height: 46, radius: 12, fontSize: 14, weight: .semibold, icon: "arrow.clockwise")
             b.contentEdgeInsets = UIEdgeInsets(top: 0, left: 28, bottom: 0, right: 28)
-            b.onEvent(retry)
+            b.onEvent(.touchUpInside, retry)
             views.append(b)
         }
         let stack = UIStackView.v(0, alignment: .center, views)
