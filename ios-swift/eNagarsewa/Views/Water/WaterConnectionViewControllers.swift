@@ -522,21 +522,21 @@ final class NewWaterConnectionViewController: BaseViewController {
         pipeSizeRequestId += 1
         let requestId = pipeSizeRequestId
         var size: String?
-        var error: String?
+        var failure: String?
         do {
             let response = try await OtpGateService.guardCall(propertyId: propertyId.trimmedText, mobileNo: mobileNo.trimmedText,
                                                               responseCode: { $0.responseCode }) {
                 try await APIService.shared.getPipeSize(categoryConnection: category, plotArea: plotArea)
             }
             if response.success, let data = response.data { size = data } else {
-                error = response.message.isEmpty ? "Pipe size not available for the entered plot area." : response.message
+                failure = response.message.isEmpty ? "Pipe size not available for the entered plot area." : response.message
             }
         } catch {
-            error = APIError.userMessage(error)
+            failure = APIError.userMessage(error)
         }
         guard requestId == pipeSizeRequestId else { return }
         pipeSize = size
-        pipeSizeError = error
+        pipeSizeError = failure
         isLoadingPipeSize = false
         renderPipeSize()
     }
