@@ -1,724 +1,516 @@
 import UIKit
-import Combine
 
-// MARK: - SearchPropertyViewController
+/// Port of lib/search_property_screen.dart.
+final class SearchPropertyViewController: BaseViewController {
 
-final class SearchPropertyViewController: UIViewController {
+    override var hidesNavigationBar: Bool { true }
 
-    private let viewModel: SearchPropertyViewModel
-    private var cancellables = Set<AnyCancellable>()
+    private enum Mode: String, CaseIterable {
+        case owner = "By Owner", propertyId = "By Property ID", houseNo = "By House No",
+             location = "By Location", mobile = "By Mobile No"
 
-    init(viewModel: SearchPropertyViewModel) {
-        self.viewModel = viewModel
-        super.init(nibName: nil, bundle: nil)
+        var searchType: String {
+            switch self {
+            case .owner: return "OWNER"
+            case .propertyId: return "PROPERTY"
+            case .houseNo: return "HOUSE"
+            case .location: return "LOCATION"
+            case .mobile: return "MOBILE"
+            }
+        }
     }
-    required init?(coder: NSCoder) { fatalError() }
 
-    // MARK: - UI
+    private var mode = Mode.owner
+    private var ulbList: [UlbData] = []
+    private var selectedUlb: UlbData?
+    private var zoneList: [ZoneData] = []
+    private var selectedZone: ZoneData?
+    private var wardList: [WardData] = []
+    private var selectedWard: WardData?
+    private var mohallaList: [MohallaData] = []
+    private var selectedMohalla: MohallaData?
+    private var isLoadingUlbs = true
+    private var isLoadingZones = false
+    private var isLoadingWards = false
+    private var isLoadingMohallas = false
+    private var isLoggingOut = false
 
-    private let scrollView = UIScrollView()
-    private let contentView = UIView()
+    // Language gate (loader / retry)
+    private let gateView = UIView()
 
-    // Mode chip buttons
-    private var chipButtons: [String: UIButton] = [:]
-    private let modes = ["By Owner", "By Property ID", "By House No", "By Location", "By Mobile No"]
-
-    // Card
-    private let formCard = UIView()
-
-    // ULB
-    private lazy var ulbDropdown = DropdownField()
-
-    // Error label
-    private let errorLabel: UILabel = {
-        let l = UILabel()
-        l.font = UIFont(name: "Poppins-Regular", size: 12) ?? .systemFont(ofSize: 12)
-        l.textColor = UIColor(red: 0.80, green: 0.11, blue: 0.11, alpha: 1)
-        l.numberOfLines = 0
-        l.isHidden = true
-        return l
-    }()
-
-    // Form body (rebuilt on mode change)
-    private let formBodyContainer = UIView()
-
-    // Search button
-    private lazy var searchButton: UIButton = {
-        let b = UIButton.primaryButton(title: "Search")
-        return b
-    }()
-
-    // Refs kept for the first-run tour guide (see lib/tour_guides/search_property_tour.dart)
-    private weak var modeChipsContainerView: UIView?
-    private var didPresentTour = false
+    // Form
+    private let ownerField = ENSTextField(placeholder: "Enter owner name")
+    private let fatherField = ENSTextField(placeholder: "Enter father name")
+    private let propertyIdField = ENSTextField(placeholder: "Enter property ID")
+    private let houseNoField = ENSTextField(placeholder: "Enter house number")
+    private let mobileField = ENSTextField(placeholder: "Enter mobile number", keyboard: .phonePad)
+    private let ulbField = SelectField(placeholder: "Choose ULB")
+    private let zoneField = SelectField(placeholder: "Choose Zone")
+    private let wardField = SelectField(placeholder: "Choose Ward")
+    private let mohallaField = SelectField(placeholder: "Choose Mohalla")
+    private let errorLabel = UILabel(nil, font: .poppins(12), color: .mRed600, lines: 0)
+    private let searchButton = PrimaryButton("Search")
+    private let modeFieldsContainer = UIStackView.v(0, [])
+    private var modeChips: [Mode: UIView] = [:]
+    private let tabsView = UIStackView.v(6, [])
+    private var logoutButton: UIButton!
+    private let logoutSpinner = UIActivityIndicatorView(style: .medium)
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .white
-        setupLayout()
-        bindViewModel()
-        viewModel.onViewAppear()
-        updateModeChips()
-        rebuildFormBody()
+        buildForm()
+        [ulbField, zoneField, wardField, mohallaField].forEach { $0.valueFont = .poppins(13, .medium) }
+        ulbField.loadingText = "Loading ULBs..."
+        zoneField.loadingText = "Loading Zones..."
+        wardField.loadingText = "Loading Wards..."
+        mohallaField.loadingText = "Loading Mohallas..."
+        view.addSubview(gateView)
+        gateView.backgroundColor = .white
+        gateView.pinToEdges(of: view)
+        Task { await loadUlbData() }
+        Task { await loadUlbLanguage() }
     }
 
-    override func viewDidAppear(_ animated: Bool) {
-        super.viewDidAppear(animated)
-        presentTourIfNeeded()
+    // MARK: - Language gate
+
+    private func showGate(loading: Bool) {
+        gateView.subviews.forEach { $0.removeFromSuperview() }
+        gateView.isHidden = false
+        let content: UIView
+        if loading {
+            let spinner = UIActivityIndicatorView(style: .large)
+            spinner.color = .appPrimary
+            spinner.startAnimating()
+            content = UIStackView.v(16, alignment: .center, [spinner, UILabel("Please wait...", font: .poppins(14), color: .grey600)])
+        } else {
+            let retry = PrimaryButton("Retry", height: 46, fontSize: 15, weight: .semibold)
+            retry.setSize(width: 160)
+            retry.onEvent { [weak self] in
+                self?.showGate(loading: true)
+                Task { await self?.loadUlbLanguage() }
+            }
+            let stack = UIStackView.v(0, alignment: .center, [
+                UIImageView(symbol: "wifi.slash", size: 52, color: .appPrimary),
+                UILabel("No internet connection", font: .poppins(16, .semibold), color: .appTextDark),
+                UILabel("Please check your connection and try again.", font: .poppins(13), color: .grey600, lines: 0, alignment: .center),
+                retry,
+            ])
+            stack.setCustomSpacing(16, after: stack.arrangedSubviews[0])
+            stack.setCustomSpacing(8, after: stack.arrangedSubviews[1])
+            stack.setCustomSpacing(24, after: stack.arrangedSubviews[2])
+            content = stack
+        }
+        gateView.addSubview(content)
+        content.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            content.centerXAnchor.constraint(equalTo: gateView.centerXAnchor),
+            content.centerYAnchor.constraint(equalTo: gateView.centerYAnchor),
+            content.leadingAnchor.constraint(greaterThanOrEqualTo: gateView.leadingAnchor, constant: 32),
+        ])
+    }
+
+    /// ULB language is fetched only here (once, then cached) — the form waits for it.
+    private func loadUlbLanguage() async {
+        showGate(loading: true)
+        do {
+            if (StorageService.languageCache ?? "").isEmpty {
+                let response = try await APIService.shared.getUlbLanguage()
+                guard response.success, let language = response.language, !language.isEmpty else {
+                    throw APIError.message(response.message)
+                }
+                StorageService.saveLanguageCache(language)
+            }
+            gateView.isHidden = true
+            DispatchQueue.main.async { [weak self] in
+                TourGuide.autoStartIfFirstVisit(.searchProperty) { self?.startTour() }
+            }
+        } catch {
+            showGate(loading: false)
+        }
     }
 
     // MARK: - Layout
 
-    private func setupLayout() {
-        // Scroll
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
-        contentView.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(scrollView)
-        scrollView.addSubview(contentView)
+    private func buildForm() {
+        logoutSpinner.color = .appPrimary
+        logoutSpinner.hidesWhenStopped = true
+        logoutButton = iconButton("rectangle.portrait.and.arrow.right", color: .appPrimary, size: 20) { [weak self] in
+            self?.handleLogout()
+        }
+        let logoutBox = UIView()
+        logoutBox.setSize(width: 44, height: 44)
+        logoutBox.addSubview(logoutButton)
+        logoutBox.addSubview(logoutSpinner)
+        logoutButton.center(in: logoutBox)
+        logoutSpinner.center(in: logoutBox)
+        let header = UIStackView.h(0, [
+            UILabel("Search Property", font: .poppins(18, .bold), color: .appTextDark), FlexSpacer(),
+            iconButton("questionmark.circle", color: .appPrimary) { [weak self] in self?.startTour() },
+            logoutBox,
+        ])
+        view.addSubview(header)
+        header.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            scrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            contentView.topAnchor.constraint(equalTo: scrollView.topAnchor),
-            contentView.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
-            contentView.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
-            contentView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
-            contentView.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
+            header.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
+            header.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            header.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -8),
         ])
 
-        // Nav bar row
-        let navRow = makeNavBar()
-
-        // Mode chips
-        let chipsContainer = makeModeChipsView()
-        modeChipsContainerView = chipsContainer
-
-        // Form card
-        formCard.backgroundColor = .white
-        formCard.layer.cornerRadius = 20
-        formCard.layer.shadowColor = UIColor.black.cgColor
-        formCard.layer.shadowOpacity = 0.06
-        formCard.layer.shadowRadius = 10
-        formCard.layer.shadowOffset = CGSize(width: 0, height: 8)
-        formCard.translatesAutoresizingMaskIntoConstraints = false
-
-        // ULB label + dropdown
-        let ulbLabel = makeFieldLabel("Select ULB")
-        ulbDropdown.placeholder = "Choose ULB"
-        ulbDropdown.translatesAutoresizingMaskIntoConstraints = false
-
-        errorLabel.translatesAutoresizingMaskIntoConstraints = false
-        formBodyContainer.translatesAutoresizingMaskIntoConstraints = false
-
-        searchButton.translatesAutoresizingMaskIntoConstraints = false
-        searchButton.addTarget(self, action: #selector(searchTapped), for: .touchUpInside)
-
-        // Tap ULB
-        ulbDropdown.addTarget(self, action: #selector(ulbTapped), for: .touchUpInside)
-
-        // Card inner stack
-        let cardStack = UIStackView(arrangedSubviews: [
-            ulbLabel, ulbDropdown, errorLabel, formBodyContainer, searchButton
-        ])
-        cardStack.axis = .vertical
-        cardStack.spacing = 8
-        cardStack.setCustomSpacing(16, after: ulbDropdown)
-        cardStack.setCustomSpacing(16, after: errorLabel)
-        cardStack.setCustomSpacing(28, after: formBodyContainer)
-        cardStack.translatesAutoresizingMaskIntoConstraints = false
-        formCard.addSubview(cardStack)
-
-        // Main content stack
-        let mainStack = UIStackView(arrangedSubviews: [navRow, chipsContainer, formCard])
-        mainStack.axis = .vertical
-        mainStack.spacing = 0
-        mainStack.setCustomSpacing(20, after: chipsContainer)
-        mainStack.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(mainStack)
-
-        NSLayoutConstraint.activate([
-            // Card inner
-            cardStack.topAnchor.constraint(equalTo: formCard.topAnchor, constant: 20),
-            cardStack.leadingAnchor.constraint(equalTo: formCard.leadingAnchor, constant: 20),
-            cardStack.trailingAnchor.constraint(equalTo: formCard.trailingAnchor, constant: -20),
-            cardStack.bottomAnchor.constraint(equalTo: formCard.bottomAnchor, constant: -20),
-            ulbDropdown.heightAnchor.constraint(equalToConstant: 48),
-            searchButton.heightAnchor.constraint(equalToConstant: 52),
-            // Main
-            mainStack.topAnchor.constraint(equalTo: contentView.topAnchor),
-            mainStack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
-            mainStack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
-            mainStack.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -32),
-        ])
-    }
-
-    private func makeNavBar() -> UIView {
-        let container = UIView()
-        container.translatesAutoresizingMaskIntoConstraints = false
-
-        let title = UILabel()
-        title.text = "Search Property"
-        title.font = UIFont(name: "Poppins-Bold", size: 18) ?? .boldSystemFont(ofSize: 18)
-        title.textColor = UIColor(red: 0.2, green: 0.2, blue: 0.2, alpha: 1)
-        title.translatesAutoresizingMaskIntoConstraints = false
-
-        let helpBtn = UIButton(type: .system)
-        helpBtn.setImage(UIImage(systemName: "questionmark.circle"), for: .normal)
-        helpBtn.tintColor = UIColor(red: 0.902, green: 0.459, blue: 0.078, alpha: 1)
-        helpBtn.translatesAutoresizingMaskIntoConstraints = false
-
-        container.addSubview(title)
-        container.addSubview(helpBtn)
-        NSLayoutConstraint.activate([
-            container.heightAnchor.constraint(equalToConstant: 52),
-            title.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 8),
-            title.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-            helpBtn.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -4),
-            helpBtn.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-            helpBtn.widthAnchor.constraint(equalToConstant: 40),
-            helpBtn.heightAnchor.constraint(equalToConstant: 40),
-        ])
-        return container
-    }
-
-    private func makeModeChipsView() -> UIView {
-        let container = UIView()
-        container.translatesAutoresizingMaskIntoConstraints = false
-
-        // Row 1: By Owner | By Property ID | By House No
-        let row1 = UIStackView()
-        row1.axis = .horizontal
-        row1.spacing = 6
+        // Mode tabs: 3 on the first row, 2 centred on the second (flex 1:5:5:1).
+        let row1 = UIStackView.h(6, alignment: .fill, [chip(.owner), chip(.propertyId), chip(.houseNo)])
         row1.distribution = .fillEqually
-        row1.translatesAutoresizingMaskIntoConstraints = false
-
-        for mode in ["By Owner", "By Property ID", "By House No"] {
-            row1.addArrangedSubview(makeChipButton(mode))
-        }
-
-        // Row 2: spacer | By Location | By Mobile No | spacer
-        let row2 = UIStackView()
-        row2.axis = .horizontal
-        row2.spacing = 6
-        row2.translatesAutoresizingMaskIntoConstraints = false
-
-        let spacer1 = UIView()
-        spacer1.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        let spacer2 = UIView()
-        spacer2.setContentHuggingPriority(.defaultLow, for: .horizontal)
-
-        let locChip = makeChipButton("By Location")
-        let mobChip = makeChipButton("By Mobile No")
-
-        row2.addArrangedSubview(spacer1)
-        row2.addArrangedSubview(locChip)
-        row2.addArrangedSubview(mobChip)
-        row2.addArrangedSubview(spacer2)
-
-        // spacer1 == spacer2 width
-        spacer1.widthAnchor.constraint(equalTo: spacer2.widthAnchor).isActive = true
-        // chips equal width to row1 chips (1/3 each)
-        locChip.widthAnchor.constraint(equalTo: mobChip.widthAnchor).isActive = true
-
-        let outer = UIStackView(arrangedSubviews: [row1, row2])
-        outer.axis = .vertical
-        outer.spacing = 6
-        outer.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(outer)
+        let row2Inner = UIStackView.h(6, alignment: .fill, [chip(.location), chip(.mobile)])
+        row2Inner.distribution = .fillEqually
+        let row2 = UIView()
+        row2.addSubview(row2Inner)
+        row2Inner.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            outer.topAnchor.constraint(equalTo: container.topAnchor, constant: 6),
-            outer.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 6),
-            outer.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -6),
-            outer.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -6),
+            row2Inner.topAnchor.constraint(equalTo: row2.topAnchor),
+            row2Inner.bottomAnchor.constraint(equalTo: row2.bottomAnchor),
+            row2Inner.centerXAnchor.constraint(equalTo: row2.centerXAnchor),
+            row2Inner.widthAnchor.constraint(equalTo: row2.widthAnchor, multiplier: 10.0 / 12.0),
         ])
-        return container
+        tabsView.add(row1, row2)
+
+        let card = CardView(radius: 20, padding: UIEdgeInsets(top: 20, left: 20, bottom: 20, right: 20),
+                            shadowOpacity: 0.06, shadowBlur: 20, shadowY: 8)
+        let s = card.stack
+        s.add(InfoLabel("Select ULB", helpTitle: SearchPropertyHelp.ulbTitle, helpMessage: SearchPropertyHelp.ulbMessage))
+        s.addSpacer(8)
+        s.add(ulbField)
+        errorLabel.isHidden = true
+        s.add(errorLabel)
+        s.setCustomSpacing(8, after: ulbField)
+        s.addSpacer(16)
+        s.add(modeFieldsContainer)
+        s.addSpacer(28)
+        s.add(searchButton)
+
+        installScrollStack(insets: UIEdgeInsets(top: 8, left: 16, bottom: 32, right: 16), below: header)
+        contentStack.add(tabsView.padded(6))
+        contentStack.addSpacer(20)
+        contentStack.add(card)
+
+        ulbField.onTap = { [weak self] in self?.showUlbSelection() }
+        zoneField.onTap = { [weak self] in self?.showZoneSelection() }
+        wardField.onTap = { [weak self] in self?.showWardSelection() }
+        mohallaField.onTap = { [weak self] in self?.showMohallaSelection() }
+        searchButton.onEvent { [weak self] in self?.handleSearch() }
+        ulbField.isLoading = true
+        renderMode()
     }
 
-    private func makeChipButton(_ title: String) -> UIButton {
-        let b = UIButton(type: .custom)
-        b.setTitle(title, for: .normal)
-        b.titleLabel?.font = UIFont(name: "Poppins-SemiBold", size: 11) ?? .systemFont(ofSize: 11, weight: .semibold)
-        b.layer.cornerRadius = 10
-        b.contentEdgeInsets = UIEdgeInsets(top: 10, left: 4, bottom: 10, right: 4)
-        b.titleLabel?.adjustsFontSizeToFitWidth = true
-        b.titleLabel?.minimumScaleFactor = 0.7
-        b.addTarget(self, action: #selector(chipTapped(_:)), for: .touchUpInside)
-        chipButtons[title] = b
-        return b
+    private func chip(_ m: Mode) -> UIView {
+        let v = UIView()
+        v.layer.cornerRadius = 10
+        let label = UILabel(m.rawValue, font: .poppins(11, .semibold), alignment: .center)
+        label.adjustsFontSizeToFitWidth = true
+        label.minimumScaleFactor = 0.8
+        label.tag = 1
+        v.addSubview(label)
+        label.pinToEdges(of: v, insets: UIEdgeInsets(top: 10, left: 4, bottom: 10, right: 4))
+        v.onTap { [weak self] in
+            guard !TourCoachMarkView.isActive else { return }
+            self?.setMode(m)
+        }
+        modeChips[m] = v
+        return v
     }
 
-    private func makeFieldLabel(_ text: String) -> UILabel {
-        let l = UILabel()
-        l.text = text
-        l.font = UIFont(name: "Poppins-Medium", size: 13) ?? .systemFont(ofSize: 13, weight: .medium)
-        l.textColor = UIColor(red: 0.4, green: 0.4, blue: 0.4, alpha: 1)
-        return l
+    private func setMode(_ m: Mode) {
+        mode = m
+        renderMode()
     }
 
-    // MARK: - Chip appearance
+    private func renderMode() {
+        for (m, v) in modeChips {
+            let selected = m == mode
+            v.backgroundColor = selected ? .appPrimary : .appFieldFill
+            (v.viewWithTag(1) as? UILabel)?.textColor = selected ? .white : .grey400
+        }
+        modeFieldsContainer.removeAllArranged()
+        func add(_ label: InfoLabel, _ field: UIView, last: Bool = false) {
+            modeFieldsContainer.add(label)
+            modeFieldsContainer.addSpacer(8)
+            modeFieldsContainer.add(field)
+            if !last { modeFieldsContainer.addSpacer(16) }
+        }
+        let zone = InfoLabel("Zone", helpTitle: SearchPropertyHelp.zoneTitle, helpMessage: SearchPropertyHelp.zoneMessage)
+        let ward = InfoLabel("Ward", helpTitle: SearchPropertyHelp.wardTitle, helpMessage: SearchPropertyHelp.wardMessage)
+        let house = InfoLabel("House Number", helpTitle: SearchPropertyHelp.houseNumberTitle, helpMessage: SearchPropertyHelp.houseNumberMessage)
+        switch mode {
+        case .owner:
+            add(InfoLabel("Owner Name", helpTitle: SearchPropertyHelp.ownerNameTitle, helpMessage: SearchPropertyHelp.ownerNameMessage), ownerField)
+            add(InfoLabel("Father Name", helpTitle: SearchPropertyHelp.fatherNameTitle, helpMessage: SearchPropertyHelp.fatherNameMessage), fatherField, last: true)
+        case .propertyId:
+            add(InfoLabel("Property ID", helpTitle: SearchPropertyHelp.propertyIdTitle, helpMessage: SearchPropertyHelp.propertyIdMessage), propertyIdField, last: true)
+        case .houseNo:
+            add(zone, zoneField)
+            add(ward, wardField)
+            add(house, houseNoField, last: true)
+        case .location:
+            add(zone, zoneField)
+            add(ward, wardField)
+            add(InfoLabel("Mohalla", helpTitle: SearchPropertyHelp.mohallaTitle, helpMessage: SearchPropertyHelp.mohallaMessage), mohallaField)
+            add(house, houseNoField, last: true)
+        case .mobile:
+            add(InfoLabel("Mobile Number", helpTitle: SearchPropertyHelp.mobileNumberTitle, helpMessage: SearchPropertyHelp.mobileNumberMessage), mobileField, last: true)
+        }
+        view.layoutIfNeeded()
+    }
 
-    private func updateModeChips() {
-        let orange = UIColor(red: 0.902, green: 0.459, blue: 0.078, alpha: 1)
-        let fieldFill = UIColor(red: 0.973, green: 0.976, blue: 0.984, alpha: 1)
-        for (mode, btn) in chipButtons {
-            let selected = mode == viewModel.searchMode
-            btn.backgroundColor = selected ? orange : fieldFill
-            btn.setTitleColor(selected ? .white : UIColor(red: 0.6, green: 0.6, blue: 0.6, alpha: 1), for: .normal)
+    private func setError(_ message: String?) {
+        errorLabel.text = message
+        errorLabel.isHidden = message == nil
+    }
+
+    // MARK: - Data loading
+
+    private func loadUlbData() async {
+        isLoadingUlbs = true
+        ulbField.isLoading = true
+        setError(nil)
+        do {
+            ulbList = try await APIService.shared.getUlbData()
+            isLoadingUlbs = false
+            ulbField.isLoading = false
+            await preselectLoginUlb()
+        } catch {
+            isLoadingUlbs = false
+            ulbField.isLoading = false
+            setError(APIError.userMessage(error, fallback: "Unable to load ULB data right now. Please try again."))
         }
     }
 
-    // MARK: - Form body rebuild
+    /// Selects the ULB from the OTP-login response by default (never overrides a manual pick).
+    private func preselectLoginUlb() async {
+        guard selectedUlb == nil, !ulbList.isEmpty,
+              let loginUlbId = StorageService.ulbCache?.trimmingCharacters(in: .whitespaces), !loginUlbId.isEmpty,
+              let match = ulbList.first(where: { ($0.ulbId ?? "").trimmingCharacters(in: .whitespaces) == loginUlbId })
+        else { return }
+        selectedUlb = match
+        ulbField.value = match.ulbName
+        await loadZoneData(loginUlbId)
+    }
 
-    private func rebuildFormBody() {
-        formBodyContainer.subviews.forEach { $0.removeFromSuperview() }
-
-        let stack = UIStackView()
-        stack.axis = .vertical
-        stack.spacing = 8
-        stack.translatesAutoresizingMaskIntoConstraints = false
-
-        switch viewModel.searchMode {
-        case "By Owner":
-            stack.addArrangedSubview(makeFieldLabel("Owner Name"))
-            let ownerTF = makeTextField(placeholder: "Enter owner name", tag: 1)
-            stack.addArrangedSubview(ownerTF)
-            stack.setCustomSpacing(16, after: ownerTF)
-            stack.addArrangedSubview(makeFieldLabel("Father Name"))
-            stack.addArrangedSubview(makeTextField(placeholder: "Enter father name", tag: 2))
-
-        case "By Property ID":
-            stack.addArrangedSubview(makeFieldLabel("Property ID"))
-            stack.addArrangedSubview(makeTextField(placeholder: "Enter property ID", tag: 3))
-
-        case "By House No":
-            stack.addArrangedSubview(makeFieldLabel("Zone"))
-            let zoneD = makeDropdownInForm(tag: 10, placeholder: viewModel.isLoadingZones ? "Loading Zones..." : (viewModel.selectedZone?.zoneName ?? "Choose Zone"), isSelected: viewModel.selectedZone != nil)
-            stack.addArrangedSubview(zoneD)
-            stack.setCustomSpacing(16, after: zoneD)
-            stack.addArrangedSubview(makeFieldLabel("Ward"))
-            let wardD = makeDropdownInForm(tag: 11, placeholder: viewModel.isLoadingWards ? "Loading Wards..." : (viewModel.selectedWard?.wardName ?? "Choose Ward"), isSelected: viewModel.selectedWard != nil)
-            stack.addArrangedSubview(wardD)
-            stack.setCustomSpacing(16, after: wardD)
-            stack.addArrangedSubview(makeFieldLabel("House Number"))
-            stack.addArrangedSubview(makeTextField(placeholder: "Enter house number", tag: 5))
-
-        case "By Location":
-            stack.addArrangedSubview(makeFieldLabel("Zone"))
-            let zoneD = makeDropdownInForm(tag: 10, placeholder: viewModel.isLoadingZones ? "Loading Zones..." : (viewModel.selectedZone?.zoneName ?? "Choose Zone"), isSelected: viewModel.selectedZone != nil)
-            stack.addArrangedSubview(zoneD)
-            stack.setCustomSpacing(16, after: zoneD)
-            stack.addArrangedSubview(makeFieldLabel("Ward"))
-            let wardD = makeDropdownInForm(tag: 11, placeholder: viewModel.isLoadingWards ? "Loading Wards..." : (viewModel.selectedWard?.wardName ?? "Choose Ward"), isSelected: viewModel.selectedWard != nil)
-            stack.addArrangedSubview(wardD)
-            stack.setCustomSpacing(16, after: wardD)
-            stack.addArrangedSubview(makeFieldLabel("Mohalla"))
-            let mohallaD = makeDropdownInForm(tag: 12, placeholder: viewModel.isLoadingMohalles ? "Loading Mohallas..." : (viewModel.selectedMohalla?.mohallaName ?? "Choose Mohalla"), isSelected: viewModel.selectedMohalla != nil)
-            stack.addArrangedSubview(mohallaD)
-            stack.setCustomSpacing(16, after: mohallaD)
-            stack.addArrangedSubview(makeFieldLabel("House Number"))
-            stack.addArrangedSubview(makeTextField(placeholder: "Enter house number", tag: 5))
-
-        case "By Mobile No":
-            stack.addArrangedSubview(makeFieldLabel("Mobile Number"))
-            stack.addArrangedSubview(makeTextField(placeholder: "Enter mobile number", tag: 6, isPhone: true))
-
-        default: break
+    private func loadZoneData(_ ulbId: String) async {
+        isLoadingZones = true
+        zoneField.isLoading = true
+        zoneList = []; selectedZone = nil; zoneField.value = nil
+        wardList = []; selectedWard = nil; wardField.value = nil
+        mohallaList = []; selectedMohalla = nil; mohallaField.value = nil
+        do {
+            zoneList = try await APIService.shared.getZoneData(ulbId: ulbId)
+        } catch {
+            setError("Failed to load zones")
         }
+        isLoadingZones = false
+        zoneField.isLoading = false
+    }
 
-        formBodyContainer.addSubview(stack)
-        NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: formBodyContainer.topAnchor),
-            stack.leadingAnchor.constraint(equalTo: formBodyContainer.leadingAnchor),
-            stack.trailingAnchor.constraint(equalTo: formBodyContainer.trailingAnchor),
-            stack.bottomAnchor.constraint(equalTo: formBodyContainer.bottomAnchor),
+    private func loadWardData(_ ulbId: String, _ zoneId: String) async {
+        isLoadingWards = true
+        wardField.isLoading = true
+        wardList = []; selectedWard = nil; wardField.value = nil
+        mohallaList = []; selectedMohalla = nil; mohallaField.value = nil
+        do {
+            wardList = try await APIService.shared.getWardData(ulbId: ulbId, zoneId: zoneId)
+        } catch {
+            setError("Failed to load wards")
+        }
+        isLoadingWards = false
+        wardField.isLoading = false
+    }
+
+    private func loadMohallaData(_ ulbId: String, _ zoneId: String, _ wardId: String) async {
+        isLoadingMohallas = true
+        mohallaField.isLoading = true
+        mohallaList = []; selectedMohalla = nil; mohallaField.value = nil
+        do {
+            mohallaList = try await APIService.shared.getMohallaData(ulbId: ulbId, zoneId: zoneId, wardId: wardId)
+        } catch {
+            setError("Failed to load mohallas")
+        }
+        isLoadingMohallas = false
+        mohallaField.isLoading = false
+    }
+
+    // MARK: - Pickers
+
+    private func showUlbSelection() {
+        guard !isLoadingUlbs else { return }
+        OptionPickerSheet.present(on: self, title: "Select ULB",
+                                  options: ulbList.map { "\($0.ulbName ?? "") (\($0.ulbType ?? ""))" },
+                                  selected: nil, searchable: true) { [weak self] i in
+            guard let self else { return }
+            self.selectedUlb = self.ulbList[i]
+            self.ulbField.value = self.ulbList[i].ulbName
+            Task { await self.loadZoneData(self.ulbList[i].ulbId ?? "") }
+        }
+    }
+
+    private func showZoneSelection() {
+        guard selectedUlb != nil else { snack("Please select ULB first"); return }
+        guard !isLoadingZones else { return }
+        OptionPickerSheet.present(on: self, title: "Select Zone", options: zoneList.map(\.zoneName),
+                                  selected: nil, searchable: true) { [weak self] i in
+            guard let self, let ulb = self.selectedUlb else { return }
+            self.selectedZone = self.zoneList[i]
+            self.zoneField.value = self.zoneList[i].zoneName
+            Task { await self.loadWardData(ulb.ulbId ?? "", self.zoneList[i].zoneId) }
+        }
+    }
+
+    private func showWardSelection() {
+        guard selectedZone != nil else { snack("Please select Zone first"); return }
+        guard !isLoadingWards else { return }
+        OptionPickerSheet.present(on: self, title: "Select Ward", options: wardList.map(\.wardName),
+                                  selected: nil, searchable: true) { [weak self] i in
+            guard let self, let ulb = self.selectedUlb, let zone = self.selectedZone else { return }
+            self.selectedWard = self.wardList[i]
+            self.wardField.value = self.wardList[i].wardName
+            Task { await self.loadMohallaData(ulb.ulbId ?? "", zone.zoneId, self.wardList[i].wardId) }
+        }
+    }
+
+    private func showMohallaSelection() {
+        guard selectedWard != nil else { snack("Please select Ward first"); return }
+        guard !isLoadingMohallas else { return }
+        OptionPickerSheet.present(on: self, title: "Select Mohalla", options: mohallaList.map(\.mohallaName),
+                                  selected: nil, searchable: true) { [weak self] i in
+            guard let self else { return }
+            self.selectedMohalla = self.mohallaList[i]
+            self.mohallaField.value = self.mohallaList[i].mohallaName
+        }
+    }
+
+    // MARK: - Search
+
+    private func handleSearch() {
+        guard let ulb = selectedUlb else { snack("Please select ULB first"); return }
+        guard !searchButton.isLoading else { return }
+        view.endEditing(true)
+        searchButton.isLoading = true
+        Task {
+            do {
+                let properties = try await APIService.shared.searchProperty(
+                    ulbId: ulb.ulbId ?? "", searchType: mode.searchType,
+                    propertyId: propertyIdField.trimmedText, ownerName: ownerField.trimmedText,
+                    fatherName: fatherField.trimmedText, mobileNo: mobileField.trimmedText,
+                    zoneId: selectedZone?.zoneId ?? "", wardId: selectedWard?.wardId ?? "",
+                    mohallaId: selectedMohalla?.mohallaId ?? "", houseNo: houseNoField.trimmedText)
+                searchButton.isLoading = false
+                if properties.isEmpty {
+                    snack("No properties found")
+                    return
+                }
+                StorageService.saveUlbId(ulb.ulbId ?? "")
+                if let arv = properties.first?.totalArv {
+                    StorageService.saveTotalArv(JSON.dartDoubleString(arv))
+                }
+                push(PropertySelectionViewController(properties: properties))
+            } catch {
+                searchButton.isLoading = false
+                snack(APIError.userMessage(error, fallback: "Unable to search properties right now. Please try again."))
+            }
+        }
+    }
+
+    // MARK: - Logout
+
+    private func handleLogout() {
+        guard !isLoggingOut else { return }
+        AppDialog.show(on: self, title: "Logout", message: "Are you sure you want to logout?", actions: [
+            .init(title: "Cancel", style: .cancel, color: .grey700),
+            .init(title: "Logout", style: .destructive, color: .mRed600) { [weak self] in self?.performLogout() },
         ])
     }
 
-    private func makeTextField(placeholder: String, tag: Int, isPhone: Bool = false) -> UITextField {
-        let tf = UITextField()
-        tf.placeholder = placeholder
-        tf.font = UIFont(name: "Poppins-Regular", size: 14) ?? .systemFont(ofSize: 14)
-        tf.backgroundColor = UIColor(red: 0.973, green: 0.976, blue: 0.984, alpha: 1)
-        tf.layer.cornerRadius = 12
-        tf.layer.borderWidth = 1
-        tf.layer.borderColor = UIColor(red: 0.933, green: 0.933, blue: 0.933, alpha: 1).cgColor
-        tf.keyboardType = isPhone ? .phonePad : .default
-        tf.leftView = UIView(frame: CGRect(x: 0, y: 0, width: 16, height: 1))
-        tf.leftViewMode = .always
-        tf.rightView = UIView(frame: CGRect(x: 0, y: 0, width: 16, height: 1))
-        tf.rightViewMode = .always
-        tf.tag = tag
-        tf.heightAnchor.constraint(equalToConstant: 48).isActive = true
-        tf.delegate = self
-        // Orange focus border handled via delegate
-        return tf
-    }
-
-    private func makeDropdownInForm(tag: Int, placeholder: String, isSelected: Bool) -> DropdownField {
-        let d = DropdownField()
-        d.placeholder = placeholder
-        d.isValueSelected = isSelected
-        d.tag = tag
-        d.heightAnchor.constraint(equalToConstant: 48).isActive = true
-        d.addTarget(self, action: #selector(dropdownTapped(_:)), for: .touchUpInside)
-        return d
-    }
-
-    // MARK: - Bindings
-
-    private func bindViewModel() {
-        viewModel.$isLoadingUlbs.receive(on: DispatchQueue.main).sink { [weak self] loading in
-            guard let self else { return }
-            self.ulbDropdown.setLoading(loading,
-                placeholder: self.viewModel.selectedUlb.map { "\($0.ulbName) (\($0.ulbType))" } ?? "Choose ULB",
-                isSelected: self.viewModel.selectedUlb != nil)
-        }.store(in: &cancellables)
-
-        viewModel.$selectedUlb.receive(on: DispatchQueue.main).sink { [weak self] ulb in
-            guard let self else { return }
-            if let ulb {
-                self.ulbDropdown.placeholder = "\(ulb.ulbName) (\(ulb.ulbType))"
-                self.ulbDropdown.isValueSelected = true
-            } else {
-                self.ulbDropdown.placeholder = "Choose ULB"
-                self.ulbDropdown.isValueSelected = false
-            }
-        }.store(in: &cancellables)
-
-        Publishers.MergeMany(
-            viewModel.$selectedZone.map { _ in () }.eraseToAnyPublisher(),
-            viewModel.$selectedWard.map { _ in () }.eraseToAnyPublisher(),
-            viewModel.$selectedMohalla.map { _ in () }.eraseToAnyPublisher(),
-            viewModel.$isLoadingZones.map { _ in () }.eraseToAnyPublisher(),
-            viewModel.$isLoadingWards.map { _ in () }.eraseToAnyPublisher(),
-            viewModel.$isLoadingMohalles.map { _ in () }.eraseToAnyPublisher()
-        )
-        .receive(on: DispatchQueue.main)
-        .sink { [weak self] in self?.rebuildFormBody() }
-        .store(in: &cancellables)
-
-        viewModel.$isLoading.receive(on: DispatchQueue.main).sink { [weak self] loading in
-            self?.searchButton.setLoading(loading)
-        }.store(in: &cancellables)
-
-        viewModel.$errorMessage.receive(on: DispatchQueue.main).sink { [weak self] msg in
-            self?.errorLabel.text = msg
-            self?.errorLabel.isHidden = msg == nil
-        }.store(in: &cancellables)
-    }
-
-    // MARK: - Actions
-
-    @objc private func chipTapped(_ sender: UIButton) {
-        guard let title = sender.title(for: .normal) else { return }
-        viewModel.searchMode = title
-        viewModel.errorMessage = nil
-        updateModeChips()
-        rebuildFormBody()
-        view.endEditing(true)
-    }
-
-    @objc private func ulbTapped() {
-        guard !viewModel.isLoadingUlbs, !viewModel.ulbs.isEmpty else { return }
-        showSelectionSheet(title: "Select ULB",
-                           items: viewModel.ulbs.map { "\($0.ulbName) (\($0.ulbType))" }) { [weak self] idx in
-            guard let self else { return }
-            self.viewModel.selectUlb(self.viewModel.ulbs[idx])
+    private func performLogout() {
+        isLoggingOut = true
+        logoutButton.isHidden = true
+        logoutSpinner.startAnimating()
+        Task {
+            await SessionActions.logout()
+            AppRouter.shared.showOtpLogin()
         }
     }
 
-    @objc private func dropdownTapped(_ sender: UIControl) {
-        switch sender.tag {
-        case 10: // Zone
-            if viewModel.selectedUlb == nil {
-                ENSSnackbar.show(in: view, message: "Please select ULB first", isError: true); return
-            }
-            guard !viewModel.isLoadingZones, !viewModel.zones.isEmpty else { return }
-            showSelectionSheet(title: "Select Zone", items: viewModel.zones.map(\.zoneName)) { [weak self] idx in
-                self?.viewModel.selectZone(self!.viewModel.zones[idx])
-            }
-        case 11: // Ward
-            if viewModel.selectedZone == nil {
-                ENSSnackbar.show(in: view, message: "Please select Zone first", isError: true); return
-            }
-            guard !viewModel.isLoadingWards, !viewModel.wards.isEmpty else { return }
-            showSelectionSheet(title: "Select Ward", items: viewModel.wards.map(\.wardName)) { [weak self] idx in
-                self?.viewModel.selectWard(self!.viewModel.wards[idx])
-            }
-        case 12: // Mohalla
-            if viewModel.selectedWard == nil {
-                ENSSnackbar.show(in: view, message: "Please select Ward first", isError: true); return
-            }
-            guard !viewModel.isLoadingMohalles, !viewModel.mohalles.isEmpty else { return }
-            showSelectionSheet(title: "Select Mohalla", items: viewModel.mohalles.map(\.mohallaName)) { [weak self] idx in
-                self?.viewModel.selectedMohalla = self?.viewModel.mohalles[idx]
-            }
-        default: break
+    // MARK: - Tour
+
+    private func startTour() {
+        guard !TourCoachMarkView.isActive, gateView.isHidden else { return }
+        setMode(.owner)
+        func modeSteps(_ m: Mode, icon: String, title: String, body: String, fieldIcon: String,
+                       fieldTitle: String, fieldBody: String) -> [TourStep] {
+            let prepare: () -> Void = { [weak self] in self?.setMode(m) }
+            return [
+                TourStep(target: modeChips[m]!, icon: icon, title: title, description: body,
+                         shape: .roundedRect(radius: 10), prepare: prepare),
+                TourStep(target: modeFieldsContainer, icon: fieldIcon, title: fieldTitle, description: fieldBody,
+                         prepare: prepare),
+            ]
         }
-    }
-
-    @objc private func searchTapped() {
-        view.endEditing(true)
-        // Collect text field values from form body
-        collectFormValues()
-        viewModel.search()
-    }
-
-    private func collectFormValues() {
-        for sub in formBodyContainer.subviews {
-            collectFromView(sub)
-        }
-    }
-
-    private func collectFromView(_ view: UIView) {
-        if let tf = view as? UITextField {
-            switch tf.tag {
-            case 1: viewModel.ownerName = tf.text ?? ""
-            case 2: viewModel.fatherName = tf.text ?? ""
-            case 3: viewModel.propertyId = tf.text ?? ""
-            case 5: viewModel.houseNo = tf.text ?? ""
-            case 6: viewModel.mobileNumber = tf.text ?? ""
-            default: break
-            }
-        }
-        for sub in view.subviews { collectFromView(sub) }
-    }
-
-    // MARK: - Selection bottom sheet
-
-    private func showSelectionSheet(title: String, items: [String], onSelect: @escaping (Int) -> Void) {
-        let sheet = SelectionSheetViewController(title: title, items: items, onSelect: onSelect)
-        sheet.modalPresentationStyle = .pageSheet
-        if let s = sheet.sheetPresentationController {
-            s.detents = [.medium(), .large()]
-            s.prefersGrabberVisible = true
-            s.preferredCornerRadius = 24
-        }
-        present(sheet, animated: true)
-    }
-
-    // MARK: - Tour guide (first-run coach mark, see lib/tour_guides/search_property_tour.dart)
-    // Note: Flutter re-runs a short 2-step tour every time the search mode tab
-    // is switched (5 separate step sets, one per mode). To keep this native
-    // port simple, a single walkthrough is shown once on first visit covering
-    // the mode tabs, the ULB picker, the current form fields (defaulting to
-    // "By Owner", the initial mode), and the Search button.
-
-    private func presentTourIfNeeded() {
-        guard !didPresentTour, !UserDefaultsService.shared.hasTourBeenSeen(.searchProperty) else { return }
-        guard let modeChipsContainerView else { return }
-        didPresentTour = true
-
-        let steps: [TourStep] = [
-            TourStep(target: modeChipsContainerView, icon: "slider.horizontal.3",
-                     title: "5 Ways to Search",
-                     description: "You can search property in 5 different ways. Each tab shows different input fields. Tap any tab to switch the search mode.",
-                     edge: .bottom),
-            TourStep(target: ulbDropdown, icon: "building.columns",
-                     title: "Select ULB",
-                     description: "Select your Urban Local Body first. This is mandatory for all 5 search options and loads the location data.",
-                     edge: .bottom),
-            TourStep(target: formBodyContainer, icon: "person.text.rectangle",
-                     title: "Owner Search Fields",
-                     description: "Enter Owner Name and Father Name here to search matching properties under that owner profile.",
-                     edge: .bottom),
-            TourStep(target: searchButton, icon: "magnifyingglass",
-                     title: "Search Property",
-                     description: "Once ULB and required fields are filled, tap Search. Matching properties will open on the next screen where you can select and save one.",
-                     edge: .top),
+        var steps: [TourStep] = [
+            TourStep(target: tabsView, icon: "slider.horizontal.3", title: "5 Ways to Search",
+                     description: "You can search property in 5 different ways. Each tab shows different input fields. Tap any tab to switch the search mode."),
+            TourStep(target: ulbField, icon: "building.columns", title: "Select ULB",
+                     description: "Select your Urban Local Body first. This is mandatory for all 5 search options and loads the location data."),
         ]
-
-        TourCoachMarkView.present(steps: steps) {
-            UserDefaultsService.shared.markTourSeen(.searchProperty)
-        }
+        steps += modeSteps(.owner, icon: "person.crop.circle.badge.magnifyingglass", title: "By Owner Name",
+                           body: "Search by entering the property owner's name and their father's name. Useful when you know the owner but not the property ID.",
+                           fieldIcon: "person.text.rectangle", fieldTitle: "Owner Search Fields",
+                           fieldBody: "Enter Owner Name and Father Name here to search matching properties under that owner profile.")
+        steps += modeSteps(.propertyId, icon: "number", title: "By Property ID",
+                           body: "Enter the unique Property ID directly. This is the fastest way if you already have the property ID on hand.",
+                           fieldIcon: "number.square", fieldTitle: "Property ID Field",
+                           fieldBody: "Type the exact Property ID here to open the property quickly without searching through multiple results.")
+        steps += modeSteps(.houseNo, icon: "house", title: "By House Number",
+                           body: "Search using house number. Select Zone and Ward first, then enter the house number to narrow down results.",
+                           fieldIcon: "house.and.flag", fieldTitle: "House Number Search Fields",
+                           fieldBody: "Choose Zone, then Ward, and then enter the house number. This narrows the search inside the selected area.")
+        steps += modeSteps(.location, icon: "mappin.and.ellipse", title: "By Location",
+                           body: "Search by full address. Select Zone -> Ward -> Mohalla in order, then optionally add a house number to get precise results.",
+                           fieldIcon: "building.2", fieldTitle: "Location Search Fields",
+                           fieldBody: "Select Zone, Ward, and Mohalla here. You can also add House Number to make the location search more accurate.")
+        steps += modeSteps(.mobile, icon: "phone", title: "By Mobile Number",
+                           body: "Enter the 10-digit mobile number registered with the property. All properties linked to that number will appear.",
+                           fieldIcon: "iphone", fieldTitle: "Mobile Search Field",
+                           fieldBody: "Enter the registered mobile number here. This is useful when the owner has more than one linked property.")
+        steps.append(TourStep(target: searchButton, icon: "magnifyingglass", title: "Search Property",
+                              description: "Once ULB and required fields are filled, tap Search. Matching properties will open on the next screen where you can select and save one.",
+                              shape: .roundedRect(radius: 14), edge: .top, prepare: { [weak self] in self?.setMode(.mobile) }))
+        TourCoachMarkView.present(steps: steps, scrollContainer: scrollView)
     }
 }
 
-// MARK: - UITextFieldDelegate
-
-extension SearchPropertyViewController: UITextFieldDelegate {
-    func textFieldDidBeginEditing(_ textField: UITextField) {
-        textField.layer.borderColor = UIColor(red: 0.902, green: 0.459, blue: 0.078, alpha: 1).cgColor
-        textField.layer.borderWidth = 1.5
-    }
-    func textFieldDidEndEditing(_ textField: UITextField) {
-        textField.layer.borderColor = UIColor(red: 0.933, green: 0.933, blue: 0.933, alpha: 1).cgColor
-        textField.layer.borderWidth = 1
-    }
-    func textFieldShouldReturn(_ textField: UITextField) -> Bool {
-        textField.resignFirstResponder(); return true
+/// Shared logout used by Search Property and Account (API logout best-effort, then local wipe).
+enum SessionActions {
+    static func logout() async {
+        _ = try? await APIService.shared.logout()
+        await DatabaseService.shared.clearDatabase()
+        StorageService.logout()
     }
 }
 
-// MARK: - DropdownField
-
-final class DropdownField: UIControl {
-    private let label = UILabel()
-    private let chevron = UIImageView(image: UIImage(systemName: "chevron.down"))
-    private let spinner = UIActivityIndicatorView(style: .small)
-
-    var placeholder: String = "" {
-        didSet { label.text = placeholder }
-    }
-    var isValueSelected: Bool = false {
-        didSet { updateStyle() }
-    }
-
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        setup()
-    }
-    required init?(coder: NSCoder) { fatalError() }
-
-    private func setup() {
-        backgroundColor = UIColor(red: 0.973, green: 0.976, blue: 0.984, alpha: 1)
-        layer.cornerRadius = 12
-        layer.borderWidth = 1
-        layer.borderColor = UIColor(red: 0.933, green: 0.933, blue: 0.933, alpha: 1).cgColor
-
-        label.font = UIFont(name: "Poppins-Regular", size: 13) ?? .systemFont(ofSize: 13)
-        label.lineBreakMode = .byTruncatingTail
-        label.translatesAutoresizingMaskIntoConstraints = false
-
-        chevron.tintColor = UIColor(red: 0.6, green: 0.6, blue: 0.6, alpha: 1)
-        chevron.contentMode = .scaleAspectFit
-        chevron.translatesAutoresizingMaskIntoConstraints = false
-
-        spinner.translatesAutoresizingMaskIntoConstraints = false
-        spinner.hidesWhenStopped = true
-
-        addSubview(label)
-        addSubview(chevron)
-        addSubview(spinner)
-        NSLayoutConstraint.activate([
-            chevron.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -14),
-            chevron.centerYAnchor.constraint(equalTo: centerYAnchor),
-            chevron.widthAnchor.constraint(equalToConstant: 16),
-            chevron.heightAnchor.constraint(equalToConstant: 16),
-            spinner.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -14),
-            spinner.centerYAnchor.constraint(equalTo: centerYAnchor),
-            label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14),
-            label.trailingAnchor.constraint(equalTo: chevron.leadingAnchor, constant: -8),
-            label.centerYAnchor.constraint(equalTo: centerYAnchor),
-        ])
-        updateStyle()
-    }
-
-    func setLoading(_ loading: Bool, placeholder: String, isSelected: Bool) {
-        self.placeholder = loading ? "Loading ULBs..." : placeholder
-        isUserInteractionEnabled = !loading
-        chevron.isHidden = loading
-        if loading { spinner.startAnimating() } else { spinner.stopAnimating() }
-        self.isValueSelected = isSelected
-    }
-
-    private func updateStyle() {
-        if isValueSelected {
-            label.textColor = UIColor(red: 0.133, green: 0.133, blue: 0.133, alpha: 1)
-            label.font = UIFont(name: "Poppins-Medium", size: 13) ?? .systemFont(ofSize: 13, weight: .medium)
-        } else {
-            label.textColor = UIColor(red: 0.6, green: 0.6, blue: 0.6, alpha: 1)
-            label.font = UIFont(name: "Poppins-Regular", size: 13) ?? .systemFont(ofSize: 13)
-        }
-    }
-}
-
-// MARK: - SelectionSheetViewController
-
-final class SelectionSheetViewController: UIViewController, UITableViewDataSource, UITableViewDelegate, UISearchBarDelegate {
-
-    private let sheetTitle: String
-    private let allItems: [String]
-    private var filtered: [String]
-    private let onSelect: (Int) -> Void
-
-    private let tableView = UITableView()
-    private let searchBar = UISearchBar()
-
-    init(title: String, items: [String], onSelect: @escaping (Int) -> Void) {
-        self.sheetTitle = title
-        self.allItems = items
-        self.filtered = items
-        self.onSelect = onSelect
-        super.init(nibName: nil, bundle: nil)
-    }
-    required init?(coder: NSCoder) { fatalError() }
-
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        view.backgroundColor = .white
-
-        // Title row
-        let titleLabel = UILabel()
-        titleLabel.text = sheetTitle
-        titleLabel.font = UIFont(name: "Poppins-Bold", size: 17) ?? .boldSystemFont(ofSize: 17)
-        titleLabel.translatesAutoresizingMaskIntoConstraints = false
-
-        let closeBtn = UIButton(type: .system)
-        closeBtn.setImage(UIImage(systemName: "xmark"), for: .normal)
-        closeBtn.tintColor = UIColor(red: 0.5, green: 0.5, blue: 0.5, alpha: 1)
-        closeBtn.addTarget(self, action: #selector(dismiss(_:)), for: .touchUpInside)
-        closeBtn.translatesAutoresizingMaskIntoConstraints = false
-
-        // Search bar
-        searchBar.placeholder = "Search..."
-        searchBar.searchBarStyle = .minimal
-        searchBar.delegate = self
-        searchBar.tintColor = UIColor(red: 0.902, green: 0.459, blue: 0.078, alpha: 1)
-        searchBar.translatesAutoresizingMaskIntoConstraints = false
-
-        // Table
-        tableView.dataSource = self
-        tableView.delegate = self
-        tableView.separatorColor = UIColor(red: 0.95, green: 0.95, blue: 0.95, alpha: 1)
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "Cell")
-        tableView.translatesAutoresizingMaskIntoConstraints = false
-
-        view.addSubview(titleLabel)
-        view.addSubview(closeBtn)
-        view.addSubview(searchBar)
-        view.addSubview(tableView)
-
-        NSLayoutConstraint.activate([
-            titleLabel.topAnchor.constraint(equalTo: view.topAnchor, constant: 20),
-            titleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            titleLabel.trailingAnchor.constraint(equalTo: closeBtn.leadingAnchor, constant: -8),
-            closeBtn.centerYAnchor.constraint(equalTo: titleLabel.centerYAnchor),
-            closeBtn.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -12),
-            closeBtn.widthAnchor.constraint(equalToConstant: 36),
-            closeBtn.heightAnchor.constraint(equalToConstant: 36),
-            searchBar.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 8),
-            searchBar.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 12),
-            searchBar.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -12),
-            tableView.topAnchor.constraint(equalTo: searchBar.bottomAnchor, constant: 4),
-            tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-        ])
-    }
-
-    @objc private func dismiss(_ sender: Any) { dismiss(animated: true) }
-
-    func tableView(_ tv: UITableView, numberOfRowsInSection s: Int) -> Int { filtered.count }
-
-    func tableView(_ tv: UITableView, cellForRowAt ip: IndexPath) -> UITableViewCell {
-        let cell = tv.dequeueReusableCell(withIdentifier: "Cell", for: ip)
-        cell.textLabel?.text = filtered[ip.row]
-        cell.textLabel?.font = UIFont(name: "Poppins-Regular", size: 14) ?? .systemFont(ofSize: 14)
-        return cell
-    }
-
-    func tableView(_ tv: UITableView, didSelectRowAt ip: IndexPath) {
-        tv.deselectRow(at: ip, animated: true)
-        let item = filtered[ip.row]
-        let originalIndex = allItems.firstIndex(of: item) ?? ip.row
-        onSelect(originalIndex)
-        dismiss(animated: true)
-    }
-
-    func searchBar(_ searchBar: UISearchBar, textDidChange text: String) {
-        filtered = text.isEmpty ? allItems : allItems.filter { $0.localizedCaseInsensitiveContains(text) }
-        tableView.reloadData()
-    }
+/// lib/help/search_property_help.dart
+enum SearchPropertyHelp {
+    static let ulbTitle = "Select ULB"
+    static let ulbMessage = "Select the Urban Local Body (ULB) — the municipality or town council under which your property is registered.\n\nIf you are unsure, contact your local municipal office."
+    static let ownerNameTitle = "Owner Name"
+    static let ownerNameMessage = "Enter the full name of the property owner as registered in the municipal records.\n\nPartial names are also accepted."
+    static let fatherNameTitle = "Father Name"
+    static let fatherNameMessage = "Enter the father's or husband's name of the property owner as recorded in municipal records.\n\nUsed to narrow down search results."
+    static let propertyIdTitle = "Property ID"
+    static let propertyIdMessage = "Enter the unique Property ID assigned to your property by the municipality.\n\nYou can find this ID on your previous tax receipts or municipal documents."
+    static let zoneTitle = "Zone"
+    static let zoneMessage = "Select the zone in which your property is located.\n\nZones are administrative divisions used by the municipality to manage property records."
+    static let wardTitle = "Ward"
+    static let wardMessage = "Select the ward number or name for your property area.\n\nWards are smaller divisions within a zone. Check your tax receipt or address documents for your ward."
+    static let houseNumberTitle = "House Number"
+    static let houseNumberMessage = "Enter the house/plot number as it appears on your property documents.\n\nExample: 12, 4B, or Plot-7."
+    static let mohallaTitle = "Mohalla"
+    static let mohallaMessage = "Select the mohalla (locality/neighbourhood) where your property is located.\n\nThis helps narrow down the search within the selected ward."
+    static let mobileNumberTitle = "Mobile Number"
+    static let mobileNumberMessage = "Enter the 10-digit mobile number registered with the municipality for your property.\n\nExample: 9876543210"
 }

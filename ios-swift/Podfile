@@ -1,22 +1,23 @@
 platform :ios, '16.0'
 use_frameworks!
 
-target 'eNagarsewa' do
+project 'eNagarsewa.xcodeproj'
 
-  # Firebase (push notifications only — no Firestore)
+target 'eNagarsewa' do
+  # Firebase — push notifications (firebase_messaging) and Crashlytics (firebase_crashlytics).
   pod 'FirebaseCore'
   pod 'FirebaseMessaging'
+  pod 'FirebaseCrashlytics'
 
-  # PayU iOS SDK — verify exact pod name from PayU iOS SDK docs
-  # pod 'PayUbiz', '~> 7.0'   # update when confirmed
-
+  # PayU CheckoutPro (payu_checkoutpro_flutter). PayUCheckoutBridge compiles without it
+  # (`#if canImport(PayUCheckoutProKit)`), but payments need it in real builds.
+  pod 'PayUIndia-CheckoutPro'
 end
 
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
-      config.build_settings['SWIFT_VERSION'] = '5.9'
     end
   end
 end

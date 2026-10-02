@@ -1,349 +1,166 @@
 import UIKit
-import Combine
 
-final class TransactionHistoryViewController: UIViewController {
+/// Port of lib/transaction_history_screen.dart.
+final class TransactionHistoryViewController: BaseViewController {
 
-    private let viewModel: TransactionHistoryViewModel
-    weak var coordinator: MainCoordinator?
-    private var cancellables = Set<AnyCancellable>()
+    override var screenBackground: UIColor { .appFieldFill }
 
-    private let tableView   = UITableView(frame: .zero, style: .plain)
-    private let spinner     = UIActivityIndicatorView(style: .large)
-    private let errorView   = UIView()
-    private let emptyView   = UIView()
-    private weak var errorLabel: UILabel?
-    private var didPresentTour = false
-
-    init(viewModel: TransactionHistoryViewModel, coordinator: MainCoordinator) {
-        self.viewModel   = viewModel
-        self.coordinator = coordinator
-        super.init(nibName: nil, bundle: nil)
-    }
-    required init?(coder: NSCoder) { fatalError() }
+    private var transactions: [TransactionData] = []
+    private var firstCard: UIView?
+    private var firstBadge: UIView?
+    private var queuedAutoTour = false
+    private let refresh = UIRefreshControl()
+    private let stateContainer = UIView()
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        title = "Transaction History"
-        view.backgroundColor = .appBackground
-        setupLayout()
-        bindViewModel()
-        viewModel.onViewAppear()
+        configureNav(title: "Transaction History",
+                     rightItems: [helpItem { [weak self] in self?.startTour(showUnavailable: true) }])
+        installScrollStack(insets: UIEdgeInsets(top: 16, left: 16, bottom: 16, right: 16), spacing: 16)
+        refresh.tintColor = UIColor(argb: 0xFF0E3B90)
+        refresh.addAction(UIAction { [weak self] _ in Task { await self?.fetch(showSpinner: false) } }, for: .valueChanged)
+        scrollView.refreshControl = refresh
+        view.addSubview(stateContainer)
+        stateContainer.pinToSafeArea(of: view)
+        Task { await fetch(showSpinner: true) }
     }
 
-    // MARK: - Layout
-
-    private func setupLayout() {
-        spinner.color = .appPrimary
-        spinner.hidesWhenStopped = true
-        spinner.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(spinner)
-
-        tableView.separatorStyle = .none
-        tableView.backgroundColor = .appBackground
-        tableView.contentInset = UIEdgeInsets(top: 8, left: 0, bottom: 24, right: 0)
-        tableView.register(TxnCardCell.self, forCellReuseIdentifier: "TxnCardCell")
-        tableView.dataSource = self; tableView.delegate = self
-        tableView.isHidden = true
-        tableView.translatesAutoresizingMaskIntoConstraints = false
-        let refresh = UIRefreshControl()
-        refresh.addTarget(self, action: #selector(refreshPulled), for: .valueChanged)
-        tableView.refreshControl = refresh
-        view.addSubview(tableView)
-
-        buildErrorView()
-        errorView.isHidden = true
-        errorView.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(errorView)
-
-        buildEmptyView()
-        emptyView.isHidden = true
-        emptyView.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(emptyView)
-
-        let safe = view.safeAreaLayoutGuide
+    private func showState(_ content: UIView?) {
+        stateContainer.subviews.forEach { $0.removeFromSuperview() }
+        stateContainer.isHidden = content == nil
+        guard let content else { return }
+        stateContainer.backgroundColor = screenBackground
+        stateContainer.addSubview(content)
+        content.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            spinner.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            spinner.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-            tableView.topAnchor.constraint(equalTo: safe.topAnchor),
-            tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            errorView.topAnchor.constraint(equalTo: safe.topAnchor),
-            errorView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            errorView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            errorView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            emptyView.topAnchor.constraint(equalTo: safe.topAnchor),
-            emptyView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            emptyView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            emptyView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            content.centerYAnchor.constraint(equalTo: stateContainer.centerYAnchor),
+            content.leadingAnchor.constraint(equalTo: stateContainer.leadingAnchor, constant: 24),
+            content.trailingAnchor.constraint(equalTo: stateContainer.trailingAnchor, constant: -24),
         ])
     }
 
-    private func buildErrorView() {
-        let icon = UIImageView(image: UIImage(systemName: "exclamationmark.circle"))
-        icon.tintColor = .systemRed; icon.contentMode = .scaleAspectFit
-        icon.widthAnchor.constraint(equalToConstant: 60).isActive = true
-        icon.heightAnchor.constraint(equalToConstant: 60).isActive = true
-
-        let lbl = UILabel()
-        lbl.font = UIFont(name: "Poppins-Regular", size: 14) ?? .systemFont(ofSize: 14)
-        lbl.textColor = .appCardText; lbl.textAlignment = .center; lbl.numberOfLines = 0
-        errorLabel = lbl
-
-        let retryBtn = UIButton.primaryButton(title: "Retry")
-        retryBtn.addTarget(self, action: #selector(retryTapped), for: .touchUpInside)
-        retryBtn.heightAnchor.constraint(equalToConstant: 50).isActive = true
-        retryBtn.widthAnchor.constraint(equalToConstant: 160).isActive = true
-
-        let stack = UIStackView(arrangedSubviews: [icon, lbl, retryBtn])
-        stack.axis = .vertical; stack.spacing = 20; stack.alignment = .center
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        errorView.addSubview(stack)
-        NSLayoutConstraint.activate([
-            stack.centerXAnchor.constraint(equalTo: errorView.centerXAnchor),
-            stack.centerYAnchor.constraint(equalTo: errorView.centerYAnchor),
-            stack.leadingAnchor.constraint(equalTo: errorView.leadingAnchor, constant: 24),
-            stack.trailingAnchor.constraint(equalTo: errorView.trailingAnchor, constant: -24),
-        ])
-    }
-
-    private func buildEmptyView() {
-        let icon = UIImageView(image: UIImage(systemName: "clock.arrow.circlepath"))
-        icon.tintColor = UIColor(red: 0.8, green: 0.8, blue: 0.8, alpha: 1)
-        icon.contentMode = .scaleAspectFit
-        icon.widthAnchor.constraint(equalToConstant: 80).isActive = true
-        icon.heightAnchor.constraint(equalToConstant: 80).isActive = true
-
-        let lbl = UILabel()
-        lbl.text = "No transactions found"
-        lbl.font = UIFont(name: "Poppins-Medium", size: 16) ?? .systemFont(ofSize: 16, weight: .medium)
-        lbl.textColor = UIColor(red: 0.4, green: 0.4, blue: 0.4, alpha: 1); lbl.textAlignment = .center
-
-        let stack = UIStackView(arrangedSubviews: [icon, lbl])
-        stack.axis = .vertical; stack.spacing = 16; stack.alignment = .center
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        emptyView.addSubview(stack)
-        NSLayoutConstraint.activate([
-            stack.centerXAnchor.constraint(equalTo: emptyView.centerXAnchor),
-            stack.centerYAnchor.constraint(equalTo: emptyView.centerYAnchor),
-        ])
-    }
-
-    // MARK: - Bindings
-
-    private func bindViewModel() {
-        viewModel.$isLoading.receive(on: DispatchQueue.main).sink { [weak self] loading in
-            guard let self else { return }
-            if loading && self.viewModel.transactions.isEmpty {
-                self.spinner.startAnimating()
-                self.tableView.isHidden = true
-                self.errorView.isHidden = true
-                self.emptyView.isHidden = true
-            } else if !loading {
-                self.spinner.stopAnimating()
-                self.tableView.refreshControl?.endRefreshing()
+    private func fetch(showSpinner: Bool) async {
+        if showSpinner {
+            let spinner = UIActivityIndicatorView(style: .large)
+            spinner.color = UIColor(argb: 0xFF0E3B90)
+            spinner.startAnimating()
+            showState(centered(spinner))
+        }
+        defer { refresh.endRefreshing() }
+        guard let email = StorageService.emailId, !email.isEmpty else {
+            showError("Email not found. Please log in again.")
+            return
+        }
+        do {
+            let response = try await APIService.shared.getTransactionsByEmail(emailId: email)
+            if response.status == true {
+                transactions = response.data ?? []
+                render()
+            } else {
+                showError(response.message ?? "Failed to load transactions")
             }
-        }.store(in: &cancellables)
-
-        viewModel.$transactions.receive(on: DispatchQueue.main).sink { [weak self] txns in
-            guard let self, !self.viewModel.isLoading else { return }
-            self.spinner.stopAnimating()
-            self.errorView.isHidden  = true
-            let empty = txns.isEmpty
-            self.emptyView.isHidden  = !empty
-            self.tableView.isHidden  = empty
-            self.tableView.reloadData()
-            if !empty {
-                DispatchQueue.main.async { self.presentTourIfNeeded() }
-            }
-        }.store(in: &cancellables)
-
-        viewModel.$errorMessage.receive(on: DispatchQueue.main).sink { [weak self] msg in
-            guard let msg else { return }
-            self?.spinner.stopAnimating()
-            self?.tableView.isHidden  = true
-            self?.emptyView.isHidden  = true
-            self?.errorView.isHidden  = false
-            self?.errorLabel?.text    = msg
-        }.store(in: &cancellables)
+        } catch {
+            showError(APIError.userMessage(error, fallback: "Unable to load transactions right now. Please try again."))
+        }
     }
 
-    @objc private func refreshPulled() { viewModel.onViewAppear() }
-    @objc private func retryTapped()   { viewModel.onViewAppear() }
+    private func showError(_ message: String) {
+        let retry = PrimaryButton("Retry", color: UIColor(argb: 0xFF0E3B90), height: 40, radius: 20, fontSize: 14, weight: .medium)
+        retry.contentEdgeInsets = UIEdgeInsets(top: 0, left: 24, bottom: 0, right: 24)
+        retry.onEvent { [weak self] in Task { await self?.fetch(showSpinner: true) } }
+        let stack = UIStackView.v(0, alignment: .center, [
+            UIImageView(symbol: "exclamationmark.circle", size: 56, color: .mRed),
+            UILabel(message, font: .poppins(14), color: .black87, lines: 0, alignment: .center),
+            retry,
+        ])
+        stack.setCustomSpacing(16, after: stack.arrangedSubviews[0])
+        stack.setCustomSpacing(24, after: stack.arrangedSubviews[1])
+        showState(stack)
+    }
 
-    // MARK: - Tour guide (first-run coach mark, see lib/tour_guides/transaction_history_tour.dart)
+    private func render() {
+        contentStack.removeAllArranged()
+        firstCard = nil
+        firstBadge = nil
+        guard !transactions.isEmpty else {
+            let stack = UIStackView.v(16, alignment: .center, [
+                UIImageView(symbol: "clock.arrow.circlepath", size: 72, color: .grey300),
+                UILabel("No transactions found", font: .poppins(16, .medium), color: .grey600),
+            ])
+            showState(stack)
+            return
+        }
+        showState(nil)
+        for (i, txn) in transactions.enumerated() {
+            contentStack.add(card(txn, first: i == 0))
+        }
+        if !queuedAutoTour {
+            queuedAutoTour = true
+            DispatchQueue.main.async { [weak self] in
+                TourGuide.autoStartIfFirstVisit(.transactionHistory) { self?.startTour(showUnavailable: false) }
+            }
+        }
+    }
 
-    private func presentTourIfNeeded() {
-        guard !didPresentTour, !UserDefaultsService.shared.hasTourBeenSeen(.transactionHistory) else { return }
-        guard let cell = tableView.cellForRow(at: IndexPath(row: 0, section: 0)) as? TxnCardCell else { return }
-        didPresentTour = true
+    static func statusStyle(_ status: String) -> (color: UIColor, bg: UIColor, icon: String) {
+        switch status {
+        case "SUCCESS": return (.mGreen, UIColor(argb: 0xFFE8F5E9), "checkmark.circle")
+        case "PENDING": return (UIColor(argb: 0xFFE6A23C), UIColor(argb: 0xFFFFF7E6), "clock")
+        case "FAILED":  return (.mRed, UIColor(argb: 0xFFFFEBEE), "exclamationmark.circle")
+        case "EXPIRED": return (UIColor(argb: 0xFF64748B), UIColor(argb: 0xFFF8FAFC), "timer")
+        default:        return (UIColor(argb: 0xFF64748B), UIColor(argb: 0xFFF8FAFC), "questionmark.circle")
+        }
+    }
 
-        let steps: [TourStep] = [
-            TourStep(target: cell.cardView, icon: "doc.text",
-                     title: "Transaction Card",
+    private func card(_ txn: TransactionData, first: Bool) -> UIView {
+        let status = txn.transactionStatus?.uppercased() ?? ""
+        let style = Self.statusStyle(status)
+        let card = CardView(radius: 16, shadowOpacity: 0.04, shadowBlur: 10, shadowY: 4)
+        let iconCircle = iconTile(style.icon, color: style.color, background: style.bg, size: 44, iconSize: 22, radius: 22)
+
+        let badgeView = UIView()
+        badgeView.backgroundColor = style.color.withAlphaComponent(0.1)
+        badgeView.layer.cornerRadius = 6
+        let badgeLabel = UILabel(status.isEmpty ? "UNKNOWN" : status, font: .poppins(10, .bold), color: style.color)
+        badgeView.addSubview(badgeLabel)
+        badgeLabel.pinToEdges(of: badgeView, insets: UIEdgeInsets(top: 4, left: 8, bottom: 4, right: 8))
+        badgeView.setContentHuggingPriority(.required, for: .horizontal)
+        badgeView.setContentCompressionResistancePriority(.required, for: .horizontal)
+
+        let amount = UILabel("₹ \(txn.paymentAmount ?? "0.0")", font: .poppins(18, .bold), color: .appTextDark)
+        amount.lineBreakMode = .byTruncatingTail
+        let info = UIStackView.v(0, [
+            UIStackView.h(8, [amount, FlexSpacer(), badgeView]),
+            UILabel("TXN ID: \(txn.txnId ?? "N/A")", font: .poppins(13, .semibold), color: .appTextMid, lines: 0),
+            UILabel(txn.dateTime ?? "", font: .poppins(12), color: .grey600),
+        ])
+        info.setCustomSpacing(8, after: info.arrangedSubviews[0])
+        info.setCustomSpacing(4, after: info.arrangedSubviews[1])
+        card.stack.add(UIStackView.h(16, alignment: .top, [iconCircle, info]))
+        card.onTap { [weak self] in
+            guard !TourCoachMarkView.isActive else { return }
+            self?.push(TransactionDetailsViewController(transaction: txn))
+        }
+        if first {
+            firstCard = card
+            firstBadge = badgeView
+        }
+        return card
+    }
+
+    private func startTour(showUnavailable: Bool) {
+        guard !TourCoachMarkView.isActive else { return }
+        guard let firstCard, let firstBadge else {
+            if showUnavailable { snack("Tour will be available once transaction records load.") }
+            return
+        }
+        TourCoachMarkView.present(steps: [
+            TourStep(target: firstCard, icon: "list.bullet.rectangle", title: "Transaction Card",
                      description: "This card shows your payment amount, transaction ID, date, and status. Tap it to open the full receipt details.",
-                     edge: .bottom),
-            TourStep(target: cell.badgeView, icon: "checkmark.seal",
-                     title: "Payment Status",
+                     shape: .roundedRect(radius: 16)),
+            TourStep(target: firstBadge, icon: "checkmark.seal", title: "Payment Status",
                      description: "Use this badge to quickly check whether the transaction is successful, pending, or failed.",
-                     edge: .bottom),
-        ]
-
-        TourCoachMarkView.present(steps: steps) {
-            UserDefaultsService.shared.markTourSeen(.transactionHistory)
-        }
-    }
-}
-
-extension TransactionHistoryViewController: UITableViewDataSource, UITableViewDelegate {
-
-    func tableView(_ tv: UITableView, numberOfRowsInSection s: Int) -> Int {
-        viewModel.transactions.count
-    }
-
-    func tableView(_ tv: UITableView, cellForRowAt ip: IndexPath) -> UITableViewCell {
-        let cell = tv.dequeueReusableCell(withIdentifier: "TxnCardCell", for: ip) as! TxnCardCell
-        cell.configure(with: viewModel.transactions[ip.row])
-        return cell
-    }
-
-    func tableView(_ tv: UITableView, didSelectRowAt ip: IndexPath) {
-        tv.deselectRow(at: ip, animated: true)
-        coordinator?.showTransactionDetails(viewModel.transactions[ip.row])
-    }
-
-    func tableView(_ tv: UITableView, heightForRowAt ip: IndexPath) -> CGFloat { UITableView.automaticDimension }
-    func tableView(_ tv: UITableView, estimatedHeightForRowAt ip: IndexPath) -> CGFloat { 104 }
-}
-
-// MARK: - TxnCardCell  (matches Flutter's _buildTransactionCard)
-
-final class TxnCardCell: UITableViewCell {
-
-    private let card        = UIView()
-    private let iconCircle  = UIView()
-    private let iconImage   = UIImageView()
-    private let amountLabel = UILabel()
-    private let badge       = UIView()
-    private let badgeLabel  = UILabel()
-    private let txnIdLabel  = UILabel()
-    private let dateLabel   = UILabel()
-
-    /// Exposed for the first-run tour guide to spotlight this cell's card/badge.
-    var cardView: UIView { card }
-    var badgeView: UIView { badge }
-
-    override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
-        super.init(style: style, reuseIdentifier: reuseIdentifier)
-        backgroundColor = .clear
-        selectionStyle  = .none
-        buildCard()
-    }
-    required init?(coder: NSCoder) { fatalError() }
-
-    private func buildCard() {
-        card.backgroundColor = .white
-        card.layer.cornerRadius = 16
-        card.addCardShadow()
-        card.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(card)
-
-        // Status icon circle
-        iconCircle.layer.cornerRadius = 22
-        iconCircle.clipsToBounds = true
-        iconCircle.widthAnchor.constraint(equalToConstant: 44).isActive = true
-        iconCircle.heightAnchor.constraint(equalToConstant: 44).isActive = true
-        iconImage.contentMode = .scaleAspectFit
-        iconImage.translatesAutoresizingMaskIntoConstraints = false
-        iconCircle.addSubview(iconImage)
-        NSLayoutConstraint.activate([
-            iconImage.centerXAnchor.constraint(equalTo: iconCircle.centerXAnchor),
-            iconImage.centerYAnchor.constraint(equalTo: iconCircle.centerYAnchor),
-            iconImage.widthAnchor.constraint(equalToConstant: 24),
-            iconImage.heightAnchor.constraint(equalToConstant: 24),
-        ])
-
-        // Amount
-        amountLabel.font = UIFont(name: "Poppins-Bold", size: 18) ?? .boldSystemFont(ofSize: 18)
-        amountLabel.textColor = UIColor(red: 0.2, green: 0.2, blue: 0.2, alpha: 1)
-        amountLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)
-
-        // Status badge
-        badge.layer.cornerRadius = 6
-        badge.clipsToBounds = true
-        badgeLabel.font = UIFont(name: "Poppins-Bold", size: 10) ?? .boldSystemFont(ofSize: 10)
-        badgeLabel.translatesAutoresizingMaskIntoConstraints = false
-        badge.addSubview(badgeLabel)
-        NSLayoutConstraint.activate([
-            badgeLabel.topAnchor.constraint(equalTo: badge.topAnchor, constant: 4),
-            badgeLabel.leadingAnchor.constraint(equalTo: badge.leadingAnchor, constant: 8),
-            badgeLabel.trailingAnchor.constraint(equalTo: badge.trailingAnchor, constant: -8),
-            badgeLabel.bottomAnchor.constraint(equalTo: badge.bottomAnchor, constant: -4),
-        ])
-
-        let topRow = UIStackView(arrangedSubviews: [amountLabel, badge])
-        topRow.axis = .horizontal; topRow.alignment = .center; topRow.distribution = .equalSpacing
-
-        txnIdLabel.font = UIFont(name: "Poppins-SemiBold", size: 13) ?? .systemFont(ofSize: 13, weight: .semibold)
-        txnIdLabel.textColor = UIColor(red: 0.267, green: 0.267, blue: 0.267, alpha: 1)
-
-        dateLabel.font = UIFont(name: "Poppins-Regular", size: 12) ?? .systemFont(ofSize: 12)
-        dateLabel.textColor = UIColor(red: 0.4, green: 0.4, blue: 0.4, alpha: 1)
-
-        let infoStack = UIStackView(arrangedSubviews: [topRow, txnIdLabel, dateLabel])
-        infoStack.axis = .vertical; infoStack.spacing = 8
-        infoStack.setCustomSpacing(4, after: txnIdLabel)
-
-        let mainRow = UIStackView(arrangedSubviews: [iconCircle, infoStack])
-        mainRow.axis = .horizontal; mainRow.spacing = 16; mainRow.alignment = .center
-        mainRow.translatesAutoresizingMaskIntoConstraints = false
-        card.addSubview(mainRow)
-
-        NSLayoutConstraint.activate([
-            card.topAnchor.constraint(equalTo: contentView.topAnchor),
-            card.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
-            card.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
-            card.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -16),
-            mainRow.topAnchor.constraint(equalTo: card.topAnchor, constant: 16),
-            mainRow.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 16),
-            mainRow.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -16),
-            mainRow.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -16),
-        ])
-    }
-
-    func configure(with txn: TransactionData) {
-        let status = txn.transactionStatus?.lowercased() ?? ""
-        let isSuccess = status == "success" || status == "captured"
-        let isPending = status == "pending"
-
-        let statusColor: UIColor
-        let bgColor: UIColor
-        let iconName: String
-
-        if isSuccess {
-            statusColor = .systemGreen
-            bgColor     = UIColor(red: 0.910, green: 0.961, blue: 0.910, alpha: 1)
-            iconName    = "checkmark.circle"
-        } else if isPending {
-            statusColor = UIColor(red: 0.902, green: 0.635, blue: 0.235, alpha: 1)
-            bgColor     = UIColor(red: 1.0, green: 0.969, blue: 0.902, alpha: 1)
-            iconName    = "clock"
-        } else {
-            statusColor = .systemRed
-            bgColor     = UIColor(red: 1.0, green: 0.922, blue: 0.922, alpha: 1)
-            iconName    = "xmark.circle"
-        }
-
-        iconCircle.backgroundColor = bgColor
-        iconImage.image    = UIImage(systemName: iconName)
-        iconImage.tintColor = statusColor
-
-        amountLabel.text        = "₹ \(txn.paymentAmount ?? "0.0")"
-        badgeLabel.text         = txn.transactionStatus ?? "Unknown"
-        badgeLabel.textColor    = statusColor
-        badge.backgroundColor   = statusColor.withAlphaComponent(0.1)
-
-        txnIdLabel.text = "TXN ID: \(txn.txnId ?? "N/A")"
-        dateLabel.text  = txn.dateTime ?? ""
+                     shape: .roundedRect(radius: 14)),
+        ], scrollContainer: scrollView)
     }
 }

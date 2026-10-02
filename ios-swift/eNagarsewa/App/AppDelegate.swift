@@ -1,18 +1,20 @@
 import UIKit
 import FirebaseCore
+import FirebaseCrashlytics
 import FirebaseMessaging
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
-    var appCoordinator: AppCoordinator?
-
-    func application(
-        _ application: UIApplication,
-        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
-    ) -> Bool {
+    func application(_ application: UIApplication,
+                     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        // Mirrors main.dart: Firebase starts before the UI; crash reporting only in release.
         FirebaseApp.configure()
-        PushNotificationService.shared.configure()
+        #if DEBUG
+        Crashlytics.crashlytics().setCrashlyticsCollectionEnabled(false)
+        #else
+        Crashlytics.crashlytics().setCrashlyticsCollectionEnabled(true)
+        #endif
         return true
     }
 
@@ -22,17 +24,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         Messaging.messaging().apnsToken = deviceToken
     }
 
-    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
-        print("[APNs] Registration failed: \(error.localizedDescription)")
-    }
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {}
 
     // MARK: - Scene lifecycle
 
-    func application(
-        _ application: UIApplication,
-        configurationForConnecting connectingSceneSession: UISceneSession,
-        options: UIScene.ConnectionOptions
-    ) -> UISceneConfiguration {
+    func application(_ application: UIApplication, configurationForConnecting connectingSceneSession: UISceneSession,
+                     options: UIScene.ConnectionOptions) -> UISceneConfiguration {
         UISceneConfiguration(name: "Default Configuration", sessionRole: connectingSceneSession.role)
     }
 }

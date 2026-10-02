@@ -2,82 +2,140 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>Enagarsewa</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>enagarsewa</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
 
-    <!-- App identity -->
-    <key>CFBundleName</key>
-    <string>e-Nagarsewa</string>
-    <key>CFBundleIdentifier</key>
-    <string>com.enagarsewa.app</string>
-    <key>CFBundleShortVersionString</key>
-    <string>1.2.1</string>
-    <key>CFBundleVersion</key>
-    <string>17</string>
+	<!-- API host — the counterpart of Flutter's dart-define BASE_URL (set in project.yml). -->
+	<key>BASE_URL</key>
+	<string>$(BASE_URL)</string>
 
-    <!-- Base URL — override via xcconfig per environment -->
-    <key>BASE_URL</key>
-    <string>https://iamsup.in/ulb_property_tax/</string>
+	<!-- Scene lifecycle (programmatic UI, no storyboards) -->
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneConfigurationName</key>
+					<string>Default Configuration</string>
+					<key>UISceneDelegateClassName</key>
+					<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
 
-    <!-- Scene lifecycle -->
-    <key>UIApplicationSceneManifest</key>
-    <dict>
-        <key>UIApplicationSupportsMultipleScenes</key>
-        <false/>
-        <key>UISceneConfigurations</key>
-        <dict>
-            <key>UIWindowSceneSessionRoleApplication</key>
-            <array>
-                <dict>
-                    <key>UISceneConfigurationName</key>
-                    <string>Default Configuration</string>
-                    <key>UISceneDelegateClassName</key>
-                    <string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
-                </dict>
-            </array>
-        </dict>
-    </dict>
+	<!-- Plain white launch screen (the Flutter launch image is a blank placeholder). -->
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>UIColorName</key>
+		<string></string>
+	</dict>
 
-    <!-- Push notifications (background fetch) -->
-    <key>UIBackgroundModes</key>
-    <array>
-        <string>remote-notification</string>
-    </array>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UIUserInterfaceStyle</key>
+	<string>Light</string>
+	<key>NSPhoneNumberFormattingTelephonyUIEnabled</key>
+	<false/>
 
-    <!-- Privacy usage descriptions -->
-    <key>NSCameraUsageDescription</key>
-    <string>Camera access is needed to attach photos to grievance submissions.</string>
+	<!-- Bundled fonts: Poppins (google_fonts) and Kruti Dev 010 (Hindi ULB text / bill PDF). -->
+	<key>UIAppFonts</key>
+	<array>
+		<string>Poppins-Regular.ttf</string>
+		<string>Poppins-Medium.ttf</string>
+		<string>Poppins-SemiBold.ttf</string>
+		<string>Poppins-Bold.ttf</string>
+		<string>Poppins-ExtraBold.ttf</string>
+		<string>Kruti Dev 010 Regular.ttf</string>
+	</array>
 
-    <key>NSPhotoLibraryUsageDescription</key>
-    <string>Photo library access is needed to attach images to grievance submissions.</string>
+	<!-- Privacy usage descriptions -->
+	<key>NSCameraUsageDescription</key>
+	<string>Camera access is needed so you can photograph documents and grievance evidence to attach to your application.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Photo library access is needed so you can attach existing document images and photos to your application.</string>
 
-    <key>NSContactsUsageDescription</key>
-    <string>Contact access is used to suggest your phone number and email during sign-up.</string>
+	<!-- Push notifications: silent FCM messages must be able to wake the app. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
+	<!-- FirebaseMessaging swizzling is kept on (as with the Flutter plugin). -->
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<true/>
 
-    <!-- UI -->
-    <key>UILaunchStoryboardName</key>
-    <string>LaunchScreen</string>
-    <key>UIRequiresFullScreen</key>
-    <true/>
-    <key>UISupportedInterfaceOrientations</key>
-    <array>
-        <string>UIInterfaceOrientationPortrait</string>
-    </array>
+	<!-- Export compliance (same answer as the Flutter app — verify with your own review). -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 
-    <!-- ATS — allow our pinned host; block everything else -->
-    <key>NSAppTransportSecurity</key>
-    <dict>
-        <key>NSExceptionDomains</key>
-        <dict>
-            <key>iamsup.in</key>
-            <dict>
-                <key>NSExceptionAllowsInsecureHTTPLoads</key>
-                <false/>
-                <key>NSExceptionRequiresForwardSecrecy</key>
-                <true/>
-                <key>NSIncludesSubdomains</key>
-                <true/>
-            </dict>
-        </dict>
-    </dict>
+	<!-- PayU UPI intent apps — canOpenURL returns false for unlisted schemes. -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>phonepe</string>
+		<string>tez</string>
+		<string>gpay</string>
+		<string>paytmmp</string>
+		<string>paytm</string>
+		<string>bhim</string>
+		<string>upi</string>
+		<string>credpay</string>
+		<string>amazonToPhone</string>
+		<string>mobikwik</string>
+		<string>freecharge</string>
+		<string>myairtelupi</string>
+		<string>ybl</string>
+		<string>icici</string>
+		<string>sms</string>
+		<string>tel</string>
+		<string>mailto</string>
+		<string>https</string>
+		<string>http</string>
+	</array>
 
+	<!-- The OTS department portal must load any linked site, including plain-http ones. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+		<key>NSAllowsArbitraryLoadsInWebContent</key>
+		<true/>
+	</dict>
 </dict>
 </plist>

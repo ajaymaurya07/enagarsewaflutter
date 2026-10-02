@@ -1,322 +1,279 @@
 import UIKit
-import Combine
 
-/// Full parity port of `lib/transaction_details_screen.dart`: the printable receipt card
-/// (header/status/table/footer) plus Share Receipt / Download action buttons.
-final class TransactionDetailsViewController: UIViewController {
+/// Port of lib/transaction_details_screen.dart — receipt card with Share (PDF) and Download (print).
+final class TransactionDetailsViewController: BaseViewController {
 
-    private let viewModel: TransactionDetailsViewModel
-    private var cancellables = Set<AnyCancellable>()
+    override var screenBackground: UIColor { UIColor(argb: 0xFFF0F2F5) }
 
-    init(viewModel: TransactionDetailsViewModel) {
-        self.viewModel = viewModel
+    private let txn: TransactionData
+    private var isKrutidev = false
+    private var shareButton: UIView!
+    private var downloadButton: UIView!
+    private let receiptContainer = UIView()
+
+    init(transaction: TransactionData) {
+        self.txn = transaction
         super.init(nibName: nil, bundle: nil)
     }
+
     required init?(coder: NSCoder) { fatalError() }
 
-    private let scrollView = UIScrollView()
+    private var status: String { txn.transactionStatus?.uppercased() ?? "" }
+    private var statusText: String { status.isEmpty ? "UNKNOWN" : status }
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        title = "Receipt"
-        view.backgroundColor = UIColor(red: 0.941, green: 0.949, blue: 0.961, alpha: 1)
-        navigationItem.leftBarButtonItem = UIBarButtonItem(
-            image: UIImage(systemName: "xmark"), style: .plain, target: self, action: #selector(closeTapped)
-        )
-        navigationItem.leftBarButtonItem?.tintColor = .black
-        // Help button is a visual placeholder only — the coach-mark tour system is a separate
-        // workstream and intentionally not wired up here.
-        navigationItem.rightBarButtonItem = UIBarButtonItem(
-            image: UIImage(systemName: "questionmark.circle"), style: .plain, target: nil, action: nil
-        )
-        navigationItem.rightBarButtonItem?.tintColor = .appPrimary
-        setupLayout()
+        configureNav(title: "Receipt", background: screenBackground, titleColor: .black87,
+                     rightItems: [helpItem { [weak self] in self?.startTour() }])
+        if let back = navigationItem.leftBarButtonItems?.first {
+            back.image = .symbol("xmark", size: 18, weight: .semibold)
+        }
 
-        viewModel.$isBusy.receive(on: DispatchQueue.main).sink { [weak self] busy in
-            self?.view.isUserInteractionEnabled = !busy
-        }.store(in: &cancellables)
+        let share = actionButton("Share Receipt", icon: "square.and.arrow.up", outlined: false) { [weak self] in self?.shareReceipt() }
+        let download = actionButton("Download", icon: "arrow.down.circle", outlined: true) { [weak self] in self?.downloadReceipt() }
+        shareButton = share
+        downloadButton = download
+        let buttons = UIStackView.h(16, alignment: .fill, [share, download])
+        buttons.distribution = .fillEqually
+
+        installScrollStack(insets: UIEdgeInsets(top: 16, left: 16, bottom: 40, right: 16))
+        contentStack.add(receiptContainer)
+        contentStack.addSpacer(24)
+        contentStack.add(buttons)
+        renderReceipt()
+
+        Task {
+            isKrutidev = UlbLanguageHelper.isKrutidevValue(await resolveUlbLang())
+            renderReceipt()
+        }
     }
 
-    private func setupLayout() {
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(scrollView)
-        scrollView.pinToEdges(of: view)
-
-        let content = UIView()
-        content.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.addSubview(content)
-
-        let receiptCard = buildReceiptCard()
-        let actionsRow = buildActionsRow()
-
-        let stack = UIStackView(arrangedSubviews: [receiptCard, actionsRow])
-        stack.axis = .vertical
-        stack.setCustomSpacing(24, after: receiptCard)
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        content.addSubview(stack)
-
-        NSLayoutConstraint.activate([
-            content.topAnchor.constraint(equalTo: scrollView.topAnchor),
-            content.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
-            content.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
-            content.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
-            content.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
-
-            stack.topAnchor.constraint(equalTo: content.topAnchor, constant: 16),
-            stack.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 16),
-            stack.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -16),
-            stack.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -40),
-        ])
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        TourGuide.autoStartIfFirstVisit(.transactionDetails) { startTour() }
     }
 
-    // MARK: - Receipt card (matches Flutter's _buildReceiptCard)
+    // MARK: - Language (the transaction's own property, not the app-wide cache)
 
-    private func buildReceiptCard() -> UIView {
-        // Outer view casts the shadow (must not clip, or the shadow itself gets clipped away);
-        // the inner `card` clips its content to the rounded corners.
-        let shadowContainer = UIView()
-        shadowContainer.backgroundColor = .white
-        shadowContainer.layer.cornerRadius = 8
-        shadowContainer.addShadow(opacity: 0.08, radius: 12, offset: CGSize(width: 0, height: 4))
+    private func resolveUlbLang() async -> String? {
+        let propertyId = txn.propertyId ?? ""
+        let property = propertyId.isEmpty ? nil : await DatabaseService.shared.getPropertyById(propertyId)
+        if let lang = property?.ulbLang, !lang.trimmingCharacters(in: .whitespaces).isEmpty { return lang }
+        return await fetchUlbLangFromApi(propertyId, ulbId: property?.ulbId ?? txn.ulbId, ulbName: txn.ulbName)
+    }
+
+    /// propertysearch lookup only for the language — nothing is saved.
+    private func fetchUlbLangFromApi(_ propertyId: String, ulbId: String?, ulbName: String?) async -> String? {
+        guard !propertyId.isEmpty else { return nil }
+        var resolved = ulbId ?? ""
+        if resolved.isEmpty, let name = ulbName?.trimmingCharacters(in: .whitespaces).lowercased(), !name.isEmpty {
+            resolved = (try? await APIService.shared.getUlbData())?
+                .first { ($0.ulbName?.trimmingCharacters(in: .whitespaces).lowercased() ?? "") == name }?.ulbId ?? ""
+        }
+        let results = (try? await APIService.shared.searchProperty(ulbId: resolved, searchType: "PROPERTY",
+                                                                   propertyId: propertyId)) ?? []
+        return results.first { $0.propertyId == propertyId }?.ulbLang
+    }
+
+    // MARK: - Receipt card
+
+    private static func display(_ value: String?) -> String {
+        guard let t = value?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty, t.lowercased() != "null" else { return "-" }
+        return t
+    }
+
+    private var ulbLabel: String {
+        let parts = [txn.ulbName, txn.ulbType].compactMap { $0 }
+        return parts.isEmpty ? "" : ", " + parts.joined(separator: " ")
+    }
+
+    private var statusMessage: String {
+        let pid = txn.propertyId ?? "N/A"
+        return status == "SUCCESS"
+            ? "Payment for Property Tax Successful for Property ID. [ \(pid) ]\(ulbLabel)"
+            : "Payment \(statusText) for Property ID. [ \(pid) ]\(ulbLabel)"
+    }
+
+    private var rows: [(label: String, value: String, language: Bool)] {
+        [
+            ("ULB Name", Self.display(txn.ulbName), false),
+            ("ULB Type", Self.display(txn.ulbType), false),
+            ("Financial Year", Self.display(txn.financialYear), false),
+            ("Transaction Number", Self.display(txn.txnId), false),
+            ("Bill No", Self.display(txn.billNo), false),
+            ("Property ID", Self.display(txn.propertyId), false),
+            ("Transaction Date", Self.display(txn.dateTime), false),
+            ("Payment Status", statusText, false),
+            ("Payment Mode", Self.display(txn.paymentMode), false),
+            ("Bank Ref No", Self.display(txn.bankRefNo), false),
+            ("User Code", Self.display(txn.userCode), false),
+            ("Owner Name", Self.display(txn.ownerName), true),
+            ("Father/Husband Name", Self.display(txn.fatherName), true),
+            ("Address", Self.display(txn.address), true),
+            ("Payment Amount(Rs.)", Self.display(txn.paymentAmount), false),
+            ("Mobile Number", Self.display(txn.mobileNo), false),
+            ("Receipt No", Self.display(txn.receiptNo), false),
+        ]
+    }
+
+    private func renderReceipt() {
+        receiptContainer.subviews.forEach { $0.removeFromSuperview() }
+        let statusColor: UIColor
+        switch status {
+        case "SUCCESS": statusColor = UIColor(argb: 0xFF4CAF50)
+        case "PENDING": statusColor = UIColor(argb: 0xFFE6A23C)
+        case "FAILED":  statusColor = .mRed
+        default:        statusColor = UIColor(argb: 0xFF64748B)
+        }
+        let green = UIColor(argb: 0xFF4CAF50)
 
         let card = UIView()
         card.backgroundColor = .white
         card.layer.cornerRadius = 8
-        card.clipsToBounds = true
-        card.translatesAutoresizingMaskIntoConstraints = false
-        shadowContainer.addSubview(card)
-        NSLayoutConstraint.activate([
-            card.topAnchor.constraint(equalTo: shadowContainer.topAnchor),
-            card.leadingAnchor.constraint(equalTo: shadowContainer.leadingAnchor),
-            card.trailingAnchor.constraint(equalTo: shadowContainer.trailingAnchor),
-            card.bottomAnchor.constraint(equalTo: shadowContainer.bottomAnchor),
-        ])
+        card.addShadow(opacity: 0.08, blur: 12, offsetY: 4)
+        let stack = UIStackView.v(0, [])
+        let inner = UIView()
+        inner.layer.cornerRadius = 8
+        inner.clipsToBounds = true
+        inner.addSubview(stack)
+        stack.pinToEdges(of: inner)
+        card.addSubview(inner)
+        inner.pinToEdges(of: card)
 
-        let green = UIColor(red: 0.298, green: 0.686, blue: 0.314, alpha: 1) // #4CAF50
+        let header = UILabel("Property Tax Property ID. [ \(txn.propertyId ?? "N/A") ]", font: .poppins(14, .bold),
+                             color: .appTextDark, lines: 0, alignment: .center)
+        let headerBox = header.padded(UIEdgeInsets(top: 14, left: 16, bottom: 14, right: 16))
+        headerBox.backgroundColor = UIColor(argb: 0xFFF5F5F5)
+        stack.add(headerBox, divider(color: green, thickness: 2))
 
-        // Header
-        let header = UIView()
-        header.backgroundColor = UIColor(red: 0.961, green: 0.961, blue: 0.961, alpha: 1)
-        let headerBorder = UIView(); headerBorder.backgroundColor = green
-        headerBorder.translatesAutoresizingMaskIntoConstraints = false
-        let headerLabel = UILabel()
-        headerLabel.text = viewModel.headerTitle
-        headerLabel.textAlignment = .center
-        headerLabel.numberOfLines = 0
-        headerLabel.font = UIFont(name: "Poppins-Bold", size: 14) ?? .boldSystemFont(ofSize: 14)
-        headerLabel.textColor = UIColor(red: 0.2, green: 0.2, blue: 0.2, alpha: 1)
-        headerLabel.translatesAutoresizingMaskIntoConstraints = false
-        header.addSubview(headerLabel); header.addSubview(headerBorder)
-        NSLayoutConstraint.activate([
-            headerLabel.topAnchor.constraint(equalTo: header.topAnchor, constant: 14),
-            headerLabel.leadingAnchor.constraint(equalTo: header.leadingAnchor, constant: 16),
-            headerLabel.trailingAnchor.constraint(equalTo: header.trailingAnchor, constant: -16),
-            headerBorder.topAnchor.constraint(equalTo: headerLabel.bottomAnchor, constant: 14),
-            headerBorder.leadingAnchor.constraint(equalTo: header.leadingAnchor),
-            headerBorder.trailingAnchor.constraint(equalTo: header.trailingAnchor),
-            headerBorder.bottomAnchor.constraint(equalTo: header.bottomAnchor),
-            headerBorder.heightAnchor.constraint(equalToConstant: 2),
-        ])
+        let pill = UIView()
+        pill.backgroundColor = statusColor.withAlphaComponent(0.1)
+        pill.layer.cornerRadius = 12
+        pill.addBorder(color: statusColor)
+        let pillLabel = UILabel(statusText, font: .poppins(12, .bold), color: statusColor)
+        pill.addSubview(pillLabel)
+        pillLabel.pinToEdges(of: pill, insets: UIEdgeInsets(top: 5, left: 12, bottom: 5, right: 12))
+        let statusBox = UIStackView.v(6, alignment: .center, [
+            pill, UILabel(statusMessage, font: .poppins(12, .medium), color: statusColor, lines: 0, alignment: .center),
+        ]).padded(UIEdgeInsets(top: 10, left: 16, bottom: 10, right: 16))
+        statusBox.backgroundColor = UIColor(argb: 0xFFFAFAFA)
+        stack.add(statusBox, divider(color: green, thickness: 1))
 
-        // Status message
-        let statusView = UIView()
-        statusView.backgroundColor = UIColor(red: 0.98, green: 0.98, blue: 0.98, alpha: 1)
-        let statusLabel = UILabel()
-        statusLabel.text = viewModel.statusMessage
-        statusLabel.textAlignment = .center
-        statusLabel.numberOfLines = 0
-        statusLabel.font = UIFont(name: "Poppins-Medium", size: 12) ?? .systemFont(ofSize: 12, weight: .medium)
-        statusLabel.textColor = viewModel.isSuccess ? green : .systemRed
-        statusLabel.translatesAutoresizingMaskIntoConstraints = false
-        statusView.addSubview(statusLabel)
-        NSLayoutConstraint.activate([
-            statusLabel.topAnchor.constraint(equalTo: statusView.topAnchor, constant: 10),
-            statusLabel.leadingAnchor.constraint(equalTo: statusView.leadingAnchor, constant: 16),
-            statusLabel.trailingAnchor.constraint(equalTo: statusView.trailingAnchor, constant: -16),
-            statusLabel.bottomAnchor.constraint(equalTo: statusView.bottomAnchor, constant: -10),
-        ])
+        for row in rows {
+            stack.add(receiptRow(row.label, row.value, krutidev: row.language && isKrutidev))
+        }
 
-        let topDivider = UIView(); topDivider.backgroundColor = green
-        topDivider.heightAnchor.constraint(equalToConstant: 1).isActive = true
+        let footer = UIStackView.v(4, [
+            UILabel("This is Computer Generated Receipt. It does not require a signature.", font: .poppins(11),
+                    color: .appTextLabel, lines: 0, alignment: .center),
+            italicLabel("This receipt is printed through EODB, eNagarSewa portal GoUP."),
+        ]).padded(UIEdgeInsets(top: 16, left: 20, bottom: 28, right: 20))
+        footer.backgroundColor = UIColor(argb: 0xFFF5F5F5)
+        stack.add(divider(color: green, thickness: 2), footer)
 
-        // Table rows
-        let rowsStack = UIStackView(arrangedSubviews: viewModel.receiptRows.map { buildReceiptRow($0.label, $0.value) })
-        rowsStack.axis = .vertical
-        rowsStack.spacing = 0
-
-        // Footer
-        let footer = UIView()
-        footer.backgroundColor = UIColor(red: 0.961, green: 0.961, blue: 0.961, alpha: 1)
-        let footerBorder = UIView(); footerBorder.backgroundColor = green
-        footerBorder.translatesAutoresizingMaskIntoConstraints = false
-        let footerL1 = UILabel()
-        footerL1.text = "This is Computer Generated Receipt. It does not require a signature."
-        footerL1.textAlignment = .center; footerL1.numberOfLines = 0
-        footerL1.font = UIFont(name: "Poppins-Regular", size: 11) ?? .systemFont(ofSize: 11)
-        footerL1.textColor = UIColor(red: 0.333, green: 0.333, blue: 0.333, alpha: 1)
-        let footerL2 = UILabel()
-        footerL2.text = "This receipt is printed through EODB, e-nagarsewa portal GoUP."
-        footerL2.textAlignment = .center; footerL2.numberOfLines = 0
-        footerL2.font = .italicSystemFont(ofSize: 11)
-        footerL2.textColor = UIColor(red: 0.333, green: 0.333, blue: 0.333, alpha: 1)
-        let footerStack = UIStackView(arrangedSubviews: [footerBorder, footerL1, footerL2])
-        footerStack.axis = .vertical; footerStack.spacing = 4
-        footerStack.setCustomSpacing(16, after: footerBorder)
-        footerStack.translatesAutoresizingMaskIntoConstraints = false
-        footerBorder.heightAnchor.constraint(equalToConstant: 2).isActive = true
-        footer.addSubview(footerStack)
-        NSLayoutConstraint.activate([
-            footerStack.topAnchor.constraint(equalTo: footer.topAnchor),
-            footerStack.leadingAnchor.constraint(equalTo: footer.leadingAnchor, constant: 20),
-            footerStack.trailingAnchor.constraint(equalTo: footer.trailingAnchor, constant: -20),
-            footerStack.bottomAnchor.constraint(equalTo: footer.bottomAnchor, constant: -16),
-        ])
-
-        let cardStack = UIStackView(arrangedSubviews: [header, statusView, topDivider, rowsStack, footer])
-        cardStack.axis = .vertical
-        cardStack.translatesAutoresizingMaskIntoConstraints = false
-        card.addSubview(cardStack)
-        NSLayoutConstraint.activate([
-            cardStack.topAnchor.constraint(equalTo: card.topAnchor),
-            cardStack.leadingAnchor.constraint(equalTo: card.leadingAnchor),
-            cardStack.trailingAnchor.constraint(equalTo: card.trailingAnchor),
-            cardStack.bottomAnchor.constraint(equalTo: card.bottomAnchor),
-        ])
-        return shadowContainer
+        receiptContainer.addSubview(card)
+        card.pinToEdges(of: receiptContainer)
     }
 
-    private func buildReceiptRow(_ label: String, _ value: String) -> UIView {
-        let container = UIView()
-        let border = UIView()
-        border.backgroundColor = UIColor(red: 0.878, green: 0.878, blue: 0.878, alpha: 1)
-        border.translatesAutoresizingMaskIntoConstraints = false
-
-        let labelContainer = UIView()
-        labelContainer.backgroundColor = UIColor(red: 0.98, green: 0.98, blue: 0.98, alpha: 1)
-        let labelRightBorder = UIView()
-        labelRightBorder.backgroundColor = UIColor(red: 0.878, green: 0.878, blue: 0.878, alpha: 1)
-        labelRightBorder.translatesAutoresizingMaskIntoConstraints = false
-
-        let labelL = UILabel()
-        labelL.text = label
-        labelL.numberOfLines = 0
-        labelL.font = UIFont(name: "Poppins-Medium", size: 12) ?? .systemFont(ofSize: 12, weight: .medium)
-        labelL.textColor = UIColor(red: 0.267, green: 0.267, blue: 0.267, alpha: 1)
-        labelL.translatesAutoresizingMaskIntoConstraints = false
-
-        let valueL = UILabel()
-        valueL.text = value
-        valueL.numberOfLines = 0
-        valueL.font = UIFont(name: "Poppins-SemiBold", size: 12) ?? .systemFont(ofSize: 12, weight: .semibold)
-        valueL.textColor = UIColor(red: 0.133, green: 0.133, blue: 0.133, alpha: 1)
-        valueL.translatesAutoresizingMaskIntoConstraints = false
-
-        labelContainer.addSubview(labelL)
-        labelContainer.addSubview(labelRightBorder)
-        container.addSubview(labelContainer)
-        container.addSubview(valueL)
-        container.addSubview(border)
-
-        NSLayoutConstraint.activate([
-            labelContainer.topAnchor.constraint(equalTo: container.topAnchor),
-            labelContainer.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            labelContainer.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-            labelContainer.widthAnchor.constraint(equalToConstant: 150),
-
-            labelL.topAnchor.constraint(equalTo: labelContainer.topAnchor, constant: 10),
-            labelL.leadingAnchor.constraint(equalTo: labelContainer.leadingAnchor, constant: 12),
-            labelL.trailingAnchor.constraint(equalTo: labelContainer.trailingAnchor, constant: -12),
-            labelL.bottomAnchor.constraint(equalTo: labelContainer.bottomAnchor, constant: -10),
-
-            labelRightBorder.topAnchor.constraint(equalTo: labelContainer.topAnchor),
-            labelRightBorder.bottomAnchor.constraint(equalTo: labelContainer.bottomAnchor),
-            labelRightBorder.trailingAnchor.constraint(equalTo: labelContainer.trailingAnchor),
-            labelRightBorder.widthAnchor.constraint(equalToConstant: 0.5),
-
-            valueL.topAnchor.constraint(equalTo: container.topAnchor, constant: 10),
-            valueL.leadingAnchor.constraint(equalTo: labelContainer.trailingAnchor, constant: 12),
-            valueL.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -12),
-            valueL.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -10),
-
-            border.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            border.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            border.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-            border.heightAnchor.constraint(equalToConstant: 0.5),
-        ])
-        return container
+    private func italicLabel(_ text: String) -> UILabel {
+        let l = UILabel(text, font: .poppins(11), color: .appTextLabel, lines: 0, alignment: .center)
+        let descriptor = UIFont.poppins(11).fontDescriptor.withSymbolicTraits(.traitItalic)
+        l.font = descriptor.map { UIFont(descriptor: $0, size: 11) } ?? .italicSystemFont(ofSize: 11)
+        return l
     }
 
-    // MARK: - Action buttons (matches Flutter's Share Receipt / Download row)
-
-    private func buildActionsRow() -> UIView {
-        let blue = UIColor(red: 0.055, green: 0.231, blue: 0.565, alpha: 1) // #0E3B90
-
-        let shareBtn = makeActionButton(title: "Share Receipt", icon: "square.and.arrow.up",
-                                        filled: true, tint: blue)
-        shareBtn.addTarget(self, action: #selector(shareTapped), for: .touchUpInside)
-
-        let downloadBtn = makeActionButton(title: "Download", icon: "arrow.down.circle",
-                                           filled: false, tint: blue)
-        downloadBtn.addTarget(self, action: #selector(downloadTapped), for: .touchUpInside)
-
-        let row = UIStackView(arrangedSubviews: [shareBtn, downloadBtn])
-        row.axis = .horizontal; row.spacing = 16; row.distribution = .fillEqually
-        return row
+    private func receiptRow(_ label: String, _ value: String, krutidev: Bool) -> UIView {
+        let labelBox = UILabel(label, font: .poppins(12, .medium), color: .appTextMid, lines: 0)
+            .padded(UIEdgeInsets(top: 10, left: 12, bottom: 10, right: 12))
+        labelBox.backgroundColor = UIColor(argb: 0xFFFAFAFA)
+        labelBox.setSize(width: 150)
+        let valueBox = UILabel(value, font: UlbLanguageHelper.font(12, .semibold, krutidev: krutidev),
+                               color: UIColor(argb: 0xFF222222), lines: 0)
+            .padded(UIEdgeInsets(top: 10, left: 12, bottom: 10, right: 12))
+        let sep = UIView()
+        sep.backgroundColor = UIColor(argb: 0xFFE0E0E0)
+        sep.setSize(width: 0.5)
+        let row = UIStackView.h(0, alignment: .fill, [labelBox, sep, valueBox])
+        return UIStackView.v(0, [row, divider(color: UIColor(argb: 0xFFE0E0E0), thickness: 0.5)])
     }
 
-    private func makeActionButton(title: String, icon: String, filled: Bool, tint: UIColor) -> UIButton {
-        var config = filled ? UIButton.Configuration.filled() : UIButton.Configuration.plain()
-        config.baseBackgroundColor = filled ? tint : .white
-        config.baseForegroundColor = filled ? .white : tint
-        config.image = UIImage(systemName: icon)
-        config.imagePadding = 8
-        config.cornerStyle = .large
-        var attributedTitle = AttributedString(title)
-        attributedTitle.font = UIFont(name: "Poppins-Bold", size: 14) ?? .boldSystemFont(ofSize: 14)
-        config.attributedTitle = attributedTitle
-        config.contentInsets = NSDirectionalEdgeInsets(top: 16, leading: 12, bottom: 16, trailing: 12)
-        let btn = UIButton(configuration: config)
-        btn.layer.cornerRadius = 16
-        if !filled {
-            btn.layer.borderWidth = 1.5
-            btn.layer.borderColor = tint.cgColor
+    private func actionButton(_ title: String, icon: String, outlined: Bool, action: @escaping () -> Void) -> UIView {
+        let navy = UIColor(argb: 0xFF0E3B90)
+        let b = PrimaryButton(title, color: outlined ? .white : navy, height: 54, radius: 16, fontSize: 14, icon: icon)
+        if outlined {
+            b.setTitleColor(navy, for: .normal)
+            b.tintColor = navy
+            b.layer.borderWidth = 1.5
+            b.layer.borderColor = navy.cgColor
         } else {
-            btn.addShadow(opacity: 0.2, radius: 6, offset: CGSize(width: 0, height: 3))
+            let wrapper = UIView()
+            wrapper.addShadow(opacity: 0.2, blur: 8, offsetY: 4)
+            wrapper.addSubview(b)
+            b.pinToEdges(of: wrapper)
+            b.onEvent(action)
+            return wrapper
         }
-        btn.translatesAutoresizingMaskIntoConstraints = false
-        return btn
+        b.onEvent(action)
+        return b
     }
 
-    // MARK: - Actions
+    // MARK: - PDF
 
-    @objc private func closeTapped() { navigationController?.popViewController(animated: true) }
-
-    @objc private func shareTapped() {
-        guard let url = viewModel.writePdfToTempFile() else {
-            ENSSnackbar.show(in: view, message: "Unable to share receipt right now. Please try again.", isError: true)
-            return
+    private func buildPdf() async -> Data {
+        let lang = await resolveUlbLang()
+        let krutidev = UlbLanguageHelper.isKrutidevValue(lang)
+        let regular = UIFont.systemFont(ofSize: 11)
+        let bold = UIFont.boldSystemFont(ofSize: 11)
+        let pdf = PDFComposer()
+        let isSuccess = status == "SUCCESS"
+        pdf.box("Property Tax Property ID. [ \(txn.propertyId ?? "N/A") ]", font: .boldSystemFont(ofSize: 14),
+                padding: 10, background: PdfColors.grey200,
+                border: .init(bottom: (PdfColors.green, 2)))
+        pdf.box(statusMessage, font: regular, color: isSuccess ? PdfColors.green : PdfColors.red, padding: 8)
+        pdf.line(color: PdfColors.green, thickness: 2)
+        let pdfRows = rows.map { row -> [PDFComposer.Cell] in
+            [PDFComposer.Cell(row.label == "Property ID" ? "Property ID." : row.label, font: regular, background: PdfColors.grey100),
+             PDFComposer.Cell(row.value, font: row.language && krutidev ? .krutidev(11) : bold)]
         }
-        let av = UIActivityViewController(
-            activityItems: [url],
-            applicationActivities: nil
-        )
-        av.popoverPresentationController?.sourceView = view
-        av.completionWithItemsHandler = { _, _, _, _ in try? FileManager.default.removeItem(at: url) }
-        present(av, animated: true)
+        pdf.table(pdfRows, flex: [2, 3], borderColor: PdfColors.grey300)
+        let italic = UIFont.italicSystemFont(ofSize: 10)
+        pdf.boxLines([
+            PDFComposer.attributed("This is Computer Generated Receipt. It does not require a signature.",
+                                   font: .systemFont(ofSize: 10), alignment: .center),
+            PDFComposer.attributed("This receipt is printed through EODB, eNagarSewa portal GoUP.", font: italic, alignment: .center),
+        ], spacing: 4, padding: 12, background: PdfColors.grey200, border: .init(top: (PdfColors.green, 2)))
+        return pdf.render()
     }
 
-    @objc private func downloadTapped() {
-        let data = viewModel.buildPdfData()
-        let printInfo = UIPrintInfo(dictionary: nil)
-        printInfo.outputType = .general
-        printInfo.jobName = "Receipt_\(viewModel.transaction.txnId ?? "payment")"
-
-        let printController = UIPrintInteractionController.shared
-        printController.printInfo = printInfo
-        printController.printingItem = data
-        printController.present(animated: true) { [weak self] _, completed, error in
-            guard let self, !completed, error != nil else { return }
-            ENSSnackbar.show(in: self.view, message: "Unable to download receipt right now. Please try again.", isError: true)
+    private func shareReceipt() {
+        guard !TourCoachMarkView.isActive else { return }
+        Task {
+            let data = await buildPdf()
+            DocumentActions.share(data, fileName: "receipt_\(txn.txnId ?? "payment").pdf",
+                                  text: "Payment Receipt - Property ID: \(txn.propertyId ?? "")", from: self,
+                                  sourceView: shareButton)
         }
+    }
+
+    private func downloadReceipt() {
+        guard !TourCoachMarkView.isActive else { return }
+        Task {
+            let data = await buildPdf()
+            DocumentActions.print(data, jobName: "receipt_\(txn.txnId ?? "").pdf")
+        }
+    }
+
+    // MARK: - Tour
+
+    private func startTour() {
+        guard !TourCoachMarkView.isActive else { return }
+        TourCoachMarkView.present(steps: [
+            TourStep(target: shareButton, icon: "square.and.arrow.up", title: "Share Receipt",
+                     description: "Use this button to share the current receipt as an image with other apps.",
+                     shape: .roundedRect(radius: 16), edge: .top),
+            TourStep(target: downloadButton, icon: "arrow.down.circle", title: "Download Receipt",
+                     description: "Use this button to export or print the receipt as a PDF file.",
+                     shape: .roundedRect(radius: 16), edge: .top),
+        ], scrollContainer: scrollView)
     }
 }

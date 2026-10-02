@@ -1,609 +1,229 @@
 import UIKit
-import Combine
 
-// MARK: - PropertySelectionViewController
+/// Port of lib/property_selection_screen.dart.
+final class PropertySelectionViewController: BaseViewController {
 
-final class PropertySelectionViewController: UIViewController {
+    override var hidesNavigationBar: Bool { true }
 
-    private let viewModel: PropertySelectionViewModel
-    private var cancellables = Set<AnyCancellable>()
+    private let properties: [PropertyData]
+    private var selected: PropertyData?
+    private var details: PropertyDetailsData?
+    private var headerView: UIView!
+    private var firstCard: UIView?
+    private var firstSelectButton: UIView?
+    private let overlay = UIView()
 
-    // Refs kept for the first-run tour guide (see lib/tour_guides/property_selection_tour.dart)
-    private weak var navBarView: UIView?
-    private weak var firstCardView: UIView?
-    private weak var firstSelectButtonView: UIView?
-    private var didPresentTour = false
-
-    // Loading overlay (matches Flutter's Stack + Container(color: Colors.black26))
-    private let loadingOverlay: UIView = {
-        let v = UIView()
-        v.backgroundColor = UIColor.black.withAlphaComponent(0.26)
-        v.isHidden = true
-        v.translatesAutoresizingMaskIntoConstraints = false
-        let spinner = UIActivityIndicatorView(style: .large)
-        spinner.color = UIColor(red: 0.902, green: 0.459, blue: 0.078, alpha: 1)
-        spinner.startAnimating()
-        spinner.translatesAutoresizingMaskIntoConstraints = false
-        v.addSubview(spinner)
-        NSLayoutConstraint.activate([
-            spinner.centerXAnchor.constraint(equalTo: v.centerXAnchor),
-            spinner.centerYAnchor.constraint(equalTo: v.centerYAnchor),
-        ])
-        return v
-    }()
-
-    init(viewModel: PropertySelectionViewModel) {
-        self.viewModel = viewModel
+    init(properties: [PropertyData]) {
+        self.properties = properties
         super.init(nibName: nil, bundle: nil)
     }
+
     required init?(coder: NSCoder) { fatalError() }
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .white
-        setupLayout()
-        bindViewModel()
+        let back = iconButton("chevron.backward", color: .appPrimary, size: 18) { [weak self] in
+            self?.navigationController?.popViewController(animated: true)
+        }
+        let help = iconButton("questionmark.circle", color: .appPrimary, size: 22) { [weak self] in self?.handleTourTap() }
+        let header = UIStackView.h(4, [back, UILabel("Select Property", font: .poppins(18, .bold), color: .appTextDark), FlexSpacer(), help])
+        headerView = header
+        view.addSubview(header)
+        header.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            header.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
+            header.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 8),
+            header.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -8),
+        ])
+
+        installScrollStack(insets: UIEdgeInsets(top: 8, left: 16, bottom: 24, right: 16), spacing: 16, below: header)
+        if properties.isEmpty {
+            let empty = UILabel("No properties found.", font: .poppins(14), color: .grey500, alignment: .center)
+            view.addSubview(empty)
+            empty.center(in: view)
+        }
+        for (i, p) in properties.enumerated() {
+            contentStack.add(card(for: p, primary: i == 0))
+        }
+
+        overlay.backgroundColor = UIColor.black.withAlphaComponent(0.26)
+        let spinner = UIActivityIndicatorView(style: .large)
+        spinner.color = .appPrimary
+        spinner.startAnimating()
+        overlay.addSubview(spinner)
+        spinner.center(in: overlay)
+        overlay.isHidden = true
+        view.addSubview(overlay)
+        overlay.pinToEdges(of: view)
     }
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        presentTourIfNeeded()
+        guard !properties.isEmpty else { return }
+        TourGuide.autoStartIfFirstVisit(.propertySelection) { startTour() }
     }
 
-    private func setupLayout() {
-        // Nav bar
-        let navRow = makeNavBar()
-        navBarView = navRow
+    // MARK: - Card
 
-        // List
-        if viewModel.properties.isEmpty {
-            let emptyLabel = UILabel()
-            emptyLabel.text = "No properties found."
-            emptyLabel.font = UIFont(name: "Poppins-Regular", size: 14) ?? .systemFont(ofSize: 14)
-            emptyLabel.textColor = UIColor(red: 0.6, green: 0.6, blue: 0.6, alpha: 1)
-            emptyLabel.textAlignment = .center
-            emptyLabel.translatesAutoresizingMaskIntoConstraints = false
-            view.addSubview(navRow)
-            view.addSubview(emptyLabel)
-            NSLayoutConstraint.activate([
-                navRow.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-                navRow.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 8),
-                navRow.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -8),
-                navRow.heightAnchor.constraint(equalToConstant: 52),
-                emptyLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-                emptyLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-            ])
-        } else {
-            let scroll = UIScrollView()
-            let content = UIView()
-            scroll.translatesAutoresizingMaskIntoConstraints = false
-            content.translatesAutoresizingMaskIntoConstraints = false
+    private func card(for p: PropertyData, primary: Bool) -> UIView {
+        let card = CardView(radius: 16, padding: .zero, shadowOpacity: 0.06, shadowBlur: 16, shadowY: 6)
+        let select = PrimaryButton("Select", height: 36, radius: 10, fontSize: 13, weight: .semibold)
+        select.contentEdgeInsets = UIEdgeInsets(top: 0, left: 20, bottom: 0, right: 20)
+        select.setContentHuggingPriority(.required, for: .horizontal)
+        select.onEvent { [weak self] in self?.handleSelection(p) }
+        let pid = UILabel("PID: \(p.propertyId ?? "N/A")", font: .poppins(14, .bold), color: .appTextDark, lines: 0)
+        let top = UIStackView.h(8, [pid, select])
+        card.stack.add(top.padded(UIEdgeInsets(top: 16, left: 16, bottom: 12, right: 16)))
+        card.stack.add(divider(color: .grey100))
 
-            var cardViews: [UIView] = []
-            for (i, property) in viewModel.properties.enumerated() {
-                let card = makePropertyCard(property, index: i)
-                if i == 0 { firstCardView = card }
-                cardViews.append(card)
-            }
-
-            let cardsStack = UIStackView(arrangedSubviews: cardViews)
-            cardsStack.axis = .vertical
-            cardsStack.spacing = 16
-            cardsStack.translatesAutoresizingMaskIntoConstraints = false
-
-            scroll.addSubview(content)
-            content.addSubview(cardsStack)
-
-            view.addSubview(navRow)
-            view.addSubview(scroll)
-
-            NSLayoutConstraint.activate([
-                navRow.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-                navRow.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 8),
-                navRow.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -8),
-                navRow.heightAnchor.constraint(equalToConstant: 52),
-                scroll.topAnchor.constraint(equalTo: navRow.bottomAnchor),
-                scroll.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-                scroll.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-                scroll.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-                content.topAnchor.constraint(equalTo: scroll.topAnchor),
-                content.leadingAnchor.constraint(equalTo: scroll.leadingAnchor),
-                content.trailingAnchor.constraint(equalTo: scroll.trailingAnchor),
-                content.bottomAnchor.constraint(equalTo: scroll.bottomAnchor),
-                content.widthAnchor.constraint(equalTo: scroll.widthAnchor),
-                cardsStack.topAnchor.constraint(equalTo: content.topAnchor, constant: 8),
-                cardsStack.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 16),
-                cardsStack.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -16),
-                cardsStack.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -16),
-            ])
+        let krutidev = UlbLanguageHelper.isKrutidevValue(p.ulbLang)
+        let rows = UIStackView.v(8, [
+            detailRow("Owner Name", p.ownerName, krutidev: krutidev),
+            detailRow("Father/Husband", p.fatherHusbandName, krutidev: krutidev),
+            detailRow("House No", p.houseNo, krutidev: false),
+            detailRow("Address", p.address, krutidev: krutidev),
+        ])
+        card.stack.add(rows.padded(UIEdgeInsets(top: 12, left: 16, bottom: 16, right: 16)))
+        if primary {
+            firstCard = card
+            firstSelectButton = select
         }
-
-        // Overlay (on top of everything)
-        view.addSubview(loadingOverlay)
-        NSLayoutConstraint.activate([
-            loadingOverlay.topAnchor.constraint(equalTo: view.topAnchor),
-            loadingOverlay.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            loadingOverlay.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            loadingOverlay.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-        ])
-    }
-
-    private func makeNavBar() -> UIView {
-        let container = UIView()
-        container.translatesAutoresizingMaskIntoConstraints = false
-
-        let backBtn = UIButton(type: .system)
-        let chevImg = UIImage(systemName: "chevron.backward")
-        backBtn.setImage(chevImg, for: .normal)
-        backBtn.tintColor = UIColor(red: 0.902, green: 0.459, blue: 0.078, alpha: 1)
-        backBtn.addTarget(self, action: #selector(backTapped), for: .touchUpInside)
-        backBtn.translatesAutoresizingMaskIntoConstraints = false
-
-        let titleLabel = UILabel()
-        titleLabel.text = "Select Property"
-        titleLabel.font = UIFont(name: "Poppins-Bold", size: 18) ?? .boldSystemFont(ofSize: 18)
-        titleLabel.textColor = UIColor(red: 0.2, green: 0.2, blue: 0.2, alpha: 1)
-        titleLabel.translatesAutoresizingMaskIntoConstraints = false
-
-        let helpBtn = UIButton(type: .system)
-        helpBtn.setImage(UIImage(systemName: "questionmark.circle"), for: .normal)
-        helpBtn.tintColor = UIColor(red: 0.902, green: 0.459, blue: 0.078, alpha: 1)
-        helpBtn.translatesAutoresizingMaskIntoConstraints = false
-
-        container.addSubview(backBtn)
-        container.addSubview(titleLabel)
-        container.addSubview(helpBtn)
-        NSLayoutConstraint.activate([
-            backBtn.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            backBtn.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-            backBtn.widthAnchor.constraint(equalToConstant: 36),
-            backBtn.heightAnchor.constraint(equalToConstant: 36),
-            titleLabel.leadingAnchor.constraint(equalTo: backBtn.trailingAnchor, constant: 4),
-            titleLabel.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-            helpBtn.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -4),
-            helpBtn.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-            helpBtn.widthAnchor.constraint(equalToConstant: 40),
-            helpBtn.heightAnchor.constraint(equalToConstant: 40),
-        ])
-        return container
-    }
-
-    private func makePropertyCard(_ property: PropertyData, index: Int) -> UIView {
-        let card = UIView()
-        card.backgroundColor = .white
-        card.layer.cornerRadius = 16
-        card.layer.shadowColor = UIColor.black.cgColor
-        card.layer.shadowOpacity = 0.06
-        card.layer.shadowRadius = 8
-        card.layer.shadowOffset = CGSize(width: 0, height: 6)
-        card.translatesAutoresizingMaskIntoConstraints = false
-
-        // Header: PID + Select button
-        let pidLabel = UILabel()
-        pidLabel.text = "PID: \(property.propertyId)"
-        pidLabel.font = UIFont(name: "Poppins-Bold", size: 14) ?? .boldSystemFont(ofSize: 14)
-        pidLabel.textColor = UIColor(red: 0.2, green: 0.2, blue: 0.2, alpha: 1)
-        pidLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-
-        let selectBtn = UIButton(type: .custom)
-        selectBtn.setTitle("Select", for: .normal)
-        selectBtn.titleLabel?.font = UIFont(name: "Poppins-SemiBold", size: 13) ?? .systemFont(ofSize: 13, weight: .semibold)
-        selectBtn.backgroundColor = UIColor(red: 0.902, green: 0.459, blue: 0.078, alpha: 1)
-        selectBtn.setTitleColor(.white, for: .normal)
-        selectBtn.layer.cornerRadius = 10
-        selectBtn.contentEdgeInsets = UIEdgeInsets(top: 0, left: 20, bottom: 0, right: 20)
-        selectBtn.tag = index
-        selectBtn.addTarget(self, action: #selector(selectTapped(_:)), for: .touchUpInside)
-        selectBtn.translatesAutoresizingMaskIntoConstraints = false
-        selectBtn.heightAnchor.constraint(equalToConstant: 36).isActive = true
-        selectBtn.setContentCompressionResistancePriority(.required, for: .horizontal)
-        if index == 0 { firstSelectButtonView = selectBtn }
-
-        let headerRow = UIStackView(arrangedSubviews: [pidLabel, selectBtn])
-        headerRow.axis = .horizontal
-        headerRow.alignment = .center
-        headerRow.spacing = 8
-
-        // Divider
-        let divider = UIView()
-        divider.backgroundColor = UIColor(red: 0.95, green: 0.95, blue: 0.95, alpha: 1)
-        divider.heightAnchor.constraint(equalToConstant: 1).isActive = true
-
-        // Detail rows
-        let detailsStack = UIStackView(arrangedSubviews: [
-            makeDetailRow(label: "Owner Name", value: property.ownerName),
-            makeDetailRow(label: "Father/Husband", value: property.fatherHusbandName),
-            makeDetailRow(label: "House No", value: property.houseNo),
-            makeDetailRow(label: "Address", value: property.address),
-        ])
-        detailsStack.axis = .vertical
-        detailsStack.spacing = 8
-
-        let cardStack = UIStackView(arrangedSubviews: [headerRow, divider, detailsStack])
-        cardStack.axis = .vertical
-        cardStack.spacing = 0
-        cardStack.setCustomSpacing(12, after: headerRow)
-        cardStack.setCustomSpacing(12, after: divider)
-        cardStack.translatesAutoresizingMaskIntoConstraints = false
-        card.addSubview(cardStack)
-
-        NSLayoutConstraint.activate([
-            cardStack.topAnchor.constraint(equalTo: card.topAnchor, constant: 16),
-            cardStack.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 16),
-            cardStack.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -16),
-            cardStack.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -16),
-        ])
         return card
     }
 
-    private func makeDetailRow(label: String, value: String?) -> UIView {
-        let row = UIStackView()
-        row.axis = .horizontal
-        row.alignment = .top
-        row.spacing = 0
-
-        let keyLabel = UILabel()
-        keyLabel.text = "\(label): "
-        keyLabel.font = UIFont(name: "Poppins-Medium", size: 13) ?? .systemFont(ofSize: 13, weight: .medium)
-        keyLabel.textColor = UIColor(red: 0.4, green: 0.4, blue: 0.4, alpha: 1)
-        keyLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
-        keyLabel.setContentHuggingPriority(.required, for: .horizontal)
-
-        let valLabel = UILabel()
-        valLabel.text = value ?? "N/A"
-        valLabel.font = UIFont(name: "Poppins-Medium", size: 13) ?? .systemFont(ofSize: 13, weight: .medium)
-        valLabel.textColor = UIColor(red: 0.2, green: 0.2, blue: 0.2, alpha: 1)
-        valLabel.numberOfLines = 0
-
-        row.addArrangedSubview(keyLabel)
-        row.addArrangedSubview(valLabel)
-        return row
+    private func detailRow(_ label: String, _ value: String?, krutidev: Bool) -> UIView {
+        let l = UILabel("\(label): ", font: .poppins(13, .medium), color: .grey600)
+        l.setContentHuggingPriority(.required, for: .horizontal)
+        l.setContentCompressionResistancePriority(.required, for: .horizontal)
+        let v = UILabel(value ?? "N/A", font: UlbLanguageHelper.font(13, .medium, krutidev: krutidev),
+                        color: .appTextDark, lines: 0)
+        return UIStackView.h(0, alignment: .top, [l, v])
     }
 
-    // MARK: - Bindings
+    // MARK: - Selection
 
-    private func bindViewModel() {
-        viewModel.$isLoading.receive(on: DispatchQueue.main).sink { [weak self] loading in
-            self?.loadingOverlay.isHidden = !loading
-        }.store(in: &cancellables)
-    }
-
-    // MARK: - Actions
-
-    @objc private func backTapped() {
-        navigationController?.popViewController(animated: true)
-    }
-
-    @objc private func selectTapped(_ sender: UIButton) {
-        let property = viewModel.properties[sender.tag]
-        viewModel.handlePropertySelection(property: property, from: self)
-    }
-
-    // MARK: - OTP Sheet
-
-    func showOtpSheet(mobileNo: String, propertyId: String, property: PropertyData, details: PropertyDetailsData?) {
-        let sheet = OtpVerifySheetViewController(
-            mobileNo: mobileNo,
-            propertyId: propertyId,
-            property: property,
-            details: details,
-            viewModel: viewModel
-        )
-        sheet.modalPresentationStyle = .pageSheet
-        sheet.isModalInPresentation = true
-        if let s = sheet.sheetPresentationController {
-            s.detents = [.medium(), .large()]
-            s.prefersGrabberVisible = true
-            s.preferredCornerRadius = 24
-        }
-        present(sheet, animated: true)
-    }
-
-    func showSnackBar(_ message: String, isError: Bool = true) {
-        ENSSnackbar.show(in: view, message: message, isError: isError)
-    }
-
-    // MARK: - Tour guide (first-run coach mark, see lib/tour_guides/property_selection_tour.dart)
-
-    private func presentTourIfNeeded() {
-        guard !didPresentTour, !UserDefaultsService.shared.hasTourBeenSeen(.propertySelection) else { return }
-        guard let navBarView, let firstCardView, let firstSelectButtonView else { return }
-        didPresentTour = true
-
-        let steps: [TourStep] = [
-            TourStep(target: navBarView, icon: "house.and.flag",
-                     title: "Select Property",
-                     description: "This screen displays the list of properties matched to your search. Please review the available property cards and select the correct property to proceed.",
-                     shape: .roundedRect(radius: 14),
-                     edge: .bottom),
-            TourStep(target: firstCardView, icon: "doc.text",
-                     title: "Check Property Details",
-                     description: "Each property card includes key details such as the PID, owner name, father or husband name, house number, and address to help you identify the correct property.",
-                     edge: .bottom),
-            TourStep(target: firstSelectButtonView, icon: "checkmark.circle",
-                     title: "Select And Verify",
-                     description: "Tap Select on the appropriate property card to receive an OTP on the registered mobile number. After successful OTP verification, the selected property will be saved to your account.",
-                     edge: .bottom),
-        ]
-
-        TourCoachMarkView.present(steps: steps) {
-            UserDefaultsService.shared.markTourSeen(.propertySelection)
-        }
-    }
-}
-
-// MARK: - OtpVerifySheetViewController
-
-final class OtpVerifySheetViewController: UIViewController, UITextFieldDelegate {
-
-    private let mobileNo: String
-    private let propertyId: String
-    private let property: PropertyData
-    private let details: PropertyDetailsData?
-    private let viewModel: PropertySelectionViewModel
-    private var isVerifying = false
-
-    private let otpField: UITextField = {
-        let tf = UITextField()
-        tf.keyboardType = .numberPad
-        tf.font = UIFont(name: "Poppins-Bold", size: 20) ?? .boldSystemFont(ofSize: 20)
-        tf.defaultTextAttributes[.kern] = 4
-        tf.backgroundColor = UIColor(red: 0.973, green: 0.976, blue: 0.984, alpha: 1)
-        tf.layer.cornerRadius = 12
-        tf.layer.borderWidth = 1
-        tf.layer.borderColor = UIColor(red: 0.933, green: 0.933, blue: 0.933, alpha: 1).cgColor
-        tf.textAlignment = .left
-        tf.leftView = UIView(frame: CGRect(x: 0, y: 0, width: 16, height: 1))
-        tf.leftViewMode = .always
-        tf.heightAnchor.constraint(equalToConstant: 52).isActive = true
-        return tf
-    }()
-
-    private let errorBox: UIView = {
-        let v = UIView()
-        v.backgroundColor = UIColor(red: 1.0, green: 0.94, blue: 0.94, alpha: 1)
-        v.layer.cornerRadius = 10
-        v.layer.borderWidth = 1
-        v.layer.borderColor = UIColor(red: 0.87, green: 0.63, blue: 0.63, alpha: 1).cgColor
-        v.isHidden = true
-        return v
-    }()
-    private let errorLabel: UILabel = {
-        let l = UILabel()
-        l.font = UIFont(name: "Poppins-Regular", size: 12) ?? .systemFont(ofSize: 12)
-        l.textColor = UIColor(red: 0.72, green: 0.12, blue: 0.12, alpha: 1)
-        l.numberOfLines = 0
-        return l
-    }()
-
-    private lazy var verifyButton = UIButton.primaryButton(title: "Verify OTP")
-    private let cancelButton: UIButton = {
-        let b = UIButton(type: .system)
-        b.setTitle("Cancel", for: .normal)
-        b.titleLabel?.font = UIFont(name: "Poppins-Regular", size: 14) ?? .systemFont(ofSize: 14)
-        b.setTitleColor(UIColor(red: 0.5, green: 0.5, blue: 0.5, alpha: 1), for: .normal)
-        return b
-    }()
-
-    init(mobileNo: String, propertyId: String, property: PropertyData, details: PropertyDetailsData?, viewModel: PropertySelectionViewModel) {
-        self.mobileNo = mobileNo
-        self.propertyId = propertyId
-        self.property = property
-        self.details = details
-        self.viewModel = viewModel
-        super.init(nibName: nil, bundle: nil)
-    }
-    required init?(coder: NSCoder) { fatalError() }
-
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        view.backgroundColor = .white
-        setupLayout()
-        otpField.delegate = self
-        verifyButton.addTarget(self, action: #selector(verifyTapped), for: .touchUpInside)
-        cancelButton.addTarget(self, action: #selector(cancelTapped), for: .touchUpInside)
-    }
-
-    private func setupLayout() {
-        // Subtitle
-        let last4 = mobileNo.count > 4 ? String(mobileNo.suffix(4)) : mobileNo
-        let subtitleLabel = UILabel()
-        subtitleLabel.text = "Enter the code sent to your mobile number ending in \(last4)"
-        subtitleLabel.font = UIFont(name: "Poppins-Regular", size: 13) ?? .systemFont(ofSize: 13)
-        subtitleLabel.textColor = UIColor(red: 0.5, green: 0.5, blue: 0.5, alpha: 1)
-        subtitleLabel.numberOfLines = 0
-
-        let titleLabel = UILabel()
-        titleLabel.text = "Verify OTP"
-        titleLabel.font = UIFont(name: "Poppins-Bold", size: 20) ?? .boldSystemFont(ofSize: 20)
-        titleLabel.textColor = UIColor(red: 0.2, green: 0.2, blue: 0.2, alpha: 1)
-
-        // Error box inner
-        let errorIcon = UIImageView(image: UIImage(systemName: "exclamationmark.circle"))
-        errorIcon.tintColor = UIColor(red: 0.72, green: 0.12, blue: 0.12, alpha: 1)
-        errorIcon.contentMode = .scaleAspectFit
-        errorIcon.translatesAutoresizingMaskIntoConstraints = false
-        errorIcon.widthAnchor.constraint(equalToConstant: 18).isActive = true
-        errorIcon.heightAnchor.constraint(equalToConstant: 18).isActive = true
-
-        errorLabel.translatesAutoresizingMaskIntoConstraints = false
-        let errorRow = UIStackView(arrangedSubviews: [errorIcon, errorLabel])
-        errorRow.axis = .horizontal
-        errorRow.spacing = 8
-        errorRow.alignment = .top
-        errorRow.translatesAutoresizingMaskIntoConstraints = false
-        errorBox.addSubview(errorRow)
-        NSLayoutConstraint.activate([
-            errorRow.topAnchor.constraint(equalTo: errorBox.topAnchor, constant: 10),
-            errorRow.leadingAnchor.constraint(equalTo: errorBox.leadingAnchor, constant: 12),
-            errorRow.trailingAnchor.constraint(equalTo: errorBox.trailingAnchor, constant: -12),
-            errorRow.bottomAnchor.constraint(equalTo: errorBox.bottomAnchor, constant: -10),
-        ])
-
-        let otpLabel = UILabel()
-        otpLabel.text = "Enter OTP"
-        otpLabel.font = UIFont(name: "Poppins-Medium", size: 13) ?? .systemFont(ofSize: 13, weight: .medium)
-        otpLabel.textColor = UIColor(red: 0.4, green: 0.4, blue: 0.4, alpha: 1)
-
-        verifyButton.translatesAutoresizingMaskIntoConstraints = false
-        cancelButton.translatesAutoresizingMaskIntoConstraints = false
-
-        let stack = UIStackView(arrangedSubviews: [
-            titleLabel, subtitleLabel, errorBox, otpLabel, otpField, verifyButton, cancelButton
-        ])
-        stack.axis = .vertical
-        stack.spacing = 8
-        stack.setCustomSpacing(4, after: titleLabel)
-        stack.setCustomSpacing(16, after: subtitleLabel)
-        stack.setCustomSpacing(16, after: errorBox)
-        stack.setCustomSpacing(8, after: otpLabel)
-        stack.setCustomSpacing(24, after: otpField)
-        stack.setCustomSpacing(12, after: verifyButton)
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(stack)
-
-        NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: view.topAnchor, constant: 24),
-            stack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 24),
-            stack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24),
-            verifyButton.heightAnchor.constraint(equalToConstant: 52),
-        ])
-    }
-
-    private func showError(_ msg: String) {
-        errorLabel.text = msg
-        errorBox.isHidden = false
-    }
-
-    private func hideError() {
-        errorBox.isHidden = true
-    }
-
-    @objc private func verifyTapped() {
-        let otp = otpField.text?.trimmingCharacters(in: .whitespaces) ?? ""
-        if otp.isEmpty { showError("Please enter OTP"); return }
-        if otp.count < 4 { showError("Please enter valid OTP"); return }
-
-        hideError()
-        isVerifying = true
-        verifyButton.setLoading(true)
-        cancelButton.isEnabled = false
-
-        Task {
-            defer {
-                DispatchQueue.main.async { [weak self] in
-                    self?.isVerifying = false
-                    self?.verifyButton.setLoading(false)
-                    self?.cancelButton.isEnabled = true
-                }
-            }
-            do {
-                let res = try await APIService.shared.verifyOtp(VerifyOtpRequest(phoneNumber: mobileNo, otp: otp))
-                if res.success {
-                    let userId = res.userId.map { "\($0)" } ?? "0"
-                    let ulbId = AppState.shared.selectedUlbId ?? ""
-                    let totalArv = property.totalArv ?? "0.0"
-                    AppState.shared.selectedPropertyTotalArv = totalArv
-
-                    let entity = PropertyEntity(
-                        propertyId: propertyId,
-                        ownerName: details?.ownerDetails?.ownerName ?? "N/A",
-                        ward: details?.propertyDetailsInfo?.wardName ?? "N/A",
-                        mohalla: details?.propertyDetailsInfo?.mohallaName ?? "N/A",
-                        phoneNumber: mobileNo,
-                        email: UserDefaultsService.shared.emailId ?? "",
-                        userType: UserDefaultsService.shared.userType ?? "",
-                        ulbId: ulbId,
-                        arvValue: totalArv,
-                        userId: userId,
-                        fatherName: property.fatherHusbandName ?? "N/A",
-                        address: property.address
-                    )
-                    AppState.shared.selectedProperty = entity
-                    UserDefaultsService.shared.isPropertyVerified = true
-
-                    await MainActor.run { [weak self] in
-                        self?.dismiss(animated: true) {
-                            self?.viewModel.coordinator?.propertySelected()
-                        }
-                    }
-                } else {
-                    await MainActor.run { [weak self] in
-                        self?.showError(res.message.isEmpty ? "Invalid OTP" : res.message)
-                    }
-                }
-            } catch {
-                let msg = (error as? NetworkError)?.errorDescription ?? "Unable to verify OTP right now. Please try again."
-                await MainActor.run { [weak self] in self?.showError(msg) }
-            }
-        }
-    }
-
-    @objc private func cancelTapped() {
-        dismiss(animated: true)
-    }
-
-    func textFieldDidBeginEditing(_ textField: UITextField) {
-        textField.layer.borderColor = UIColor(red: 0.902, green: 0.459, blue: 0.078, alpha: 1).cgColor
-        textField.layer.borderWidth = 1.5
-    }
-    func textFieldDidEndEditing(_ textField: UITextField) {
-        textField.layer.borderColor = UIColor(red: 0.933, green: 0.933, blue: 0.933, alpha: 1).cgColor
-        textField.layer.borderWidth = 1
-    }
-}
-
-// MARK: - PropertySelectionViewModel
-
-@MainActor
-final class PropertySelectionViewModel: ObservableObject {
-
-    let properties: [PropertyData]
-    weak var coordinator: PropertyCoordinator?
-
-    @Published var isLoading: Bool = false
-    @Published var errorMessage: String?
-
-    private let api = APIService.shared
-
-    init(properties: [PropertyData], coordinator: PropertyCoordinator) {
-        self.properties = properties
-        self.coordinator = coordinator
-    }
-
-    func handlePropertySelection(property: PropertyData, from vc: PropertySelectionViewController) {
-        guard !property.propertyId.isEmpty else { return }
-        isLoading = true
-
-        let ulbId = AppState.shared.selectedUlbId ?? ""
+    private func handleSelection(_ property: PropertyData) {
+        guard let propertyId = property.propertyId, overlay.isHidden else { return }
+        overlay.isHidden = false
+        selected = property
         Task {
             do {
-                // 1. Get property details (for mobileNo, ward, mohalla)
-                let detailsRes = try await api.fetchPropertyDetails(
-                    PropertyDetailsRequest(propertyId: property.propertyId, ulbId: ulbId)
-                )
-                let details = detailsRes.data
+                let res = try await APIService.shared.getPropertyDetails(propertyId: propertyId)
+                details = res.data
                 guard let mobileNo = details?.ownerDetails?.mobileNo, !mobileNo.isEmpty else {
-                    isLoading = false
-                    vc.showSnackBar("Mobile number not found for this property")
-                    return
+                    throw APIError.message("Mobile number not found for this property")
                 }
+                overlay.isHidden = true
 
-                // 2. Send OTP
-                let otpRes = try await api.sendOtp(phoneNumber: mobileNo, propertyId: property.propertyId)
-                isLoading = false
-
-                if otpRes.success {
-                    vc.showOtpSheet(mobileNo: mobileNo, propertyId: property.propertyId,
-                                    property: property, details: details)
-                } else {
-                    vc.showSnackBar(otpRes.message.isEmpty ? "Failed to send OTP" : otpRes.message)
+                if let loginMobile = StorageService.loginMobile, !loginMobile.isEmpty,
+                   !Self.isSameMobile(loginMobile, mobileNo) {
+                    let proceed = await showMismatchDialog(loginMobile: loginMobile, propertyMobile: mobileNo)
+                    guard proceed else { selected = nil; return }
                 }
+                await finalizeSelection(mobileNo: mobileNo, propertyId: propertyId)
             } catch {
-                isLoading = false
-                let msg = (error as? NetworkError)?.errorDescription ?? "Unable to send OTP right now. Please try again."
-                vc.showSnackBar(msg)
+                overlay.isHidden = true
+                snack(APIError.userMessage(error, fallback: "Unable to select this property right now. Please try again."), .error)
             }
         }
+    }
+
+    /// Compares the last 10 digits so "+91"/"0" prefixes don't count as a mismatch.
+    nonisolated static func isSameMobile(_ a: String, _ b: String) -> Bool {
+        func normalize(_ v: String) -> String {
+            let digits = v.filter(\.isNumber)
+            return digits.count > 10 ? String(digits.suffix(10)) : digits
+        }
+        let l = normalize(a), r = normalize(b)
+        if l.isEmpty || r.isEmpty { return true }
+        return l == r
+    }
+
+    /// `9876596788` → `#####96788`
+    nonisolated static func maskMobile(_ mobile: String?) -> String {
+        let digits = (mobile ?? "").filter(\.isNumber)
+        if digits.isEmpty { return "-" }
+        if digits.count <= 5 { return digits }
+        return String(repeating: "#", count: digits.count - 5) + digits.suffix(5)
+    }
+
+    private func showMismatchDialog(loginMobile: String, propertyMobile: String) async -> Bool {
+        func row(_ label: String, _ value: String) -> UIView {
+            let l = UILabel(label, font: .poppins(13, .medium), color: .grey600)
+            l.setSize(width: 120)
+            return UIStackView.h(0, alignment: .top, [l, UILabel(value, font: .poppins(13, .bold), color: .appTextDark, lines: 0)])
+        }
+        let content = UIStackView.v(0, [
+            UILabel("Your login mobile number does not match the mobile number registered with this property.",
+                    font: .poppins(13), color: .grey700, lines: 0),
+        ])
+        content.addSpacer(16)
+        content.add(row("Login Number", Self.maskMobile(loginMobile)))
+        content.addSpacer(8)
+        content.add(row("Property Number", Self.maskMobile(propertyMobile)))
+        content.addSpacer(16)
+        content.add(UILabel("Do you still want to continue with this property?", font: .poppins(13, .medium),
+                            color: .appTextDark, lines: 0))
+
+        return await withCheckedContinuation { c in
+            AppDialog.show(on: self, icon: "exclamationmark.triangle", iconColor: .appPrimary, iconSize: 22,
+                           title: "Number Mismatch", content: content, actions: [
+                .init(title: "Cancel", style: .cancel) { c.resume(returning: false) },
+                .init(title: "Continue", style: .filled) { c.resume(returning: true) },
+            ], dismissible: false)
+        }
+    }
+
+    private func finalizeSelection(mobileNo: String, propertyId: String) async {
+        let totalArv = selected?.totalArv.map(JSON.dartDoubleString) ?? "0.0"
+        StorageService.saveTotalArv(totalArv)
+        let info = details?.propertyDetailsInfo
+        await DatabaseService.shared.insertProperty(PropertyEntity(
+            propertyId: propertyId,
+            ownerName: details?.ownerDetails?.ownerName ?? "N/A",
+            ward: info?.wardName ?? "N/A",
+            mohalla: info?.mohallaName ?? "N/A",
+            phoneNumber: mobileNo,
+            email: StorageService.emailId,
+            userType: StorageService.userType,
+            ulbId: StorageService.ulbId,
+            arvValue: totalArv,
+            userId: StorageService.userId ?? "0",
+            fatherName: selected?.fatherHusbandName ?? "N/A",
+            address: selected?.address ?? "N/A",
+            zone: info?.zoneName,
+            houseNo: info?.houseNo,
+            totalArea: info?.totalArea,
+            oldPropertyId: selected?.oldPropertyId,
+            billDate: details?.billDetails?.billDate,
+            netPayable: details?.billDetails?.netPayble,
+            ulbLang: selected?.ulbLang))
+        StorageService.setPropertyVerified(true)
+        AppRouter.shared.showDashboard()
+    }
+
+    // MARK: - Tour
+
+    private func handleTourTap() {
+        guard !properties.isEmpty else {
+            snack("Tour will be available once the property cards are loaded.", .success)
+            return
+        }
+        startTour()
+    }
+
+    private func startTour() {
+        guard let firstCard, let firstSelectButton else { return }
+        TourCoachMarkView.present(steps: [
+            TourStep(target: headerView, icon: "building.2", title: "Select Property",
+                     description: "This screen displays the list of properties matched to your search. Please review the available property cards and select the correct property to proceed.",
+                     shape: .roundedRect(radius: 14)),
+            TourStep(target: firstCard, icon: "doc.text", title: "Check Property Details",
+                     description: "Each property card includes key details such as the PID, owner name, father or husband name, house number, and address to help you identify the correct property.",
+                     shape: .roundedRect(radius: 16)),
+            TourStep(target: firstSelectButton, icon: "checkmark.circle", title: "Select And Verify",
+                     description: "Tap Select on the appropriate property card to receive an OTP on the registered mobile number. After successful OTP verification, the selected property will be saved to your account.",
+                     shape: .roundedRect(radius: 12)),
+        ], scrollContainer: scrollView)
     }
 }

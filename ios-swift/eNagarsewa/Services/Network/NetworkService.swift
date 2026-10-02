@@ -1,179 +1,150 @@
 import Foundation
 
-/// Core HTTP client. All requests go through here.
-/// Handles cert pinning, standard headers, and HTTP-status-to-error mapping.
+/// Raw HTTP result — status plus body, parsed lazily into an order-preserving `JSON`.
+struct HTTPResult {
+    let statusCode: Int
+    let data: Data
+
+    func json() throws -> JSON {
+        let trimmed = data.trimmingWhitespace
+        guard !trimmed.isEmpty else { throw APIError.invalidResponse }
+        do { return try JSON.parse(trimmed) } catch { throw APIError.invalidResponse }
+    }
+}
+
+/// One part of a multipart/form-data body.
+enum MultipartPart {
+    case field(name: String, value: String)
+    /// A file part. Flutter's `http.MultipartFile.fromPath` always sends
+    /// `application/octet-stream`, so that stays the default.
+    case file(name: String, filename: String, data: Data, contentType: String = "application/octet-stream")
+    /// A JSON-encoded part without a filename (`MultipartFile.fromString(..., contentType: json)`).
+    case json(name: String, data: Data)
+}
+
+/// Transport only: a certificate-pinned `URLSession` plus request builders.
+/// Auth/refresh/session-expiry policy lives in `APIService`, like `ApiService` in Dart.
 final class NetworkService {
 
     static let shared = NetworkService()
 
-    private let session: URLSession
-    private let decoder = JSONDecoder()
+    let session: URLSession
 
     private init() {
-        let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest  = AppConstants.Timeout.request
+        let config = URLSessionConfiguration.ephemeral
+        config.timeoutIntervalForRequest = AppConstants.Timeout.request
         config.timeoutIntervalForResource = AppConstants.Timeout.resource
+        config.requestCachePolicy = .reloadIgnoringLocalCacheData
         session = URLSession(configuration: config, delegate: CertificatePinner.shared, delegateQueue: nil)
-        decoder.keyDecodingStrategy = .useDefaultKeys
     }
 
-    // MARK: - JSON requests
+    // MARK: - Builders
 
-    func request<T: Decodable>(
-        _ endpoint: APIEndpoint,
-        method: HTTPMethod = .GET,
-        body: Encodable? = nil,
-        requiresAuth: Bool = true,
-        requiresIntegrity: Bool = false
-    ) async throws -> T {
-        var urlRequest = try buildRequest(endpoint, method: method, body: body,
-                                          requiresAuth: requiresAuth,
-                                          requiresIntegrity: requiresIntegrity)
-        return try await perform(urlRequest)
+    func url(_ path: String) -> URL {
+        URL(string: AppConstants.baseURL + path)!
     }
 
-    // MARK: - Form-encoded requests
-
-    func requestForm<T: Decodable>(
-        _ endpoint: APIEndpoint,
-        fields: [String: String],
-        requiresAuth: Bool = true
-    ) async throws -> T {
-        var urlRequest = URLRequest(url: endpoint.url)
-        urlRequest.httpMethod = HTTPMethod.POST.rawValue
-        urlRequest.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        urlRequest.httpBody = fields.map { "\($0.key)=\($0.value)" }
-            .joined(separator: "&")
-            .data(using: .utf8)
-        applyStandardHeaders(&urlRequest, requiresAuth: requiresAuth, requiresIntegrity: false)
-        return try await perform(urlRequest)
-    }
-
-    // MARK: - Multipart requests
-
-    func requestMultipart<T: Decodable>(
-        _ endpoint: APIEndpoint,
-        fields: [String: String],
-        fileData: Data? = nil,
-        fileName: String = "file.jpg",
-        mimeType: String = "image/jpeg",
-        fileFieldName: String = "file",
-        requiresAuth: Bool = true
-    ) async throws -> T {
-        let boundary = "Boundary-\(UUID().uuidString)"
-        var urlRequest = URLRequest(url: endpoint.url)
-        urlRequest.httpMethod = HTTPMethod.POST.rawValue
-        urlRequest.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        urlRequest.httpBody = buildMultipartBody(boundary: boundary, fields: fields,
-                                                  fileData: fileData, fileName: fileName,
-                                                  mimeType: mimeType, fileFieldName: fileFieldName)
-        applyStandardHeaders(&urlRequest, requiresAuth: requiresAuth, requiresIntegrity: false)
-        return try await perform(urlRequest)
-    }
-
-    // MARK: - Private helpers
-
-    private func buildRequest(
-        _ endpoint: APIEndpoint,
-        method: HTTPMethod,
-        body: Encodable?,
-        requiresAuth: Bool,
-        requiresIntegrity: Bool
-    ) throws -> URLRequest {
-        var request = URLRequest(url: endpoint.url)
-        request.httpMethod = method.rawValue
-        if let body {
-            request.httpBody = try JSONEncoder().encode(body)
-        }
-        applyStandardHeaders(&request, requiresAuth: requiresAuth, requiresIntegrity: requiresIntegrity)
+    func getRequest(_ path: String, headers: [String: String]) -> URLRequest {
+        var request = URLRequest(url: url(path))
+        request.httpMethod = "GET"
+        headers.forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
         return request
     }
 
-    private func applyStandardHeaders(
-        _ request: inout URLRequest,
-        requiresAuth: Bool,
-        requiresIntegrity: Bool
-    ) {
-        request.setValue("application/json",        forHTTPHeaderField: "Accept")
-        if request.value(forHTTPHeaderField: "Content-Type") == nil {
-            request.setValue("application/json",    forHTTPHeaderField: "Content-Type")
+    func postRequest(_ path: String, headers: [String: String], json body: [String: Any]?) -> URLRequest {
+        var request = URLRequest(url: url(path))
+        request.httpMethod = "POST"
+        headers.forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
+        if let body {
+            request.httpBody = try? JSONSerialization.data(withJSONObject: body, options: [])
         }
-        request.setValue(AppConstants.buildNumber,  forHTTPHeaderField: "X-App-Version")
-        let deviceId = DeviceSecurityService.shared.deviceId
-        request.setValue(deviceId,                  forHTTPHeaderField: "X-Device-Id")
-        request.setValue(deviceId,                  forHTTPHeaderField: "device_id")
+        return request
+    }
 
-        if requiresAuth, let token = KeychainService.shared.accessToken {
-            request.setValue("Bearer \(token)",     forHTTPHeaderField: "Authorization")
-        }
-        if requiresIntegrity, let token = KeychainService.shared.integrityToken {
-            request.setValue(token,                 forHTTPHeaderField: "X-Integrity-Token")
+    func formRequest(_ path: String, headers: [String: String], fields: [(String, String)]) -> URLRequest {
+        var request = URLRequest(url: url(path))
+        request.httpMethod = "POST"
+        headers.forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
+        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        request.httpBody = fields
+            .map { "\($0.0.formEncoded)=\($0.1.formEncoded)" }
+            .joined(separator: "&")
+            .data(using: .utf8)
+        return request
+    }
+
+    func multipartRequest(_ path: String, headers: [String: String], parts: [MultipartPart]) -> URLRequest {
+        let boundary = "dart-http-boundary-\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))"
+        var request = URLRequest(url: url(path))
+        request.httpMethod = "POST"
+        headers.forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
+        // The JSON default from `headers` must not leak into a multipart request.
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        request.httpBody = Self.multipartBody(parts: parts, boundary: boundary)
+        return request
+    }
+
+    // MARK: - Execution
+
+    func send(_ request: URLRequest) async throws -> HTTPResult {
+        do {
+            let (data, response) = try await session.data(for: request)
+            guard let http = response as? HTTPURLResponse else { throw APIError.invalidResponse }
+            return HTTPResult(statusCode: http.statusCode, data: data)
+        } catch let error as APIError {
+            throw error
+        } catch is URLError {
+            throw APIError.network
+        } catch {
+            throw APIError.network
         }
     }
 
-    private func perform<T: Decodable>(_ request: URLRequest) async throws -> T {
-        let (data, response): (Data, URLResponse)
-        do {
-            (data, response) = try await session.data(for: request)
-        } catch let urlError as URLError {
-            throw urlError.code == .timedOut ? NetworkError.timeout : NetworkError.noInternet
-        } catch {
-            throw NetworkError.unknown(error)
-        }
+    // MARK: - Multipart encoding
 
-        guard let http = response as? HTTPURLResponse else {
-            throw NetworkError.unknown(NSError(domain: "NetworkService", code: -1))
-        }
-
-        if let networkError = NetworkError.from(statusCode: http.statusCode) {
-            throw networkError
-        }
-
-        do {
-            return try decoder.decode(T.self, from: data)
-        } catch {
-            throw NetworkError.decodingFailed(error)
-        }
-    }
-
-    private func buildMultipartBody(
-        boundary: String,
-        fields: [String: String],
-        fileData: Data?,
-        fileName: String,
-        mimeType: String,
-        fileFieldName: String
-    ) -> Data {
+    private static func multipartBody(parts: [MultipartPart], boundary: String) -> Data {
         var body = Data()
         let crlf = "\r\n"
-        let delimiter = "--\(boundary)\(crlf)"
-        let closeDelimiter = "--\(boundary)--\(crlf)"
-
-        for (key, value) in fields {
-            body.append(delimiter.utf8Data)
-            body.append("Content-Disposition: form-data; name=\"\(key)\"\(crlf)\(crlf)".utf8Data)
-            body.append("\(value)\(crlf)".utf8Data)
+        for part in parts {
+            body.append("--\(boundary)\(crlf)")
+            switch part {
+            case let .field(name, value):
+                body.append("Content-Disposition: form-data; name=\"\(name)\"\(crlf)\(crlf)")
+                body.append(value)
+            case let .file(name, filename, data, contentType):
+                body.append("Content-Type: \(contentType)\(crlf)")
+                body.append("Content-Disposition: form-data; name=\"\(name)\"; filename=\"\(filename)\"\(crlf)\(crlf)")
+                body.append(data)
+            case let .json(name, data):
+                body.append("Content-Type: application/json; charset=utf-8\(crlf)")
+                body.append("Content-Disposition: form-data; name=\"\(name)\"\(crlf)\(crlf)")
+                body.append(data)
+            }
+            body.append(crlf)
         }
-
-        if let fileData {
-            body.append(delimiter.utf8Data)
-            body.append("Content-Disposition: form-data; name=\"\(fileFieldName)\"; filename=\"\(fileName)\"\(crlf)".utf8Data)
-            body.append("Content-Type: \(mimeType)\(crlf)\(crlf)".utf8Data)
-            body.append(fileData)
-            body.append(crlf.utf8Data)
-        }
-
-        body.append(closeDelimiter.utf8Data)
+        body.append("--\(boundary)--\(crlf)")
         return body
     }
 }
 
-// MARK: - Supporting types
+private extension Data {
+    mutating func append(_ string: String) {
+        append(Data(string.utf8))
+    }
 
-enum HTTPMethod: String {
-    case GET, POST, PUT, DELETE, PATCH
+    var trimmingWhitespace: Data {
+        let ws: Set<UInt8> = [0x20, 0x09, 0x0A, 0x0D]
+        guard let first = firstIndex(where: { !ws.contains($0) }),
+              let last = lastIndex(where: { !ws.contains($0) }) else { return Data() }
+        return self[first...last]
+    }
 }
 
 private extension String {
-    var utf8Data: Data { Data(utf8) }
+    /// `Uri.encodeComponent` equivalent for form bodies.
+    var formEncoded: String {
+        var allowed = CharacterSet.alphanumerics
+        allowed.insert(charactersIn: "-_.!~*'()")
+        return addingPercentEncoding(withAllowedCharacters: allowed) ?? self
+    }
 }

@@ -1,11 +1,8 @@
 import Foundation
 
-// MARK: - Create transaction (shared shape for PayU + SBI — matches Dart's InitiateTransactionRequest,
-// reused as-is by both api/Payment/create_transaction and api/Payment/create_sbi_transaction).
-// NOTE: the integrity token is NOT part of this body — it travels in the `X-Integrity-Token`
-// header (see APIService.performWithIntegrity), matching Dart's `_makeIntegrityProtectedRequest`.
+// Ports of the payment / transaction models in lib/services/api_service.dart.
 
-struct InitiateTransactionRequest: Encodable {
+struct InitiateTransactionRequest {
     let mobileTransactionId: String
     let mobileTransactionTimestamp: String
     let billNo: String
@@ -26,54 +23,45 @@ struct InitiateTransactionRequest: Encodable {
     let userId: String
     let emailId: String
 
-    enum CodingKeys: String, CodingKey {
-        case mobileTransactionId = "mobile_transaction_id"
-        case mobileTransactionTimestamp = "mobile_transaction_timestamp"
-        case billNo = "bill_no"
-        case propertyId = "property_id"
-        case ulbId = "ulb_id"
-        case financialYear = "financial_year"
-        case ownerName
-        case fatherName
-        case mobileNo
-        case propertyTax = "property_tax"
-        case waterTax = "water_tax"
-        case sewerTax = "sewer_tax"
-        case otherTax = "other_tax"
-        case waterCharge = "water_charge"
-        case netDemand = "net_demand"
-        case netPayable = "net_payable"
-        case totalArv
-        case userId = "user_id"
-        case emailId = "email_id"
+    var json: [String: Any] {
+        [
+            "mobile_transaction_id": mobileTransactionId,
+            "mobile_transaction_timestamp": mobileTransactionTimestamp,
+            "bill_no": billNo,
+            "property_id": propertyId,
+            "ulb_id": ulbId,
+            "financial_year": financialYear,
+            "ownerName": ownerName,
+            "fatherName": fatherName,
+            "mobileNo": mobileNo,
+            "property_tax": propertyTax,
+            "water_tax": waterTax,
+            "sewer_tax": sewerTax,
+            "other_tax": otherTax,
+            "water_charge": waterCharge,
+            "net_demand": netDemand,
+            "net_payable": netPayable,
+            "totalArv": totalArv,
+            "user_id": userId,
+            "email_id": emailId,
+        ]
     }
 }
 
-/// Both endpoints accept the identical body shape in the real backend (matches Dart, which
-/// literally reuses `InitiateTransactionRequest` for `createSbiTransaction`).
-typealias CreateTransactionRequest = InitiateTransactionRequest
-typealias CreateSbiTransactionRequest = InitiateTransactionRequest
-
-struct CreateTransactionResponse: Decodable {
-    let success: Bool
-    let message: String?
+struct CreateTransactionResponse {
     let data: PayUTransaction?
+    let message: String?
+    let status: Bool?
 
-    private enum CodingKeys: String, CodingKey { case status, success, message, data }
-
-    init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        // Dart: `status: json['status'] ?? json['success']`
-        let status = try c.decodeIfPresent(Bool.self, forKey: .status)
-        let legacySuccess = try c.decodeIfPresent(Bool.self, forKey: .success)
-        success = status ?? legacySuccess ?? false
-        message = try c.decodeIfPresent(String.self, forKey: .message)
-        data = try c.decodeIfPresent(PayUTransaction.self, forKey: .data)
+    init(json: JSON) {
+        data = json["data"].object != nil ? PayUTransaction(json: json["data"]!) : nil
+        message = json["message"].str
+        status = json["status"].bool ?? json["success"].bool
     }
 }
 
-/// PayU transaction payload returned by create_transaction — matches Dart's `Transaction` class.
-struct PayUTransaction: Decodable {
+/// Dart `Transaction` — the server-issued PayU checkout parameters.
+struct PayUTransaction {
     let amount: String?
     let firstname: String?
     let phone: String?
@@ -86,139 +74,69 @@ struct PayUTransaction: Decodable {
     /// Raw value from API: 'p' = production, 't' = testing
     let payuEnv: String?
     let merchantName: String?
+    let ulbId: String?
 
-    enum CodingKeys: String, CodingKey {
-        case amount, firstname, phone, furl, surl, productinfo, email, key, txnid
-        case payuEnv = "payu_env"
-        case merchantName
+    init(json: JSON) {
+        amount = json["amount"].str
+        firstname = json["firstname"].str
+        phone = json["phone"].str
+        furl = json["furl"].str
+        surl = json["surl"].str
+        productinfo = json["productinfo"].str
+        email = json["email"].str
+        key = json["key"].str
+        txnid = json["txnid"].str
+        payuEnv = json["payu_env"].str
+        merchantName = json["merchantName"].str
+        ulbId = json["ulbId"].str ?? json["ulb_id"].str
     }
 
-    /// PayU SDK environment value: '0' = production, '1' = test. Mirrors Dart's `resolvedPayuEnvironment`.
+    /// PayU SDK environment: "0" production, "1" test.
     var resolvedPayuEnvironment: String { payuEnv == "t" ? "1" : "0" }
+    var isTestEnvironment: Bool { payuEnv == "t" }
 }
 
-// MARK: - Hash generation (PayU SDK → backend round trip)
-// Dart posts `hashName` + `hashString` as application/x-www-form-urlencoded — no JSON body/struct.
-// See APIService.generateHash(hashName:hashString:).
-
-struct HashResponse: Decodable {
-    let status: Bool
-    let data: String?
-    let message: String?
-
-    private enum CodingKeys: String, CodingKey { case status, success, data, message }
-
-    init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        let status = try c.decodeIfPresent(Bool.self, forKey: .status)
-        let success = try c.decodeIfPresent(Bool.self, forKey: .success)
-        self.status = status ?? success ?? false
-        data = try c.decodeIfPresent(String.self, forKey: .data)
-        message = try c.decodeIfPresent(String.self, forKey: .message)
-    }
-}
-
-// MARK: - PayU transaction details (cross-verify after SDK callback)
-// POSTed as multipart/form-data with field `mobile_transaction_id` — see APIService.getTransactionDetails.
-
-struct PayUTransactionDetailsResponse: Decodable {
-    let status: Bool
-    let data: PayUTransactionDetails?
-
-    private enum CodingKeys: String, CodingKey { case status, data }
-
-    init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        status = try c.decodeIfPresent(Bool.self, forKey: .status) ?? false
-        data = try c.decodeIfPresent(PayUTransactionDetails.self, forKey: .data)
-    }
-}
-
-struct PayUTransactionDetails: Decodable {
-    let paymentStatus: String?
-    let txnid: String?
-    let paymentMode: String?
-    let netPayable: String?
-    let ownerName: String?
-    let mobileNo: String?
-    let billNo: String?
-    let propertyId: String?
-    let financialYear: String?
-    let propertyTaxPaid: String?
-    let waterTaxPaid: String?
-    let sewerTaxPaid: String?
-    let otherTaxPaid: String?
-    let waterChargePaid: String?
-    let mobileTransactionTimestamp: String?
-    let payuPaymentTime: String?
-    let transactionCreatedAt: String?
-
-    enum CodingKeys: String, CodingKey {
-        case paymentStatus = "payment_status"
-        case txnid
-        case paymentMode = "payment_mode"
-        case netPayable = "net_payable"
-        case ownerName = "owner_name"
-        case mobileNo = "mobile_no"
-        case billNo, propertyId, financialYear
-        case propertyTaxPaid, waterTaxPaid, sewerTaxPaid, otherTaxPaid, waterChargePaid
-        case mobileTransactionTimestamp = "mobile_transaction_timestamp"
-        case payuPaymentTime = "payu_payment_time"
-        case transactionCreatedAt = "transaction_created_at"
-    }
-}
-
-// MARK: - SBI
-
-struct CreateSbiTransactionResponse: Decodable {
-    let success: Bool
+struct CreateSbiTransactionResponse {
+    let status: Bool?
     let message: String?
     let data: SbiTransactionData?
 
-    private enum CodingKeys: String, CodingKey { case status, success, message, data }
-
-    init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        let status = try c.decodeIfPresent(Bool.self, forKey: .status)
-        let legacySuccess = try c.decodeIfPresent(Bool.self, forKey: .success)
-        success = status ?? legacySuccess ?? false
-        message = try c.decodeIfPresent(String.self, forKey: .message)
-        data = try c.decodeIfPresent(SbiTransactionData.self, forKey: .data)
+    init(json: JSON) {
+        status = json["status"].bool
+        message = json["message"].str
+        data = json["data"].object != nil ? SbiTransactionData(json: json["data"]!) : nil
     }
 }
 
-struct SbiTransactionData: Decodable {
+struct SbiTransactionData {
     let txnid: String?
     let merchantId: String?
     let encdata: String?
     let sbiPostUrl: String?
     let paymentPageHtml: String?
 
-    enum CodingKeys: String, CodingKey {
-        case txnid
-        case merchantId = "merchant_id"
-        case encdata
-        case sbiPostUrl = "sbi_post_url"
-        case paymentPageHtml = "payment_page_html"
+    init(json: JSON) {
+        txnid = json["txnid"].str
+        merchantId = json["merchant_id"].str
+        encdata = json["encdata"].str
+        sbiPostUrl = json["sbi_post_url"].str
+        paymentPageHtml = json["payment_page_html"].str
     }
 }
 
-struct SbiTransactionDetailsResponse: Decodable {
-    let status: Bool
+struct SbiTransactionDetailsResponse {
+    let status: Bool?
+    let message: String?
     let data: SbiPaymentDetails?
 
-    private enum CodingKeys: String, CodingKey { case status, success, data }
-
-    init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        let status = try c.decodeIfPresent(Bool.self, forKey: .status)
-        let success = try c.decodeIfPresent(Bool.self, forKey: .success)
-        self.status = status ?? success ?? false
-        data = try c.decodeIfPresent(SbiPaymentDetails.self, forKey: .data)
+    init(json: JSON) {
+        status = json["status"].bool
+        message = json["message"].str
+        data = json["data"].object != nil ? SbiPaymentDetails(json: json["data"]!) : nil
     }
 }
 
-struct SbiPaymentDetails: Decodable {
+struct SbiPaymentDetails {
     let paymentStatus: String?
     let txnid: String?
     let paymentMode: String?
@@ -238,48 +156,106 @@ struct SbiPaymentDetails: Decodable {
     let mobileTransactionTimestamp: String?
     let transactionCreatedAt: String?
 
-    enum CodingKeys: String, CodingKey {
-        case paymentStatus = "payment_status"
-        case txnid
-        case paymentMode = "payment_mode"
-        case netPayable = "net_payable"
-        case ownerName = "owner_name"
-        case mobileNo = "mobile_no"
-        case billNo, propertyId, financialYear
-        case propertyTaxPaid, waterTaxPaid, sewerTaxPaid, otherTaxPaid, waterChargePaid
-        case sbiPaymentTime = "sbi_payment_time"
-        case payuPaymentTime = "payu_payment_time"
-        case mobileTransactionTimestamp = "mobile_transaction_timestamp"
-        case transactionCreatedAt = "transaction_created_at"
+    init(json: JSON) {
+        paymentStatus = json["payment_status"].str
+        txnid = json["txnid"].str
+        paymentMode = json["payment_mode"].str
+        netPayable = json["net_payable"].str
+        ownerName = json["owner_name"].str
+        mobileNo = json["mobile_no"].str
+        billNo = json["billNo"].str
+        propertyId = json["propertyId"].str
+        financialYear = json["financialYear"].str
+        propertyTaxPaid = json["propertyTaxPaid"].str
+        waterTaxPaid = json["waterTaxPaid"].str
+        sewerTaxPaid = json["sewerTaxPaid"].str
+        otherTaxPaid = json["otherTaxPaid"].str
+        waterChargePaid = json["waterChargePaid"].str
+        sbiPaymentTime = json["sbi_payment_time"].str
+        payuPaymentTime = json["payu_payment_time"].str
+        mobileTransactionTimestamp = json["mobile_transaction_timestamp"].str
+        transactionCreatedAt = json["transaction_created_at"].str
     }
 }
 
-// MARK: - Transaction history
+struct PayUTransactionDetailsResponse {
+    let status: Bool?
+    let message: String?
+    let data: PayUTransactionDetails?
 
-struct TransactionsByEmailRequest: Encodable {
-    let emailId: String
-
-    enum CodingKeys: String, CodingKey { case emailId = "email_id" }
-}
-
-struct TransactionsByEmailResponse: Decodable {
-    let success: Bool
-    let data: [TransactionData]
-
-    private enum CodingKeys: String, CodingKey { case status, success, data }
-
-    init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        let status = try c.decodeIfPresent(Bool.self, forKey: .status)
-        let legacySuccess = try c.decodeIfPresent(Bool.self, forKey: .success)
-        success = status ?? legacySuccess ?? false
-        data = try c.decodeIfPresent([TransactionData].self, forKey: .data) ?? []
+    init(json: JSON) {
+        status = json["status"].bool
+        message = json["message"].str
+        data = json["data"].object != nil ? PayUTransactionDetails(json: json["data"]!) : nil
     }
 }
 
-/// Matches Dart's `TransactionData` — used by Payment History, Transaction History and
-/// Transaction Details screens alike.
-struct TransactionData: Decodable, Identifiable {
+struct PayUTransactionDetails {
+    let paymentStatus: String?
+    let txnid: String?
+    /// Dart keeps this `dynamic` — it may be a string or an object; the string form is kept.
+    let paymentMode: String?
+    let netPayable: String?
+    let ownerName: String?
+    let mobileNo: String?
+    let billNo: String?
+    let propertyId: String?
+    let financialYear: String?
+    let propertyTaxPaid: String?
+    let waterTaxPaid: String?
+    let sewerTaxPaid: String?
+    let otherTaxPaid: String?
+    let waterChargePaid: String?
+    let mobileTransactionTimestamp: String?
+    let payuPaymentTime: String?
+    let transactionCreatedAt: String?
+
+    init(json: JSON) {
+        paymentStatus = json["payment_status"].str
+        txnid = json["txnid"].str
+        paymentMode = json["payment_mode"].str
+        netPayable = json["net_payable"].str
+        ownerName = json["owner_name"].str
+        mobileNo = json["mobile_no"].str
+        billNo = json["billNo"].str
+        propertyId = json["propertyId"].str
+        financialYear = json["financialYear"].str
+        propertyTaxPaid = json["propertyTaxPaid"].str
+        waterTaxPaid = json["waterTaxPaid"].str
+        sewerTaxPaid = json["sewerTaxPaid"].str
+        otherTaxPaid = json["otherTaxPaid"].str
+        waterChargePaid = json["waterChargePaid"].str
+        mobileTransactionTimestamp = json["mobile_transaction_timestamp"].str
+        payuPaymentTime = json["payu_payment_time"].str
+        transactionCreatedAt = json["transaction_created_at"].str
+    }
+}
+
+struct HashResponse {
+    let data: String?
+    let message: String?
+    let status: Bool?
+
+    init(json: JSON) {
+        data = json["data"].str
+        message = json["message"].str
+        status = json["status"].bool ?? json["success"].bool
+    }
+}
+
+struct TransactionsByEmailResponse {
+    let status: Bool?
+    let message: String?
+    let data: [TransactionData]?
+
+    init(json: JSON) {
+        status = json["status"].bool
+        message = json["message"].str
+        data = json["data"].array.map { $0.map(TransactionData.init(json:)) }
+    }
+}
+
+struct TransactionData {
     let paymentAmount: String?
     let billNo: String?
     let propertyId: String?
@@ -297,41 +273,30 @@ struct TransactionData: Decodable, Identifiable {
     let userCode: String?
     let ulbName: String?
     let ulbType: String?
+    let ulbId: String?
     let receiptNo: String?
+    let billDate: String?
 
-    var id: String { txnId ?? UUID().uuidString }
-
-    enum CodingKeys: String, CodingKey {
-        case paymentAmount = "payment_amount"
-        case billNo = "bill_no"
-        case propertyId = "property_id"
-        case txnId = "txnid"
-        case dateTime = "date_time"
-        case financialYear = "financial_year"
-        case paymentMode = "payment_mode"
-        case bankRefNo = "bank_ref_no"
-        case transactionStatus = "transaction_status"
-        case ownerName = "owner_name"
-        case fatherName = "father_name"
-        case address
-        case mobileNo = "mobile_no"
-        case eNagarSewaRefNo = "e_nagarsewa_ref_no"
-        case userCode = "user_code"
-        case ulbName = "ulb_name"
-        case ulbType = "ulb_type"
-        case receiptNo
+    init(json: JSON) {
+        paymentAmount = json["payment_amount"].str
+        billNo = json["bill_no"].str
+        propertyId = json["property_id"].str
+        txnId = json["txnid"].str
+        dateTime = json["date_time"].str
+        financialYear = json["financial_year"].str
+        paymentMode = json["payment_mode"].str
+        bankRefNo = json["bank_ref_no"].str
+        transactionStatus = json["transaction_status"].str
+        ownerName = json["owner_name"].str
+        fatherName = json["father_name"].str
+        address = json["address"].str
+        mobileNo = json["mobile_no"].str
+        eNagarSewaRefNo = json["e_nagarsewa_ref_no"].str
+        userCode = json["user_code"].str
+        ulbName = json["ulb_name"].str
+        ulbType = json["ulb_type"].str
+        ulbId = json["ulb_id"].str
+        receiptNo = json["receiptNo"].str
+        billDate = json["bill_date"].str
     }
-}
-
-// MARK: - Payment result context
-
-enum PaymentGateway {
-    case payU
-    case sbi
-}
-
-enum PaymentStatus {
-    case success
-    case failure
-    case pending
 }

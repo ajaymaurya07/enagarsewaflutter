@@ -1,67 +1,36 @@
 import Foundation
 
-/// Typed wrapper over UserDefaults — replacement for shared_preferences plaintext keys.
+/// Plain (non-secret) preferences — the `shared_preferences` keys the Flutter app uses.
 final class UserDefaultsService {
 
     static let shared = UserDefaultsService()
     private let defaults = UserDefaults.standard
     private init() {}
 
-    // MARK: - User session
-
-    var emailId: String? {
-        get { defaults.string(forKey: DefaultsKey.emailId.rawValue) }
-        set { defaults.set(newValue, forKey: DefaultsKey.emailId.rawValue) }
+    enum Key: String {
+        case emailId                  = "email_id"
+        case userType                 = "user_type"
+        case userId                   = "user_id"
+        case isPropertyVerified       = "is_property_verified"
+        case selectedUlbId            = "selected_ulb_id"
+        case selectedPropertyTotalArv = "selected_property_total_arv"
     }
 
-    var userType: String? {
-        get { defaults.string(forKey: DefaultsKey.userType.rawValue) }
-        set { defaults.set(newValue, forKey: DefaultsKey.userType.rawValue) }
-    }
+    func string(_ key: Key) -> String? { defaults.string(forKey: key.rawValue) }
+    func set(_ value: String?, for key: Key) { defaults.set(value, forKey: key.rawValue) }
+    func bool(_ key: Key) -> Bool { defaults.bool(forKey: key.rawValue) }
+    func set(_ value: Bool, for key: Key) { defaults.set(value, forKey: key.rawValue) }
+    func remove(_ key: Key) { defaults.removeObject(forKey: key.rawValue) }
 
-    var isPropertyVerified: Bool {
-        get { defaults.bool(forKey: DefaultsKey.isPropertyVerified.rawValue) }
-        set { defaults.set(newValue, forKey: DefaultsKey.isPropertyVerified.rawValue) }
-    }
+    // MARK: - Tour guide "seen" flags (SharedPreferences `tour_*` bools)
 
-    var selectedUlbId: String? {
-        get { defaults.string(forKey: DefaultsKey.selectedUlbId.rawValue) }
-        set { defaults.set(newValue, forKey: DefaultsKey.selectedUlbId.rawValue) }
-    }
+    func hasTourBeenSeen(_ tour: TourKey) -> Bool { defaults.bool(forKey: tour.rawValue) }
+    func markTourSeen(_ tour: TourKey) { defaults.set(true, forKey: tour.rawValue) }
 
-    var selectedPropertyTotalArv: String? {
-        get { defaults.string(forKey: DefaultsKey.selectedPropertyTotalArv.rawValue) }
-        set { defaults.set(newValue, forKey: DefaultsKey.selectedPropertyTotalArv.rawValue) }
-    }
+    // MARK: - Arbitrary flags (e.g. per-day payment notification guard)
 
-    // MARK: - Tour guide seen flags
-
-    func hasTourBeenSeen(_ tour: TourKey) -> Bool {
-        defaults.bool(forKey: tour.rawValue)
-    }
-
-    func markTourSeen(_ tour: TourKey) {
-        defaults.set(true, forKey: tour.rawValue)
-    }
-
-    // MARK: - Clear
-
-    func clearSession() {
-        [DefaultsKey.emailId, .userType, .isPropertyVerified,
-         .selectedUlbId, .selectedPropertyTotalArv].forEach {
-            defaults.removeObject(forKey: $0.rawValue)
-        }
-    }
-}
-
-// MARK: - Keys
-
-private enum DefaultsKey: String {
-    case emailId                    = "email_id"
-    case userType                   = "user_type"
-    case isPropertyVerified         = "is_property_verified"
-    case selectedUlbId              = "selected_ulb_id"
-    case selectedPropertyTotalArv   = "selected_property_total_arv"
+    func flag(_ key: String) -> Bool { defaults.bool(forKey: key) }
+    func setFlag(_ key: String) { defaults.set(true, forKey: key) }
 }
 
 enum TourKey: String {
@@ -74,7 +43,6 @@ enum TourKey: String {
     case account                = "tour_account"
     case grievanceStatus        = "tour_grievance_status"
     case propertySelection      = "tour_property_selection"
-    case propertyTaxAssessment  = "tour_property_tax_assessment"
     case trackGrievance         = "tour_track_grievance"
     case transactionDetails     = "tour_transaction_details"
 }

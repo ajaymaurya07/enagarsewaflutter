@@ -9,12 +9,14 @@ final class DeviceSecurityService {
     static let shared = DeviceSecurityService()
     private init() {}
 
-    // MARK: - Device ID (SHA-256 of identifierForVendor)
+    // MARK: - Device ID
 
+    /// First 16 hex chars of SHA-256(identifierForVendor) — identical to Dart
+    /// `DeviceService.getDeviceId()` on iOS, so the backend sees the same id format.
     lazy var deviceId: String = {
-        let raw = UIDevice.current.identifierForVendor?.uuidString ?? UUID().uuidString
+        let raw = UIDevice.current.identifierForVendor?.uuidString ?? "ios_device"
         let hash = SHA256.hash(data: Data(raw.utf8))
-        return hash.compactMap { String(format: "%02x", $0) }.joined()
+        return String(hash.map { String(format: "%02x", $0) }.joined().prefix(16))
     }()
 
     // MARK: - Jailbreak detection
@@ -26,13 +28,13 @@ final class DeviceSecurityService {
             || hasInjectedLibraries
     }
 
-    // isDeveloperModeEnabled — not applicable on iOS (return false)
+    /// Flutter's `isDeveloperModeEnabled` goes through a MethodChannel that has no iOS handler,
+    /// so it is always false on iOS; kept identical here.
     var isDeveloperModeEnabled: Bool { false }
 
-    // isTamperingDetected — check for Substrate/hook injection
-    var isTamperingDetected: Bool {
-        hasInjectedLibraries
-    }
+    /// Flutter's `isTamperingDetected` is Android-only (returns false on iOS); kept identical.
+    /// `hasInjectedLibraries` remains available should iOS enforcement be wanted later.
+    var isTamperingDetected: Bool { false }
 
     // MARK: - Private checks
 

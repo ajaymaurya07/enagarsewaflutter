@@ -1,631 +1,756 @@
 import UIKit
-import Combine
 
-/// Full parity port of `lib/payment_details_screen.dart`: tax summary, OTP-gated "Pay Your Tax
-/// Online" (OTP sheet → amount sheet → payment-method sheet → PayU/SBI checkout → verify →
-/// result), Print Property (PDF share), Payment History, Apply Grievance, and an expandable
-/// Property Details card.
-final class PaymentDetailsViewController: UIViewController {
+/// Port of lib/payment_details_screen.dart.
+final class PaymentDetailsViewController: BaseViewController {
 
-    private let viewModel: PaymentDetailsViewModel
-    private var cancellables = Set<AnyCancellable>()
-    private var propertyDetailsExpanded = false
+    override var hidesNavigationBar: Bool { true }
+    override var screenBackground: UIColor { .grey100 }
 
-    init(viewModel: PaymentDetailsViewModel) {
-        self.viewModel = viewModel
+    private let propertyId: String
+    private var details: PropertyDetailsData?
+    private var isKrutidev = false
+    private var ulbName: String?
+    private var ulbType: String?
+    private var showPropertyDetails = false
+
+    private let body = UIView()
+    private var payButton: UIView?
+    private var printButton: UIView?
+    private var grievanceButton: UIView?
+    private var receiptsButton: UIView?
+
+    init(propertyId: String) {
+        self.propertyId = propertyId
         super.init(nibName: nil, bundle: nil)
     }
+
     required init?(coder: NSCoder) { fatalError() }
-
-    // MARK: - UI refs
-
-    private var navBarView = UIView()
-    private let scrollView = UIScrollView()
-    private let mainStack  = UIStackView()
-    private let spinner    = UIActivityIndicatorView(style: .large)
-    private weak var propDetailsContent: UIView?
-    private weak var propChevron: UIImageView?
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = UIColor(red: 0.961, green: 0.961, blue: 0.961, alpha: 1)
-        setupNavBar()
-        setupLayout()
-        bindViewModel()
-        populateContent(details: viewModel.details)
-        Task { await viewModel.fetchDetails() }
-    }
-
-    // MARK: - Nav bar (matches Flutter's custom AppBar row)
-
-    private func setupNavBar() {
-        let bar = UIView()
-        bar.backgroundColor = UIColor(red: 0.961, green: 0.961, blue: 0.961, alpha: 1)
-        bar.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(bar)
-        navBarView = bar
-
-        let backBtn = UIButton(type: .system)
-        backBtn.setImage(UIImage(systemName: "chevron.backward"), for: .normal)
-        backBtn.tintColor = .appPrimary
-        backBtn.addTarget(self, action: #selector(backTapped), for: .touchUpInside)
-        backBtn.translatesAutoresizingMaskIntoConstraints = false
-
-        let titleL = UILabel()
-        titleL.text = "Payment Details"
-        titleL.font = UIFont(name: "Poppins-Bold", size: 18) ?? .boldSystemFont(ofSize: 18)
-        titleL.textColor = UIColor(red: 0.2, green: 0.2, blue: 0.2, alpha: 1)
-
-        let pidL = UILabel()
-        pidL.text = "PID: \(viewModel.property.propertyId)"
-        pidL.font = UIFont(name: "Poppins-Medium", size: 12) ?? .systemFont(ofSize: 12, weight: .medium)
-        pidL.textColor = UIColor(red: 0.4, green: 0.4, blue: 0.4, alpha: 1)
-
-        let titleStack = UIStackView(arrangedSubviews: [titleL, pidL])
-        titleStack.axis = .vertical; titleStack.spacing = 0
-        titleStack.translatesAutoresizingMaskIntoConstraints = false
-
-        // Help button is a visual placeholder only — the coach-mark tour system is a separate
-        // workstream and intentionally not wired up here.
-        let helpBtn = UIButton(type: .system)
-        helpBtn.setImage(UIImage(systemName: "questionmark.circle"), for: .normal)
-        helpBtn.tintColor = .appPrimary
-        helpBtn.translatesAutoresizingMaskIntoConstraints = false
-
-        bar.addSubview(backBtn); bar.addSubview(titleStack); bar.addSubview(helpBtn)
-        NSLayoutConstraint.activate([
-            bar.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            bar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            bar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            bar.heightAnchor.constraint(equalToConstant: 60),
-            backBtn.leadingAnchor.constraint(equalTo: bar.leadingAnchor, constant: 8),
-            backBtn.centerYAnchor.constraint(equalTo: bar.centerYAnchor),
-            backBtn.widthAnchor.constraint(equalToConstant: 36),
-            backBtn.heightAnchor.constraint(equalToConstant: 36),
-            titleStack.leadingAnchor.constraint(equalTo: backBtn.trailingAnchor, constant: 4),
-            titleStack.centerYAnchor.constraint(equalTo: bar.centerYAnchor),
-            helpBtn.trailingAnchor.constraint(equalTo: bar.trailingAnchor, constant: -8),
-            helpBtn.centerYAnchor.constraint(equalTo: bar.centerYAnchor),
-            helpBtn.widthAnchor.constraint(equalToConstant: 40),
-            helpBtn.heightAnchor.constraint(equalToConstant: 40),
+        let back = iconButton("chevron.backward", color: .appPrimary, size: 18) { [weak self] in
+            self?.navigationController?.popViewController(animated: true)
+        }
+        let titles = UIStackView.v(0, [
+            UILabel("Payment Details", font: .poppins(18, .bold), color: .appTextDark),
+            UILabel("PID: \(propertyId)", font: .poppins(12, .medium), color: .grey600),
         ])
-    }
-
-    // MARK: - Base layout
-
-    private func setupLayout() {
-        spinner.color = .appPrimary
-        spinner.hidesWhenStopped = true
-        spinner.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(spinner)
-
-        scrollView.showsVerticalScrollIndicator = false
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
-        view.backgroundColor = .white
+        let help = iconButton("questionmark.circle", color: .appPrimary) { [weak self] in self?.handleTourTap() }
+        let header = UIStackView.h(4, [back, titles, FlexSpacer(), help])
+        view.addSubview(header)
+        header.translatesAutoresizingMaskIntoConstraints = false
+        body.backgroundColor = .white
+        view.addSubview(body)
+        body.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            header.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
+            header.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 8),
+            header.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -8),
+            body.topAnchor.constraint(equalTo: header.bottomAnchor, constant: 8),
+            body.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            body.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            body.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        ])
+        installScrollStack(insets: UIEdgeInsets(top: 16, left: 16, bottom: 32, right: 16), below: header)
         scrollView.backgroundColor = .white
-        view.addSubview(scrollView)
 
-        let wrapper = UIView()
-        wrapper.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.addSubview(wrapper)
-
-        mainStack.axis = .vertical; mainStack.spacing = 0
-        mainStack.translatesAutoresizingMaskIntoConstraints = false
-        wrapper.addSubview(mainStack)
-
-        NSLayoutConstraint.activate([
-            spinner.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            spinner.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-
-            scrollView.topAnchor.constraint(equalTo: navBarView.bottomAnchor),
-            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-
-            wrapper.topAnchor.constraint(equalTo: scrollView.topAnchor),
-            wrapper.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
-            wrapper.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
-            wrapper.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
-            wrapper.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
-
-            mainStack.topAnchor.constraint(equalTo: wrapper.topAnchor, constant: 16),
-            mainStack.leadingAnchor.constraint(equalTo: wrapper.leadingAnchor, constant: 16),
-            mainStack.trailingAnchor.constraint(equalTo: wrapper.trailingAnchor, constant: -16),
-            mainStack.bottomAnchor.constraint(equalTo: wrapper.bottomAnchor, constant: -32),
-        ])
+        Task { await fetchDetails() }
+        Task {
+            isKrutidev = UlbLanguageHelper.isKrutidevValue(await DatabaseService.shared.getPropertyById(propertyId)?.ulbLang)
+            if details != nil { render() }
+        }
+        Task { await loadUlbInfo() }
     }
 
-    // MARK: - Bindings
+    // MARK: - Loading
 
-    private func bindViewModel() {
-        viewModel.$isLoading.receive(on: DispatchQueue.main).sink { [weak self] loading in
-            loading ? self?.spinner.startAnimating() : self?.spinner.stopAnimating()
-            self?.scrollView.isUserInteractionEnabled = !loading
-        }.store(in: &cancellables)
+    private var isBusy = false {
+        didSet { setLoading(isBusy) }
+    }
 
-        viewModel.$errorMessage.receive(on: DispatchQueue.main).sink { [weak self] msg in
-            guard let msg, let self else { return }
-            ENSSnackbar.show(in: self.view, message: msg, isError: true)
-        }.store(in: &cancellables)
+    private func loadUlbInfo() async {
+        guard let ulbId = await DatabaseService.shared.getPropertyById(propertyId)?.ulbId, !ulbId.isEmpty,
+              let match = try? await APIService.shared.getUlbData().first(where: { $0.ulbId == ulbId }) else { return }
+        ulbName = match.ulbName
+        ulbType = match.ulbType
+    }
 
-        viewModel.$details.receive(on: DispatchQueue.main).sink { [weak self] details in
-            self?.populateContent(details: details)
-        }.store(in: &cancellables)
+    private func fetchDetails() async {
+        isBusy = true
+        do {
+            let response = try await APIService.shared.getPropertyDetails(propertyId: propertyId)
+            if response.success == true, let data = response.data {
+                await cacheBillInfo(data)
+                details = data
+                isBusy = false
+                render()
+                TourGuide.autoStartIfFirstVisit(.paymentDetails) { startTour() }
+            } else {
+                isBusy = false
+                showError(response.message ?? "Failed to load details")
+            }
+        } catch {
+            isBusy = false
+            showError(APIError.userMessage(error, fallback: "Unable to load payment details right now. Please try again."))
+        }
+    }
+
+    /// Caches bill date + net payable for the dashboard card and refreshes stale owner data.
+    private func cacheBillInfo(_ data: PropertyDetailsData) async {
+        let db = DatabaseService.shared
+        await db.updatePropertyBillInfo(propertyId: propertyId, billDate: data.billDetails?.billDate,
+                                        netPayable: data.billDetails?.netPayble)
+        guard let existing = await db.getPropertyById(propertyId) else { return }
+        func changed(_ fresh: String?, _ old: String?) -> String? {
+            guard let f = fresh?.trimmingCharacters(in: .whitespacesAndNewlines), Self.hasValue(f), f != old else { return nil }
+            return f
+        }
+        let owner = changed(data.ownerDetails?.ownerName, existing.ownerName)
+        let father = changed(data.ownerDetails?.fatherName, existing.fatherName)
+        let address = changed(data.propertyDetailsInfo?.address, existing.address)
+        let arv = changed(data.propertyDetailsInfo?.arv, existing.arvValue)
+        guard owner != nil || father != nil || address != nil || arv != nil else { return }
+        await db.updatePropertyDetailsInfo(propertyId: propertyId, ownerName: owner, fatherName: father,
+                                           address: address, arvValue: arv)
+    }
+
+    private static func hasValue(_ v: String?) -> Bool {
+        guard let t = v?.trimmingCharacters(in: .whitespaces) else { return false }
+        return !t.isEmpty && t != "null" && t != "-"
+    }
+
+    private static func number(_ v: String?) -> Double { Double(v?.trimmingCharacters(in: .whitespaces) ?? "") ?? 0 }
+
+    private func showError(_ message: String) {
+        contentStack.removeAllArranged()
+        let retry = PrimaryButton("Retry", height: 40, radius: 20, fontSize: 14, weight: .medium)
+        retry.contentEdgeInsets = UIEdgeInsets(top: 0, left: 24, bottom: 0, right: 24)
+        retry.onEvent { [weak self] in Task { await self?.fetchDetails() } }
+        let stack = UIStackView.v(0, alignment: .center, [
+            UIImageView(symbol: "exclamationmark.circle", size: 56, color: .mRed),
+            UILabel(message, font: .poppins(14), color: .black87, lines: 0, alignment: .center),
+            retry,
+        ])
+        stack.setCustomSpacing(16, after: stack.arrangedSubviews[0])
+        stack.setCustomSpacing(24, after: stack.arrangedSubviews[1])
+        contentStack.add(stack.padded(UIEdgeInsets(top: 120, left: 8, bottom: 0, right: 8)))
     }
 
     // MARK: - Content
 
-    private func populateContent(details: PropertyDetailsData) {
-        let wasExpanded = propertyDetailsExpanded
-        mainStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+    private func render() {
+        guard let details else { return }
+        contentStack.removeAllArranged()
+        let bill = details.billDetails
 
-        let bill  = details.billDetails
-        let prop  = details.propertyDetailsInfo
-        let owner = details.ownerDetails
-
-        let taxCard = buildTaxSummaryCard(bill: bill, arvValue: viewModel.property.arvValue,
-                                          advanceTotal: viewModel.totalAdvancePay)
-        mainStack.addArrangedSubview(taxCard)
-        mainStack.setCustomSpacing(20, after: taxCard)
-
-        let payBtn = buildPayButton()
-        mainStack.addArrangedSubview(payBtn)
-        mainStack.setCustomSpacing(12, after: payBtn)
-
-        let secRow = buildSecondaryButtonsRow()
-        mainStack.addArrangedSubview(secRow)
-        mainStack.setCustomSpacing(12, after: secRow)
-
-        let grievanceBtn = buildApplyGrievanceButton()
-        mainStack.addArrangedSubview(grievanceBtn)
-        mainStack.setCustomSpacing(20, after: grievanceBtn)
-
-        let detailsCard = buildPropertyDetailsCard(prop: prop, owner: owner)
-        mainStack.addArrangedSubview(detailsCard)
-
-        propertyDetailsExpanded = false
-        if wasExpanded { togglePropertyDetails() }
-    }
-
-    // MARK: - Tax Summary Card
-
-    private func buildTaxSummaryCard(bill: BillDetails?, arvValue: String, advanceTotal: String) -> UIView {
-        let card = UIView.cardContainer()
-
-        let iconBg = UIView()
-        iconBg.backgroundColor = UIColor(red: 1, green: 0.957, blue: 0.898, alpha: 1)
-        iconBg.layer.cornerRadius = 8
-        iconBg.widthAnchor.constraint(equalToConstant: 36).isActive = true
-        iconBg.heightAnchor.constraint(equalToConstant: 36).isActive = true
-        let iconImg = UIImageView(image: UIImage(systemName: "doc.text.fill"))
-        iconImg.tintColor = .appPrimary; iconImg.contentMode = .scaleAspectFit
-        iconImg.translatesAutoresizingMaskIntoConstraints = false
-        iconBg.addSubview(iconImg)
-        NSLayoutConstraint.activate([
-            iconImg.centerXAnchor.constraint(equalTo: iconBg.centerXAnchor),
-            iconImg.centerYAnchor.constraint(equalTo: iconBg.centerYAnchor),
-            iconImg.widthAnchor.constraint(equalToConstant: 20),
-            iconImg.heightAnchor.constraint(equalToConstant: 20),
-        ])
-
-        let titleL = UILabel()
-        titleL.text = "Tax Summary"
-        titleL.font = UIFont(name: "Poppins-Bold", size: 17) ?? .boldSystemFont(ofSize: 17)
-        titleL.textColor = .appCardText
-
-        let headerRow = UIStackView(arrangedSubviews: [iconBg, titleL])
-        headerRow.axis = .horizontal; headerRow.spacing = 12; headerRow.alignment = .center
-
-        let infoStack = UIStackView()
-        infoStack.axis = .vertical; infoStack.spacing = 0
-        for (k, v) in [("Bill Date", bill?.billDate), ("Bill Number", bill?.billNo),
-                       ("Financial Year", bill?.finYear),
-                       ("Total Arv", arvValue.isEmpty ? nil : arvValue)] {
-            infoStack.addArrangedSubview(makeSummaryRow(k, v ?? "N/A"))
+        // 1. Tax summary
+        let summary = CardView(radius: 20, padding: UIEdgeInsets(top: 20, left: 20, bottom: 20, right: 20),
+                               shadowOpacity: 0.04, shadowBlur: 20, shadowY: 10)
+        summary.stack.add(UIStackView.h(12, [
+            iconTile("list.bullet.rectangle.portrait", size: 36, iconSize: 18, radius: 8),
+            UILabel("Tax Summary", font: .poppins(17, .bold), color: .appTextDark),
+        ]))
+        summary.stack.addSpacer(18)
+        let s = summary.stack
+        s.add(summaryRow("Bill Date", bill?.billDate))
+        s.add(summaryRow("Bill Number", bill?.billNo))
+        s.add(summaryRow("Financial Year", bill?.finYear))
+        let arvRow = summaryRow("Total Arv", "0.0")
+        s.add(arvRow)
+        Task {
+            let arv = await DatabaseService.shared.getPropertyById(propertyId)?.arvValue ?? "0.0"
+            (arvRow.viewWithTag(77) as? UILabel)?.text = arv
         }
+        s.add(divider(color: UIColor.Scheme.outlineVariant, thickness: 0.8).padded(UIEdgeInsets(top: 12, left: 0, bottom: 12, right: 0)))
+        s.add(summaryRow("House Tax Net Amount", bill?.houseTaxNetAmount))
+        s.add(summaryRow("Water Tax Net Amount", bill?.waterTaxNetAmount))
+        s.add(summaryRow("Sewer Tax Net Amount", bill?.sewerTaxNetAmount))
+        s.add(summaryRow("Other Tax Net Amount", bill?.othertaxNetAmount))
+        s.add(summaryRow("Water Charge Net Amount", bill?.waterChargeNetAmount))
+        s.add(summaryRow("Net Demand", bill?.netDemand))
+        let advance = [bill?.houseTaxAdvance, bill?.waterTaxAdvance, bill?.sewerTaxAdvance, bill?.otherTaxAdvance,
+                       bill?.waterChargeAdvance].reduce(0.0) { $0 + (Double($1 ?? "0") ?? 0) }
+        s.add(summaryRow("Total Advance Tax Pay", String(format: "%.2f", advance)))
+        s.addSpacer(20)
+        let net = UIStackView.h(8, [
+            UILabel("Net Payable", font: .poppins(16, .bold), color: .appPrimary), FlexSpacer(),
+            UILabel("₹ \(bill?.netPayble ?? "0.0")", font: .poppins(20, .extraBold), color: .appPrimary),
+        ]).padded(16)
+        net.backgroundColor = .appPrimaryLight
+        net.layer.cornerRadius = 12
+        net.addBorder(color: .appPrimaryBorder)
+        s.add(net)
+        contentStack.add(summary)
+        contentStack.addSpacer(20)
 
-        let div = UIView()
-        div.backgroundColor = UIColor(red: 0.9, green: 0.9, blue: 0.9, alpha: 1)
-        div.heightAnchor.constraint(equalToConstant: 0.8).isActive = true
-
-        let taxStack = UIStackView()
-        taxStack.axis = .vertical; taxStack.spacing = 0
-        for (k, v) in [("House Tax Net Amount",    bill?.houseTaxNetAmount),
-                       ("Water Tax Net Amount",     bill?.waterTaxNetAmount),
-                       ("Sewer Tax Net Amount",     bill?.sewerTaxNetAmount),
-                       ("Other Tax Net Amount",     bill?.othertaxNetAmount),
-                       ("Water Charge Net Amount",  bill?.waterChargeNetAmount),
-                       ("Net Demand",               bill?.netDemand),
-                       ("Total Advance Tax Pay",    advanceTotal)] {
-            taxStack.addArrangedSubview(makeSummaryRow(k, v ?? "N/A"))
-        }
-
-        let netBox = buildNetPayableBox(bill?.netPayble ?? "0.0")
-
-        let inner = UIStackView(arrangedSubviews: [headerRow, infoStack, div, taxStack, netBox])
-        inner.axis = .vertical; inner.spacing = 0
-        inner.setCustomSpacing(24, after: headerRow)
-        inner.setCustomSpacing(12, after: infoStack)
-        inner.setCustomSpacing(12, after: div)
-        inner.setCustomSpacing(20, after: taxStack)
-        inner.translatesAutoresizingMaskIntoConstraints = false
-        card.addSubview(inner)
-        NSLayoutConstraint.activate([
-            inner.topAnchor.constraint(equalTo: card.topAnchor, constant: 20),
-            inner.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 20),
-            inner.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -20),
-            inner.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -20),
-        ])
-        return card
-    }
-
-    private func makeSummaryRow(_ label: String, _ value: String) -> UIView {
-        let keyL = UILabel()
-        keyL.text = label
-        keyL.font = UIFont(name: "Poppins-Regular", size: 13) ?? .systemFont(ofSize: 13)
-        keyL.textColor = UIColor(red: 0.4, green: 0.4, blue: 0.4, alpha: 1)
-        keyL.setContentHuggingPriority(.defaultLow, for: .horizontal)
-
-        let valL = UILabel()
-        valL.text = value
-        valL.font = UIFont(name: "Poppins-SemiBold", size: 13) ?? .systemFont(ofSize: 13, weight: .semibold)
-        valL.textColor = UIColor(red: 0.267, green: 0.267, blue: 0.267, alpha: 1)
-        valL.textAlignment = .right
-        valL.numberOfLines = 0
-        valL.setContentCompressionResistancePriority(.required, for: .horizontal)
-
-        let row = UIStackView(arrangedSubviews: [keyL, valL])
-        row.axis = .horizontal; row.distribution = .equalSpacing
-        row.translatesAutoresizingMaskIntoConstraints = false
-
-        let wrap = UIView()
-        wrap.addSubview(row)
-        NSLayoutConstraint.activate([
-            row.topAnchor.constraint(equalTo: wrap.topAnchor, constant: 6),
-            row.leadingAnchor.constraint(equalTo: wrap.leadingAnchor),
-            row.trailingAnchor.constraint(equalTo: wrap.trailingAnchor),
-            row.bottomAnchor.constraint(equalTo: wrap.bottomAnchor, constant: -6),
-        ])
-        return wrap
-    }
-
-    private func buildNetPayableBox(_ amount: String) -> UIView {
-        let box = UIView()
-        box.backgroundColor = UIColor(red: 1, green: 0.957, blue: 0.898, alpha: 1)
-        box.layer.cornerRadius = 12
-        box.layer.borderWidth = 1
-        box.layer.borderColor = UIColor(red: 1, green: 0.878, blue: 0.698, alpha: 1).cgColor
-
-        let labelL = UILabel()
-        labelL.text = "Net Payable"
-        labelL.font = UIFont(name: "Poppins-Bold", size: 16) ?? .boldSystemFont(ofSize: 16)
-        labelL.textColor = .appPrimary
-
-        let amtL = UILabel()
-        amtL.text = "₹ \(amount)"
-        amtL.font = UIFont(name: "Poppins-Bold", size: 20) ?? .boldSystemFont(ofSize: 20)
-        amtL.textColor = .appPrimary
-
-        let row = UIStackView(arrangedSubviews: [labelL, amtL])
-        row.axis = .horizontal; row.distribution = .equalSpacing; row.alignment = .center
-        row.translatesAutoresizingMaskIntoConstraints = false
-        box.addSubview(row)
-        NSLayoutConstraint.activate([
-            row.topAnchor.constraint(equalTo: box.topAnchor, constant: 16),
-            row.leadingAnchor.constraint(equalTo: box.leadingAnchor, constant: 16),
-            row.trailingAnchor.constraint(equalTo: box.trailingAnchor, constant: -16),
-            row.bottomAnchor.constraint(equalTo: box.bottomAnchor, constant: -16),
-        ])
-        return box
-    }
-
-    // MARK: - Action buttons
-
-    private func buildPayButton() -> UIView {
-        let btn = UIButton.primaryButton(title: "Pay Your Tax Online")
-        btn.layer.cornerRadius = 16
-        btn.heightAnchor.constraint(equalToConstant: 56).isActive = true
-        btn.addTarget(self, action: #selector(payTapped), for: .touchUpInside)
-        btn.addShadow(opacity: 0.28, radius: 12, offset: CGSize(width: 0, height: 6))
-        return btn
-    }
-
-    private func buildSecondaryButtonsRow() -> UIView {
-        let printBtn   = makeSecondaryButton("Print Property",  icon: "printer",    action: #selector(printTapped))
-        let historyBtn = makeSecondaryButton("Payment History", icon: "creditcard", action: #selector(historyTapped))
-        let row = UIStackView(arrangedSubviews: [printBtn, historyBtn])
-        row.axis = .horizontal; row.spacing = 12; row.distribution = .fillEqually
-        return row
-    }
-
-    private func buildApplyGrievanceButton() -> UIView {
-        makeSecondaryButton("Apply Grievance", icon: "text.bubble", action: #selector(grievanceTapped))
-    }
-
-    private func makeSecondaryButton(_ title: String, icon: String, action: Selector) -> UIView {
-        let btn = UIButton(type: .custom)
-        btn.backgroundColor = .appPrimary
-        btn.layer.cornerRadius = 10
-        btn.clipsToBounds = true
-        btn.heightAnchor.constraint(equalToConstant: 50).isActive = true
-
-        let imgView = UIImageView(image: UIImage(systemName: icon))
-        imgView.tintColor = .white; imgView.contentMode = .scaleAspectFit
-        imgView.widthAnchor.constraint(equalToConstant: 16).isActive = true
-        imgView.heightAnchor.constraint(equalToConstant: 16).isActive = true
-
-        let lbl = UILabel()
-        lbl.text = title
-        lbl.font = UIFont(name: "Poppins-SemiBold", size: 12) ?? .systemFont(ofSize: 12, weight: .semibold)
-        lbl.textColor = .white; lbl.textAlignment = .center; lbl.numberOfLines = 1
-
-        let stack = UIStackView(arrangedSubviews: [imgView, lbl])
-        stack.axis = .horizontal; stack.spacing = 6; stack.alignment = .center
-        stack.isUserInteractionEnabled = false
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        btn.addSubview(stack)
-        NSLayoutConstraint.activate([
-            stack.centerXAnchor.constraint(equalTo: btn.centerXAnchor),
-            stack.centerYAnchor.constraint(equalTo: btn.centerYAnchor),
-        ])
-        btn.addTarget(self, action: action, for: .touchUpInside)
-        return btn
-    }
-
-    // MARK: - Property Details card (expandable)
-
-    private func buildPropertyDetailsCard(prop: PropertyInfo?, owner: OwnerDetails?) -> UIView {
-        let card = UIView.cardContainer()
-
-        let headerL = UILabel()
-        headerL.text = "Property Details"
-        headerL.font = UIFont(name: "Poppins-Bold", size: 16) ?? .boldSystemFont(ofSize: 16)
-        headerL.textColor = .appCardText
-
-        let chevronImg = UIImageView(image: UIImage(systemName: "chevron.down"))
-        chevronImg.tintColor = .appPrimary; chevronImg.contentMode = .scaleAspectFit
-        chevronImg.widthAnchor.constraint(equalToConstant: 20).isActive = true
-        propChevron = chevronImg
-
-        let headerRow = UIStackView(arrangedSubviews: [headerL, chevronImg])
-        headerRow.axis = .horizontal; headerRow.alignment = .center
-        headerRow.isLayoutMarginsRelativeArrangement = true
-        headerRow.layoutMargins = UIEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
-        headerRow.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(togglePropertyDetails)))
-        headerRow.isUserInteractionEnabled = true
-
-        let content = UIView()
-        content.isHidden = true
-        propDetailsContent = content
-
-        let divider = UIView()
-        divider.backgroundColor = UIColor(red: 0.9, green: 0.9, blue: 0.9, alpha: 1)
-        divider.heightAnchor.constraint(equalToConstant: 0.5).isActive = true
-        divider.translatesAutoresizingMaskIntoConstraints = false
-
-        let rows = UIStackView()
-        rows.axis = .vertical; rows.spacing = 12
-        rows.translatesAutoresizingMaskIntoConstraints = false
-
-        for (k, v) in [("Property/House Id",     viewModel.property.propertyId),
-                       ("Zone Name",             prop?.zoneName ?? "N/A"),
-                       ("Ward Name",             prop?.wardName ?? "N/A"),
-                       ("Mohalla Name",          prop?.mohallaName ?? "N/A"),
-                       ("House No.",             prop?.houseNo ?? "N/A"),
-                       ("Property Address",      prop?.address ?? "N/A"),
-                       ("Owner/Occupier Name",   owner?.ownerName ?? viewModel.property.ownerName),
-                       ("Owner Mobile Number",   owner?.mobileNo ?? viewModel.property.phoneNumber),
-                       ("Owner Father Name",     owner?.fatherName ?? viewModel.property.fatherName)] {
-            rows.addArrangedSubview(makePropDetailRow(k, v))
-        }
-
-        content.addSubview(divider)
-        content.addSubview(rows)
-        NSLayoutConstraint.activate([
-            divider.topAnchor.constraint(equalTo: content.topAnchor),
-            divider.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 16),
-            divider.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -16),
-            rows.topAnchor.constraint(equalTo: divider.bottomAnchor, constant: 12),
-            rows.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 16),
-            rows.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -16),
-            rows.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -16),
-        ])
-
-        let cardInner = UIStackView(arrangedSubviews: [headerRow, content])
-        cardInner.axis = .vertical
-        cardInner.translatesAutoresizingMaskIntoConstraints = false
-        card.addSubview(cardInner)
-        NSLayoutConstraint.activate([
-            cardInner.topAnchor.constraint(equalTo: card.topAnchor),
-            cardInner.leadingAnchor.constraint(equalTo: card.leadingAnchor),
-            cardInner.trailingAnchor.constraint(equalTo: card.trailingAnchor),
-            cardInner.bottomAnchor.constraint(equalTo: card.bottomAnchor),
-        ])
-        return card
-    }
-
-    private func makePropDetailRow(_ label: String, _ value: String) -> UIView {
-        let keyL = UILabel()
-        keyL.text = label
-        keyL.font = UIFont(name: "Poppins-Medium", size: 13) ?? .systemFont(ofSize: 13, weight: .medium)
-        keyL.textColor = UIColor(red: 0.4, green: 0.4, blue: 0.4, alpha: 1)
-        keyL.setContentHuggingPriority(.defaultLow, for: .horizontal)
-
-        let valL = UILabel()
-        valL.text = value
-        valL.font = UIFont(name: "Poppins-SemiBold", size: 13) ?? .systemFont(ofSize: 13, weight: .semibold)
-        valL.textColor = .appCardText; valL.textAlignment = .right; valL.numberOfLines = 0
-        valL.setContentCompressionResistancePriority(.required, for: .horizontal)
-
-        let row = UIStackView(arrangedSubviews: [keyL, valL])
-        row.axis = .horizontal; row.distribution = .equalSpacing; row.alignment = .top
-        return row
-    }
-
-    // MARK: - Simple actions
-
-    @objc private func backTapped()    { navigationController?.popViewController(animated: true) }
-    @objc private func historyTapped() { viewModel.coordinator?.showPaymentHistory() }
-    @objc private func grievanceTapped() { viewModel.coordinator?.showApplyGrievance() }
-
-    @objc private func togglePropertyDetails() {
-        propertyDetailsExpanded.toggle()
-        propDetailsContent?.isHidden = !propertyDetailsExpanded
-        propChevron?.image = UIImage(systemName: propertyDetailsExpanded ? "chevron.up" : "chevron.down")
-    }
-
-    // MARK: - Print Property (mirrors Flutter's _printProperty)
-
-    @objc private func printTapped() {
-        let data = viewModel.buildReceiptPdfData()
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("property_\(viewModel.property.propertyId).pdf")
-        do {
-            try data.write(to: url)
-        } catch {
-            ENSSnackbar.show(in: view, message: "Unable to prepare the PDF right now. Please try again.", isError: true)
-            return
-        }
-        let activityVC = UIActivityViewController(activityItems: [url], applicationActivities: nil)
-        activityVC.popoverPresentationController?.sourceView = view
-        present(activityVC, animated: true)
-    }
-
-    // MARK: - Pay Tax flow: OTP → amount → method → checkout → verify → result
-
-    @objc private func payTapped() {
-        guard !viewModel.ownerMobile.isEmpty else {
-            ENSSnackbar.show(in: view, message: "Mobile number not available for OTP", isError: true)
-            return
-        }
-        Task { await sendOtpAndShowSheet() }
-    }
-
-    @MainActor
-    private func sendOtpAndShowSheet() async {
-        spinner.startAnimating()
-        scrollView.isUserInteractionEnabled = false
-        defer {
-            spinner.stopAnimating()
-            scrollView.isUserInteractionEnabled = true
-        }
-        do {
-            let masked = try await viewModel.sendOtp()
-            showOtpSheet(maskedNumber: masked)
-        } catch {
-            ENSSnackbar.show(in: view, message: message(for: error), isError: true)
-        }
-    }
-
-    private func showOtpSheet(maskedNumber: String) {
-        let sheet = PaymentOtpSheetViewController(maskedNumber: maskedNumber)
-        sheet.onVerify = { [weak self, weak sheet] otp in
+        // 2. Actions
+        let pay = gradientButton("Pay Your Tax Online") { [weak self] in self?.handlePayTax() }
+        payButton = pay
+        contentStack.add(pay)
+        contentStack.addSpacer(12)
+        let print = secondaryButton("Print Property", icon: "printer") { [weak self] in self?.printProperty() }
+        let receipts = secondaryButton("Receipt Details", icon: "creditcard") { [weak self] in self?.showPaymentHistory() }
+        let grievance = secondaryButton("Apply Grievance", icon: "text.bubble") { [weak self] in
             guard let self else { return }
-            sheet?.setVerifying(true)
-            Task { @MainActor [weak self, weak sheet] in
-                guard let self else { return }
-                do {
-                    try await self.viewModel.verifyOtp(otp)
-                    sheet?.dismiss(animated: true) { [weak self] in self?.showAmountSheet() }
-                } catch {
-                    sheet?.setVerifying(false)
-                    sheet?.showError(self.message(for: error))
+            self.push(ApplyGrievanceViewController(preselectedPropertyId: self.propertyId,
+                                                   preselectedCategoryName: ApplyGrievanceViewController.propertyTaxCategoryName,
+                                                   preselectedSubCategoryName: ApplyGrievanceViewController.assessmentSubCategoryName))
+        }
+        printButton = print
+        receiptsButton = receipts
+        grievanceButton = grievance
+        let row1 = UIStackView.h(12, alignment: .fill, [print, receipts])
+        row1.distribution = .fillEqually
+        contentStack.add(row1)
+        contentStack.addSpacer(12)
+        contentStack.add(grievance)
+        contentStack.addSpacer(20)
+
+        // 3. Property details (collapsible)
+        let card = CardView(radius: 20, padding: .zero, shadowOpacity: 0.04, shadowBlur: 20, shadowY: 10)
+        let headerRow = UIStackView.h(8, [
+            UILabel("Property Details", font: .poppins(16, .bold), color: .appTextDark), FlexSpacer(),
+            UIImageView(symbol: showPropertyDetails ? "chevron.up" : "chevron.down", size: 14, color: .appPrimary, weight: .semibold),
+        ]).padded(UIEdgeInsets(top: 16, left: 16, bottom: 16, right: 16))
+        headerRow.onTap { [weak self] in
+            guard let self else { return }
+            self.showPropertyDetails.toggle()
+            self.render()
+        }
+        card.stack.add(headerRow)
+        if showPropertyDetails {
+            let prop = details.propertyDetailsInfo, owner = details.ownerDetails
+            let rows = UIStackView.v(0, [divider(), UIView().setSize(height: 12)])
+            rows.add(summaryRow("Property/House Id", propertyId))
+            rows.add(summaryRow("Zone Name", prop?.zoneName))
+            rows.add(summaryRow("Ward Name", prop?.wardName))
+            rows.add(summaryRow("Mohalla Name", prop?.mohallaName))
+            rows.add(summaryRow("House No.", prop?.houseNo))
+            rows.add(summaryRow("Property Address", prop?.address, language: true))
+            rows.add(summaryRow("Owner/Occupier Name", owner?.ownerName, language: true))
+            rows.add(summaryRow("Owner Mobile Number", owner?.mobileNo))
+            rows.add(summaryRow("Owner Father Name", owner?.fatherName, language: true))
+            card.stack.add(rows.padded(UIEdgeInsets(top: 0, left: 16, bottom: 16, right: 16)))
+        }
+        contentStack.add(card)
+    }
+
+    private func summaryRow(_ label: String, _ value: String?, language: Bool = false) -> UIView {
+        let l = UILabel(label, font: .poppins(13, .medium), color: .grey600, lines: 0)
+        let v = UILabel(value ?? "N/A", font: UlbLanguageHelper.font(13, .semibold, krutidev: language && isKrutidev),
+                        color: .appTextMid, lines: 0, alignment: .right)
+        v.tag = 77
+        let row = UIStackView.h(8, alignment: .top, [l, v])
+        l.widthAnchor.constraint(equalTo: v.widthAnchor, multiplier: 0.75).isActive = true
+        return row.padded(UIEdgeInsets(top: 6, left: 0, bottom: 6, right: 0))
+    }
+
+    private func gradientButton(_ title: String, action: @escaping () -> Void) -> UIView {
+        let container = GradientView(colors: [.appPrimary, UIColor(argb: 0xFFF0852D)])
+        container.layer.cornerRadius = 16
+        container.layer.shadowColor = UIColor.appPrimary.cgColor
+        container.layer.shadowOpacity = 0.3
+        container.layer.shadowRadius = 6
+        container.layer.shadowOffset = CGSize(width: 0, height: 6)
+        container.setSize(height: 56)
+        let label = UILabel(title, font: .poppins(16, .bold), color: .white)
+        container.addSubview(label)
+        label.center(in: container)
+        container.onTap(action)
+        return container
+    }
+
+    private func secondaryButton(_ title: String, icon: String, action: @escaping () -> Void) -> UIView {
+        let b = PrimaryButton(title, height: 50, radius: 10, fontSize: 12, weight: .semibold, icon: icon)
+        b.setImage(.symbol(icon, size: 14, weight: .semibold), for: .normal)
+        b.titleLabel?.lineBreakMode = .byTruncatingTail
+        b.onEvent(action)
+        return b
+    }
+
+    // MARK: - Pay flow
+
+    private func handlePayTax() {
+        guard !TourCoachMarkView.isActive else { return }
+        let netPayable = Double(details?.billDetails?.netPayble ?? "0") ?? 0
+        guard netPayable > 0 else {
+            AppDialog.show(on: self, icon: "info.circle", title: "Nothing to Pay",
+                           message: "You cannot proceed with payment. Net Payable amount is ₹0.",
+                           actions: [.init(title: "OK")])
+            return
+        }
+        guard let mobile = details?.ownerDetails?.mobileNo, !mobile.isEmpty else {
+            snack("Mobile number not available for OTP")
+            return
+        }
+        isBusy = true
+        Task {
+            do {
+                let res = try await APIService.shared.sendOtp(mobileNo: mobile, propertyId: propertyId)
+                isBusy = false
+                if res.success == true {
+                    let masked = res.maskedMobile ?? "XXXXXX" + (mobile.count > 4 ? String(mobile.suffix(4)) : mobile)
+                    let sheet = PaymentOtpSheet(mobileNo: mobile, maskedNumber: masked) { [weak self] in
+                        self?.showAmountSelection()
+                    }
+                    present(sheet, animated: true)
+                } else {
+                    snack(res.message ?? "Failed to send OTP")
                 }
+            } catch {
+                isBusy = false
+                snack(APIError.userMessage(error, fallback: "Unable to send OTP right now. Please try again."))
             }
         }
-        presentAsSheet(sheet)
     }
 
-    private func showAmountSheet() {
-        let sheet = PaymentAmountSheetViewController(fullAmount: viewModel.netPayableAmount)
-        sheet.onProceed = { [weak self] amount in
-            self?.showPaymentMethodSheet(amount: amount)
-        }
-        presentAsSheet(sheet)
-    }
-
-    private func showPaymentMethodSheet(amount: String) {
-        let sheet = PaymentMethodSheetViewController(amount: amount)
-        sheet.onSelectPayU = { [weak self] amount in Task { @MainActor in await self?.startPayUFlow(amount: amount) } }
-        sheet.onSelectSBI  = { [weak self] amount in Task { @MainActor in await self?.startSBIFlow(amount: amount) } }
-        presentAsSheet(sheet)
-    }
-
-    private func presentAsSheet(_ sheet: UIViewController) {
-        sheet.modalPresentationStyle = .pageSheet
-        sheet.isModalInPresentation = true
-        if let s = sheet.sheetPresentationController {
-            s.detents = [.medium(), .large()]
-            s.prefersGrabberVisible = true
-            s.preferredCornerRadius = 24
+    private func showAmountSelection() {
+        let full = details?.billDetails?.netPayble ?? "0"
+        let sheet = AmountSelectionSheet(fullAmount: full) { [weak self] amount in
+            self?.showGatewaySelection(amount)
         }
         present(sheet, animated: true)
     }
 
-    // MARK: - PayU
-
-    @MainActor
-    private func startPayUFlow(amount: String) async {
-        spinner.startAnimating()
-        defer { spinner.stopAnimating() }
-        do {
-            let txn = try await viewModel.createPayUTransaction(amount: amount)
-            PayUCheckoutBridge.openCheckout(
-                transaction: txn,
-                from: self,
-                generateHash: { [weak self] name, str in
-                    await self?.viewModel.generateHash(hashName: name, hashString: str)
-                },
-                completion: { [weak self] outcome in
-                    Task { @MainActor in await self?.handlePayUOutcome(outcome) }
-                }
-            )
-        } catch {
-            ENSSnackbar.show(in: view, message: message(for: error), isError: true)
+    private func showGatewaySelection(_ amount: String) {
+        let sheet = GatewaySelectionSheet(amount: amount) { [weak self] in
+            self?.handlePayuTransaction(customAmount: amount)
         }
+        present(sheet, animated: true)
     }
 
-    @MainActor
-    private func handlePayUOutcome(_ outcome: PayUCheckoutBridge.Outcome) async {
-        switch outcome {
-        case .unavailable:
-            // Mirrors Flutter's catch-block when `payu.openCheckoutScreen` itself throws —
-            // no payment attempt actually happened, so there's nothing to verify.
-            showAlert(message: "Unable to start PayU payment right now. Please try again.")
-        case .success, .failure, .cancelled:
-            let unableToVerifyMessage = outcome == .cancelled
-                ? "Payment Cancelled. Verification could not be completed. Please check your Payment History to confirm the status."
-                : "Payment verification could not be completed. Please check your Payment History to confirm the status."
-            let overlay = showLoadingOverlay(message: "Verifying Payment…")
-            let result = await viewModel.verifyPayUPayment(unableToVerifyMessage: unableToVerifyMessage)
-            overlay.dismiss(animated: true) { [weak self] in
-                self?.viewModel.coordinator?.showPaymentResult(
-                    status: result.status, txnId: result.txnId, gateway: .payU
-                )
+    private func buildTransactionRequest(customAmount: String?) async -> InitiateTransactionRequest {
+        let entity = await DatabaseService.shared.getPropertyById(propertyId)
+        let bill = details?.billDetails, owner = details?.ownerDetails
+        let now = Date()
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        return InitiateTransactionRequest(
+            mobileTransactionId: "MOBTXN\(Int64(now.timeIntervalSince1970 * 1000))",
+            mobileTransactionTimestamp: f.string(from: now),
+            billNo: bill?.billNo ?? "", propertyId: propertyId, ulbId: entity?.ulbId ?? "0",
+            financialYear: bill?.finYear ?? "", ownerName: owner?.ownerName ?? "",
+            fatherName: owner?.fatherName ?? "", mobileNo: owner?.mobileNo ?? "",
+            propertyTax: bill?.houseTaxNetAmount ?? "0", waterTax: bill?.waterTaxNetAmount ?? "0",
+            sewerTax: bill?.sewerTaxNetAmount ?? "0", otherTax: bill?.othertaxNetAmount ?? "0",
+            waterCharge: bill?.waterChargeNetAmount ?? "0", netDemand: bill?.netDemand ?? "0",
+            netPayable: customAmount ?? bill?.netPayble ?? "0", totalArv: entity?.arvValue ?? "0.0",
+            userId: entity?.userId ?? "0", emailId: StorageService.emailId ?? "")
+    }
+
+    private func handlePayuTransaction(customAmount: String?) {
+        isBusy = true
+        Task {
+            do {
+                let request = await buildTransactionRequest(customAmount: customAmount)
+                let response = try await APIService.shared.initiateTransaction(request)
+                isBusy = false
+                guard response.status == true else {
+                    snack(response.message ?? "Transaction failed")
+                    return
+                }
+                StorageService.savePayuMobileTransactionId(request.mobileTransactionId)
+                startPayuFlow(response.data)
+            } catch {
+                isBusy = false
+                snack(APIError.userMessage(error, fallback: "Unable to create transaction right now. Please try again."))
             }
         }
     }
 
-    // MARK: - SBI
-    // Not exposed in Flutter's current UI (its picker card is commented out — see
-    // `_showPaymentMethodSelection`), but the WebView checkout is fully wired here, so it's the
-    // payment path that actually works end-to-end without a third-party SDK.
-
-    @MainActor
-    private func startSBIFlow(amount: String) async {
-        spinner.startAnimating()
-        defer { spinner.stopAnimating() }
+    private func startPayuFlow(_ txn: PayUTransaction?) {
+        guard let txn else { return }
         do {
-            let data = try await viewModel.createSBITransaction(amount: amount)
-            viewModel.coordinator?.showSbiPayment(data: data)
+            try PayUCheckoutBridge.open(transaction: txn, from: self) { [weak self] outcome in
+                self?.verifyPayment(cancelled: outcome == .cancelled)
+            }
         } catch {
-            ENSSnackbar.show(in: view, message: message(for: error), isError: true)
+            snack(APIError.userMessage(error, fallback: "Unable to start PayU payment right now. Please try again."))
         }
     }
 
-    private func message(for error: Error) -> String {
-        if let e = error as? PaymentDetailsViewModel.PaymentDetailsError, case .message(let m) = e { return m }
-        return (error as? NetworkError)?.errorDescription
-            ?? "Something went wrong. Please try again."
+    /// Dart `_PayuDelegate._verify`: never trusts the SDK status — always cross-verifies with the server.
+    private func verifyPayment(cancelled: Bool) {
+        let unableMessage = cancelled
+            ? "Payment Cancelled. Verification could not be completed. Please check your Bill Receipt to confirm the status."
+            : "Payment verification could not be completed. Please check your Bill Receipt to confirm the status."
+        let dialog = VerifyingPaymentDialog()
+        topPresented.present(dialog, animated: true)
+        Task {
+            var result: PaymentResultViewController
+            if let txnId = StorageService.payuMobileTransactionId, !txnId.isEmpty,
+               let res = try? await APIService.shared.getTransactionDetails(mobileTransactionId: txnId),
+               res.status == true, let data = res.data {
+                StorageService.clearPayuMobileTransactionId()
+                result = Self.result(from: data)
+            } else {
+                result = PaymentResultViewController(status: .pending, message: unableMessage)
+            }
+            dialog.dismiss(animated: true) { [weak self] in
+                guard let self, let nav = self.navigationController else { return }
+                var stack = nav.viewControllers
+                if let i = stack.lastIndex(of: self) { stack.remove(at: i) }
+                stack.append(result)
+                nav.setViewControllers(stack, animated: true)
+            }
+        }
+    }
+
+    private static func result(from d: PayUTransactionDetails) -> PaymentResultViewController {
+        let status: PaymentStatus
+        switch d.paymentStatus?.uppercased() ?? "" {
+        case "SUCCESS": status = .success
+        case "FAILED": status = .failure
+        default: status = .pending
+        }
+        var details: [(String, String)] = []
+        func add(_ k: String, _ v: String?) { if let v, !v.isEmpty { details.append((k, v)) } }
+        func addAmt(_ k: String, _ v: String?) {
+            if let v, !v.isEmpty, v != "0.00", v != "0" { details.append((k, "₹ \(v)")) }
+        }
+        add("Bill No", d.billNo)
+        add("Property ID", d.propertyId)
+        add("Financial Year", d.financialYear)
+        add("Payment Mode", d.paymentMode)
+        add("Owner Name", d.ownerName)
+        add("Mobile", d.mobileNo)
+        addAmt("Property Tax", d.propertyTaxPaid)
+        addAmt("Water Tax", d.waterTaxPaid)
+        addAmt("Sewer Tax", d.sewerTaxPaid)
+        addAmt("Other Tax", d.otherTaxPaid)
+        addAmt("Water Charge", d.waterChargePaid)
+        return PaymentResultViewController(status: status, txnId: d.txnid, amount: d.netPayable, details: details)
+    }
+
+    // MARK: - Other actions
+
+    private func showPaymentHistory() {
+        guard !TourCoachMarkView.isActive else { return }
+        push(PaymentHistoryViewController(propertyId: propertyId, currReceipts: details?.currReceiptDetails ?? [],
+                                          prevReceipts: details?.prevReceiptDetails ?? [],
+                                          owner: details?.ownerDetails, property: details?.propertyDetailsInfo))
+    }
+
+    /// Fills a missing ARV from propertysearch before printing so the bill doesn't show 0.00.
+    private func cacheArvIfMissing(_ property: PropertyEntity?) async -> PropertyEntity? {
+        guard let property, let ulbId = property.ulbId, !ulbId.isEmpty else { return property }
+        if Self.hasValue(property.arvValue), Self.number(property.arvValue) > 0 { return property }
+        guard let results = try? await APIService.shared.searchProperty(ulbId: ulbId, searchType: "PROPERTY",
+                                                                        propertyId: propertyId),
+              let match = results.first(where: { $0.propertyId == propertyId }) ?? results.first else { return property }
+        await DatabaseService.shared.updatePropertySearchInfo(propertyId: propertyId, oldPropertyId: nil,
+                                                              arvValue: match.totalArv.map(JSON.dartDoubleString))
+        return await DatabaseService.shared.getPropertyById(propertyId) ?? property
+    }
+
+    private func printProperty() {
+        guard !TourCoachMarkView.isActive else { return }
+        Task {
+            if ulbName == nil { await loadUlbInfo() }
+            let property = await cacheArvIfMissing(await DatabaseService.shared.getPropertyById(propertyId))
+            let data = await PropertyTaxBillPdf.buildBytes(
+                propertyId: propertyId, bill: details?.billDetails, owner: details?.ownerDetails,
+                property: details?.propertyDetailsInfo, currReceipts: details?.currReceiptDetails ?? [],
+                arv: property?.arvValue, ulbName: ulbName, ulbType: ulbType)
+            DocumentActions.print(data, jobName: "property_tax_bill_\(propertyId).pdf")
+        }
+    }
+
+    // MARK: - Tour
+
+    private func handleTourTap() {
+        if isBusy { snack("Tour will be available after payment details are loaded."); return }
+        if details == nil { snack("Payment details are not available right now."); return }
+        startTour()
+    }
+
+    private func startTour() {
+        guard !TourCoachMarkView.isActive, let payButton, let printButton, let grievanceButton, let receiptsButton else { return }
+        TourCoachMarkView.present(steps: [
+            TourStep(target: payButton, icon: "indianrupeesign.circle", title: "Pay Your Tax Online",
+                     description: "Tap here to start the tax payment flow. An OTP will be sent to the registered mobile number before payment continues to the gateway.",
+                     shape: .roundedRect(radius: 16), edge: .top),
+            TourStep(target: printButton, icon: "printer", title: "Print Property",
+                     description: "Tap here to print or download the current property tax details for this property.",
+                     shape: .roundedRect(radius: 16), edge: .top),
+            TourStep(target: grievanceButton, icon: "text.bubble", title: "Add Grievance",
+                     description: "Use this button to raise a grievance related to payment or this property directly from the current screen.",
+                     shape: .roundedRect(radius: 16), edge: .top),
+            TourStep(target: receiptsButton, icon: "creditcard", title: "receipt details",
+                     description: "Tap here to view receipt details and payment records for this property.",
+                     shape: .roundedRect(radius: 16), edge: .top),
+        ], scrollContainer: scrollView)
+    }
+}
+
+/// Horizontal gradient background (`LinearGradient(centerLeft → centerRight)`).
+final class GradientView: UIView {
+    override class var layerClass: AnyClass { CAGradientLayer.self }
+
+    init(colors: [UIColor]) {
+        super.init(frame: .zero)
+        let g = layer as! CAGradientLayer
+        g.colors = colors.map(\.cgColor)
+        g.startPoint = CGPoint(x: 0, y: 0.5)
+        g.endPoint = CGPoint(x: 1, y: 0.5)
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+}
+
+// MARK: - Sheets used by the pay flow
+
+/// "Verification Required" OTP sheet shown before payment.
+private final class PaymentOtpSheet: BottomSheetController {
+    private let mobileNo: String
+    private let maskedNumber: String
+    private let onVerified: () -> Void
+    private let errorBox = UIView()
+    private let errorLabel = UILabel(nil, font: .poppins(12), color: .mRed700, lines: 0)
+    private let verifyButton = PrimaryButton("Verify & Proceed")
+    private let otpField: ENSTextField = {
+        var c = ENSTextField.Config()
+        c.placeholder = "------"
+        c.icon = "number.square"
+        c.keyboard = .numberPad
+        c.maxLength = 6
+        c.digitsOnly = true
+        return ENSTextField(c)
+    }()
+
+    init(mobileNo: String, maskedNumber: String, onVerified: @escaping () -> Void) {
+        self.mobileNo = mobileNo
+        self.maskedNumber = maskedNumber
+        self.onVerified = onVerified
+        super.init()
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func buildContent() {
+        contentStack.addSpacer(8)
+        contentStack.add(UILabel("Verification Required", font: .poppins(20, .bold), color: .appTextDark))
+        contentStack.addSpacer(4)
+        contentStack.add(UILabel("Enter the OTP sent to \(maskedNumber) to proceed with payment.", font: .poppins(13),
+                                 color: .grey500, lines: 0))
+        contentStack.addSpacer(16)
+        errorBox.backgroundColor = .mRed50
+        errorBox.layer.cornerRadius = 10
+        errorBox.addBorder(color: UIColor(argb: 0xFFEF9A9A))
+        let row = UIStackView.h(8, [UIImageView(symbol: "exclamationmark.circle", size: 16, color: .mRed600), errorLabel])
+        errorBox.addSubview(row)
+        row.pinToEdges(of: errorBox, insets: UIEdgeInsets(top: 10, left: 12, bottom: 10, right: 12))
+        errorBox.isHidden = true
+        contentStack.add(errorBox)
+        contentStack.add(fieldLabel("Enter OTP", color: .grey700))
+        contentStack.addSpacer(8)
+        contentStack.add(otpField)
+        contentStack.addSpacer(24)
+        contentStack.add(verifyButton)
+        contentStack.addSpacer(12)
+        let cancel = textButton("Cancel", color: .grey600, size: 14, weight: .regular) { [weak self] in self?.close() }
+        contentStack.add(cancel)
+        verifyButton.onEvent { [weak self] in self?.verify() }
+    }
+
+    private func setError(_ message: String?) {
+        errorLabel.text = message
+        errorBox.isHidden = message == nil
+        contentStack.setCustomSpacing(message == nil ? 0 : 16, after: errorBox)
+    }
+
+    private func verify() {
+        let otp = otpField.trimmedText
+        if otp.isEmpty { setError("Please enter OTP"); return }
+        if otp.count < 4 { setError("Please enter valid OTP"); return }
+        verifyButton.isLoading = true
+        setError(nil)
+        Task {
+            do {
+                let res = try await APIService.shared.verifyOtp(mobileNo: mobileNo, otp: otp)
+                if res.success == true {
+                    close { [onVerified] in onVerified() }
+                    return
+                }
+                setError(res.message ?? "Invalid OTP")
+            } catch {
+                setError(APIError.userMessage(error, fallback: "Unable to verify OTP right now. Please try again."))
+            }
+            verifyButton.isLoading = false
+        }
+    }
+}
+
+/// "Select Payment Amount" — full or partial (the partial amount field is read-only in Flutter).
+private final class AmountSelectionSheet: BottomSheetController {
+    private let fullAmount: String
+    private let onProceed: (String) -> Void
+    private var isPartial = false
+    private let fullOption = UIView()
+    private let partialOption = UIView()
+    private let partialSection = UIStackView.v(8, [])
+    private let amountField: ENSTextField = {
+        var c = ENSTextField.Config()
+        c.fontSize = 15
+        return ENSTextField(c)
+    }()
+
+    init(fullAmount: String, onProceed: @escaping (String) -> Void) {
+        self.fullAmount = fullAmount
+        self.onProceed = onProceed
+        super.init()
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func buildContent() {
+        contentStack.addSpacer(8)
+        contentStack.add(UILabel("Select Payment Amount", font: .poppins(20, .bold), color: .appTextDark))
+        contentStack.addSpacer(4)
+        contentStack.add(UILabel("Pay the full amount or choose a partial payment.", font: .poppins(13), color: .grey500, lines: 0))
+        contentStack.addSpacer(20)
+        contentStack.add(fullOption)
+        contentStack.addSpacer(12)
+        contentStack.add(partialOption)
+
+        amountField.text = fullAmount
+        amountField.textField?.isUserInteractionEnabled = false
+        amountField.textField?.font = .poppins(15, .semibold)
+        let rupee = UILabel("₹", font: .poppins(16, .bold), color: .appPrimary)
+        let suffix = UILabel("/ ₹\(fullAmount)", font: .poppins(12), color: .grey400)
+        if let row = amountField.inputRow {
+            row.insertArrangedSubview(rupee, at: 1)
+            row.setCustomSpacing(8, after: rupee)
+            row.insertArrangedSubview(suffix, at: row.arrangedSubviews.count - 1)
+        }
+        partialSection.add(fieldLabel("Enter Amount", color: .grey700), amountField)
+        contentStack.add(partialSection.padded(UIEdgeInsets(top: 16, left: 0, bottom: 0, right: 0)))
+        contentStack.addSpacer(24)
+        let proceed = PrimaryButton("Proceed to Payment")
+        proceed.onEvent { [weak self] in self?.proceed() }
+        contentStack.add(proceed)
+        contentStack.addSpacer(12)
+        contentStack.add(textButton("Cancel", color: .grey600, size: 14, weight: .regular) { [weak self] in self?.close() })
+        fullOption.onTap { [weak self] in self?.select(partial: false) }
+        partialOption.onTap { [weak self] in self?.select(partial: true) }
+        select(partial: false)
+    }
+
+    private func option(_ view: UIView, selected: Bool, title: String, subtitle: String, trailing: String?) {
+        view.subviews.forEach { $0.removeFromSuperview() }
+        view.backgroundColor = selected ? .appPrimaryLight : .grey50
+        view.layer.cornerRadius = 12
+        view.layer.borderWidth = selected ? 2 : 1
+        view.layer.borderColor = (selected ? UIColor.appPrimary : .grey200).cgColor
+        var items: [UIView] = [
+            UIImageView(symbol: selected ? "largecircle.fill.circle" : "circle", size: 20, color: .appPrimary),
+            UIStackView.v(0, [UILabel(title, font: .poppins(14, .semibold), color: .black87),
+                              UILabel(subtitle, font: .poppins(12), color: .grey500, lines: 0)]),
+            FlexSpacer(),
+        ]
+        if let trailing { items.append(UILabel(trailing, font: .poppins(16, .extraBold), color: .appPrimary)) }
+        let row = UIStackView.h(12, items)
+        view.addSubview(row)
+        row.pinToEdges(of: view, insets: UIEdgeInsets(top: 16, left: 16, bottom: 16, right: 16))
+    }
+
+    private func select(partial: Bool) {
+        isPartial = partial
+        amountField.setError(nil)
+        option(fullOption, selected: !partial, title: "Full Payment", subtitle: "Pay the complete due amount",
+               trailing: "₹ \(fullAmount)")
+        option(partialOption, selected: partial, title: "Partial Payment", subtitle: "Pay a custom amount (min ₹1)", trailing: nil)
+        partialSection.superview?.isHidden = !partial
+    }
+
+    private func proceed() {
+        let chosen: String
+        if isPartial {
+            let input = amountField.trimmedText
+            guard let parsed = Double(input) else { amountField.setError("Please enter a valid amount"); return }
+            if parsed <= 0 { amountField.setError("Amount must be greater than ₹0"); return }
+            if parsed > (Double(fullAmount) ?? 0) { amountField.setError("Amount cannot exceed ₹\(fullAmount)"); return }
+            chosen = String(format: "%.2f", parsed)
+        } else {
+            chosen = fullAmount
+        }
+        close { [onProceed] in onProceed(chosen) }
+    }
+}
+
+/// "Select Payment Gateway" (PayU only — SBI is disabled in Flutter).
+private final class GatewaySelectionSheet: BottomSheetController {
+    private let amount: String
+    private let onPayU: () -> Void
+
+    init(amount: String, onPayU: @escaping () -> Void) {
+        self.amount = amount
+        self.onPayU = onPayU
+        super.init()
+        showsHandle = false
+        cornerRadius = 20
+        contentInsets = UIEdgeInsets(top: 20, left: 24, bottom: 24, right: 24)
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func buildContent() {
+        contentStack.add(UILabel("Select Payment Gateway", font: .poppins(18, .bold), color: .black87))
+        contentStack.addSpacer(4)
+        contentStack.add(UILabel("Paying: ₹\(amount)", font: .poppins(14, .semibold), color: .appPrimary))
+        contentStack.addSpacer(20)
+        let card = UIView()
+        card.layer.cornerRadius = 12
+        card.addBorder(color: .grey300)
+        let row = UIStackView.h(16, [
+            UIImageView(symbol: "creditcard", size: 26, color: .appPrimary),
+            UIStackView.v(0, [UILabel("Pay with PayU", font: .poppins(15, .bold), color: .black87),
+                              UILabel("Safe & Secure", font: .poppins(12), color: .grey500)]),
+            FlexSpacer(),
+            UIImageView(symbol: "chevron.forward", size: 14, color: .grey500),
+        ])
+        card.addSubview(row)
+        row.pinToEdges(of: card, insets: UIEdgeInsets(top: 16, left: 16, bottom: 16, right: 16))
+        card.onTap { [weak self] in
+            guard let self else { return }
+            self.close { [onPayU = self.onPayU] in onPayU() }
+        }
+        contentStack.add(card)
+    }
+}
+
+/// Non-dismissible "Verifying Payment…" dialog.
+private final class VerifyingPaymentDialog: UIViewController {
+    init() {
+        super.init(nibName: nil, bundle: nil)
+        modalPresentationStyle = .overFullScreen
+        modalTransitionStyle = .crossDissolve
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = UIColor.black.withAlphaComponent(0.54)
+        let card = UIView()
+        card.backgroundColor = .white
+        card.layer.cornerRadius = 20
+        let spinner = UIActivityIndicatorView(style: .large)
+        spinner.color = .appPrimary
+        spinner.startAnimating()
+        let message = UILabel("Please wait while we confirm\nyour payment with the server.", font: .poppins(13),
+                              color: .grey600, lines: 0, alignment: .center)
+        message.setLineHeight(1.4)
+        let stack = UIStackView.v(0, alignment: .center, [
+            spinner, UILabel("Verifying Payment…", font: .poppins(16, .bold), color: .appTextDark), message,
+        ])
+        stack.setCustomSpacing(24, after: spinner)
+        stack.setCustomSpacing(8, after: stack.arrangedSubviews[1])
+        card.addSubview(stack)
+        stack.pinToEdges(of: card, insets: UIEdgeInsets(top: 36, left: 28, bottom: 36, right: 28))
+        view.addSubview(card)
+        card.center(in: view)
+        card.widthAnchor.constraint(lessThanOrEqualTo: view.widthAnchor, constant: -80).isActive = true
     }
 }

@@ -1,0 +1,66 @@
+# XcodeGen spec for the native iOS app.
+#   brew install xcodegen cocoapods
+#   cd ios-swift && xcodegen generate && pod install
+#   open eNagarsewa.xcworkspace
+name: eNagarsewa
+
+options:
+  bundleIdPrefix: com.vdsai
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: false
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MARKETING_VERSION: "2.3.17"   # pubspec.yaml version 2.3.17+51
+    CURRENT_PROJECT_VERSION: "51"
+    DEVELOPMENT_TEAM: NP8L4T2ATA
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_BITCODE: NO
+    TARGETED_DEVICE_FAMILY: "1,2"
+
+targets:
+  eNagarsewa:
+    type: application
+    platform: iOS
+    sources:
+      - path: eNagarsewa
+        excludes:
+          - "Resources/Info.plist"
+          - "Resources/eNagarsewa.entitlements"
+          - "Resources/Fonts/OFL.txt"
+    info:
+      path: eNagarsewa/Resources/Info.plist
+    entitlements:
+      path: eNagarsewa/Resources/eNagarsewa.entitlements
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.vdsai.enagaesewa
+        PRODUCT_NAME: eNagarsewa
+        INFOPLIST_FILE: eNagarsewa/Resources/Info.plist
+        CODE_SIGN_ENTITLEMENTS: eNagarsewa/Resources/eNagarsewa.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        GENERATE_INFOPLIST_FILE: NO
+        DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
+        # Counterpart of `--dart-define=BASE_URL=...` (see README.md of the Flutter app).
+        BASE_URL: "https://iamsup.in/ulb_property_tax/"
+    dependencies:
+      - sdk: WebKit.framework
+      - sdk: PDFKit.framework
+      - sdk: DeviceCheck.framework
+      - sdk: libsqlite3.tbd
+    postBuildScripts:
+      - name: Crashlytics dSYM upload
+        script: |
+          if [ -f "${PODS_ROOT}/FirebaseCrashlytics/run" ]; then
+            "${PODS_ROOT}/FirebaseCrashlytics/run"
+          fi
+        inputFiles:
+          - "${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}"
+          - "${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}/Contents/Resources/DWARF/${PRODUCT_NAME}"
+          - "${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}/Contents/Info.plist"
+          - "$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/GoogleService-Info.plist"
+          - "$(TARGET_BUILD_DIR)/$(EXECUTABLE_PATH)"
+        basedOnDependencyAnalysis: false

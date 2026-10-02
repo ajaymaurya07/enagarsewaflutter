@@ -2,15 +2,23 @@ import Foundation
 
 enum AppConstants {
 
+    static let appName = "eNagarSewa"
+
+    /// `BASE_URL` comes from Info.plist (set per configuration in project.yml), the iOS
+    /// counterpart of Flutter's `--dart-define=BASE_URL`. Always normalised to end with `/`.
     static let baseURL: String = {
-        Bundle.main.object(forInfoDictionaryKey: "BASE_URL") as? String
-            ?? "https://iamsup.in/ulb_property_tax/"
+        let raw = (Bundle.main.object(forInfoDictionaryKey: "BASE_URL") as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let value = raw.isEmpty ? "https://iamsup.in/ulb_property_tax/" : raw
+        return value.hasSuffix("/") ? value : value + "/"
     }()
 
+    /// `AppConstants.appDisplayVersion` (versionName).
     static var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
     }
 
+    /// `AppConstants.apiVersion` (versionCode) — sent as `X-App-Version`.
     static var buildNumber: String {
         Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
     }
@@ -24,7 +32,7 @@ enum AppConstants {
 
     enum Timeout {
         static let request:  TimeInterval = 30
-        static let resource: TimeInterval = 60
+        static let resource: TimeInterval = 120
     }
 
     enum Notification {
@@ -34,6 +42,6 @@ enum AppConstants {
 
     enum Database {
         static let name    = "property_database.db"
-        static let version = 4
+        static let version = 9
     }
 }
