@@ -1,6 +1,7 @@
 import Foundation
 import UIKit
 import CryptoKit
+import MachO
 
 /// Jailbreak detection + device fingerprinting.
 /// Mirrors Flutter's device_service.dart and the iOS side of the device_security MethodChannel.
