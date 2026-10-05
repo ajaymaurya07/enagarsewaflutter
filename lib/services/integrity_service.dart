@@ -151,12 +151,7 @@ class IntegrityService {
         }
       }
       return await _attestIos();
-    } on PlatformException catch (e) {
-      if (e.code == 'NOT_SUPPORTED') {
-        // Simulator / Mac. No integrity token is issued, so payment APIs stay
-        // blocked; only the splash gate is let through.
-        return true;
-      }
+    } on PlatformException catch (_) {
       return false;
     } catch (_) {
       return false;
