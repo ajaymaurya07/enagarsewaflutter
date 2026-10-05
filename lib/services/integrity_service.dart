@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/services.dart';
@@ -17,11 +16,13 @@ class IntegrityService {
 
   static String get _verifyUrl =>
       '${AppConstants.baseUrl}api/house_tax/verify-integrity';
+  static String get _iosVerifyUrl =>
+      '${AppConstants.baseUrl}api/house_tax/ios-verify-integrity';
   static String get _nonceUrl =>
       '${AppConstants.baseUrl}api/Play_integrity/get_nonce';
 
 // TODO: Set to false when the backend verify-integrity API goes live.
-  static const bool _devMode = true; // PLAY INTEGRITY ENABLED
+  static const bool _devMode = false; // PLAY INTEGRITY ENABLED
 
   // ─── Public API ────────────────────────────────────────────────────────────
 
@@ -94,6 +95,7 @@ class IntegrityService {
 
   /// Fetches a server-generated nonce for Play Integrity.
   /// API: POST api/Play_integrity/get_nonce (multipart/form-data)
+  /// Shared by Android (Play Integrity) and iOS (App Attest).
   static Future<String?> _fetchBackendNonce() async {
     try {
       final deviceId = await DeviceService.getDeviceId();
@@ -123,71 +125,142 @@ class IntegrityService {
 
   // ─── iOS — App Attest ──────────────────────────────────────────────────────
 
-  /// On first run: generates an App Attest key, attests it with Apple, and
-  /// sends the attestation to the backend for one-time registration.
-  /// On subsequent runs: generates an assertion for the current session and
-  /// sends it to the backend for verification.
+  static const _attestKeyIdKey = 'app_attest_key_id';
+
+  /// Mirrors the Android flow: every attestation / assertion is bound to a
+  /// one-time nonce issued by the backend (clientDataHash = SHA-256(nonce)).
+  ///
+  /// No stored key: generate an App Attest key, attest it with Apple, and send
+  /// the attestation to the backend for one-time registration.
+  /// Stored key: generate an assertion and send it for verification.
+  /// If Apple reports the stored key as invalid (e.g. the app was reinstalled —
+  /// the Keychain survives but the Secure Enclave key does not), or the backend
+  /// no longer knows the key (status_code 409), the key is discarded and a
+  /// fresh one is attested in the same call.
   static Future<bool> _verifyIos() async {
     try {
-      String? keyId = await _storage.read(key: 'app_attest_key_id');
-
-      if (keyId == null) {
-        // ── First time: generate key + attest ──
-        keyId = await _channel.invokeMethod<String>('generateKey');
-        if (keyId == null) return false;
-
-        final nonce = _generateNonce();
-        final clientDataHash = _sha256Base64(nonce);
-
-        final attestation = await _channel.invokeMethod<String>(
-          'attestKey',
-          {'keyId': keyId, 'clientDataHash': clientDataHash},
-        );
-        if (attestation == null) return false;
-
-        final integrityToken = await _sendToBackend(
-          platform: 'ios',
-          payload: {'keyId': keyId, 'attestation': attestation, 'nonce': nonce},
-        );
-
-        // Persist keyId only after successful backend attestation
-        if (integrityToken != null) {
-          await _storage.write(key: 'app_attest_key_id', value: keyId);
-          await StorageService.saveIntegrityToken(integrityToken);
+      final keyId = await _storage.read(key: _attestKeyIdKey);
+      if (keyId != null) {
+        try {
+          return await _assertIos(keyId);
+        } on PlatformException catch (e) {
+          if (e.code != 'INVALID_KEY') rethrow;
+          await _storage.delete(key: _attestKeyIdKey);
+        } on _AttestKeyNotRegistered {
+          await _storage.delete(key: _attestKeyIdKey);
         }
-        return integrityToken != null;
-      } else {
-        // ── Subsequent runs: generate assertion ──
-        final nonce = _generateNonce();
-        final clientDataHash = _sha256Base64(nonce);
-
-        final assertion = await _channel.invokeMethod<String>(
-          'generateAssertion',
-          {'keyId': keyId, 'clientDataHash': clientDataHash},
-        );
-        if (assertion == null) return false;
-
-        final integrityToken = await _sendToBackend(
-          platform: 'ios',
-          payload: {'keyId': keyId, 'assertion': assertion, 'nonce': nonce},
-        );
-        if (integrityToken != null) {
-          await StorageService.saveIntegrityToken(integrityToken);
-        }
-        return integrityToken != null;
       }
+      return await _attestIos();
     } on PlatformException catch (e) {
       if (e.code == 'NOT_SUPPORTED') {
-        // Device doesn't support App Attest (simulator or older iOS)
+        // Simulator / Mac. No integrity token is issued, so payment APIs stay
+        // blocked; only the splash gate is let through.
         return true;
-      }
-      // If attestation failed, clear stored key so next launch retries fresh
-      if (e.code == 'ATTEST_ERROR') {
-        await _storage.delete(key: 'app_attest_key_id');
       }
       return false;
     } catch (_) {
       return false;
+    }
+  }
+
+  static Future<bool> _attestIos() async {
+    final keyId = await _channel.invokeMethod<String>('generateKey');
+    if (keyId == null) return false;
+
+    final nonce = await _fetchBackendNonce();
+    if (nonce == null) return false;
+
+    final attestation = await _withServerRetry(() => _channel.invokeMethod<String>(
+          'attestKey',
+          {'keyId': keyId, 'clientDataHash': _sha256Base64(nonce)},
+        ));
+    if (attestation == null) return false;
+
+    final integrityToken = await _sendIosToBackend({
+      'type': 'attestation',
+      'key_id': keyId,
+      'nonce': nonce,
+      'attestation': attestation,
+    });
+    if (integrityToken == null) return false;
+
+    // Persist keyId only after the backend has stored its public key.
+    await _storage.write(key: _attestKeyIdKey, value: keyId);
+    await StorageService.saveIntegrityToken(integrityToken);
+    return true;
+  }
+
+  static Future<bool> _assertIos(String keyId) async {
+    final nonce = await _fetchBackendNonce();
+    if (nonce == null) return false;
+
+    final assertion = await _channel.invokeMethod<String>(
+      'generateAssertion',
+      {'keyId': keyId, 'clientDataHash': _sha256Base64(nonce)},
+    );
+    if (assertion == null) return false;
+
+    final integrityToken = await _sendIosToBackend({
+      'type': 'assertion',
+      'key_id': keyId,
+      'nonce': nonce,
+      'assertion': assertion,
+    });
+    if (integrityToken == null) return false;
+
+    await StorageService.saveIntegrityToken(integrityToken);
+    return true;
+  }
+
+  /// POSTs an App Attest attestation / assertion to
+  /// api/house_tax/ios-verify-integrity and returns the backend-issued
+  /// integrity_token, or null on failure.
+  /// Throws [_AttestKeyNotRegistered] when the backend replies status_code 409.
+  static Future<String?> _sendIosToBackend(Map<String, String> fields) async {
+    final String body;
+    try {
+      final deviceId = await DeviceService.getDeviceId();
+      final client = await PinnedHttpClient.getInstance();
+      final response = await client
+          .post(
+            Uri.parse(_iosVerifyUrl),
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'X-App-Version': AppConstants.apiVersion,
+              'X-Device-Id': deviceId,
+            },
+            body: fields,
+          )
+          .timeout(const Duration(seconds: 10));
+      body = response.body;
+    } catch (_) {
+      return null;
+    }
+
+    try {
+      final data = jsonDecode(body) as Map<String, dynamic>;
+      final statusCode = data['status_code']?.toString() ?? '';
+      if (statusCode == '409') throw const _AttestKeyNotRegistered();
+      if (statusCode != '200') return null;
+      final token = data['integrity_token'] as String?;
+      return (token == null || token.isEmpty) ? null : token;
+    } on FormatException {
+      return null;
+    } on TypeError {
+      return null;
+    }
+  }
+
+  /// Apple recommends retrying attestKey with the same key when its servers
+  /// are temporarily unavailable, instead of generating a new key.
+  static Future<T?> _withServerRetry<T>(Future<T?> Function() fn) async {
+    for (var attempt = 0; ; attempt++) {
+      try {
+        return await fn();
+      } on PlatformException catch (e) {
+        if (e.code != 'SERVER_UNAVAILABLE' || attempt >= 2) rethrow;
+        await Future.delayed(Duration(seconds: 1 << attempt));
+      }
     }
   }
 
@@ -232,18 +305,15 @@ class IntegrityService {
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
 
-  /// Generates a cryptographically random URL-safe Base64 nonce (no padding).
-  /// Valid for Play Integrity (16–500 chars, URL-safe Base64).
-  static String _generateNonce() {
-    final random = Random.secure();
-    final bytes = List<int>.generate(32, (_) => random.nextInt(256));
-    return base64Url.encode(bytes).replaceAll('=', '');
-  }
-
   /// Returns the standard Base64-encoded SHA-256 hash of [input].
   /// Used as clientDataHash for App Attest (must decode to exactly 32 bytes).
   static String _sha256Base64(String input) {
     final digest = sha256.convert(utf8.encode(input));
     return base64.encode(digest.bytes);
   }
+}
+
+/// Backend has no public key for the App Attest keyId sent in an assertion.
+class _AttestKeyNotRegistered implements Exception {
+  const _AttestKeyNotRegistered();
 }
