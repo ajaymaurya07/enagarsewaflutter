@@ -9,6 +9,7 @@ import 'dart:io';
 import 'services/api_service.dart';
 import 'services/database_service.dart';
 import 'utils/ulb_language_helper.dart';
+import 'utils/share_origin.dart';
 
 class PaymentHistoryScreen extends StatefulWidget {
   final String propertyId;
@@ -571,6 +572,7 @@ class _ReceiptCard extends StatelessWidget {
   }
 
   Future<void> _shareReceipt(BuildContext context) async {
+    final shareOrigin = shareOriginFor(context);
     try {
       final pdf = await _buildPdf();
       final bytes = await pdf.save();
@@ -581,6 +583,7 @@ class _ReceiptCard extends StatelessWidget {
         await Share.shareXFiles(
           [XFile(file.path)],
           text: 'Payment Receipt - Property ID: $propertyId',
+          sharePositionOrigin: shareOrigin,
         );
       } finally {
         try { await file.delete(); } catch (_) {}

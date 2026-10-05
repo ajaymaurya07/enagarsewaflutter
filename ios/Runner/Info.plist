@@ -61,6 +61,8 @@
 	<string>Camera access is needed so you can photograph documents and grievance evidence to attach to your application.</string>
 	<key>NSContactsUsageDescription</key>
 	<string>Contacts access is used only to suggest your own e-mail address when filling out a form. Contacts are never uploaded.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Your location may be used by the secure payment gateway to help prevent fraud while you pay property tax or fees. eNagarSewa does not track or store your location.</string>
 	<key>NSPhoneNumberFormattingTelephonyUIEnabled</key>
 	<false/>
 	<key>NSPhotoLibraryUsageDescription</key>

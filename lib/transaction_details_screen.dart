@@ -15,6 +15,7 @@ import 'services/api_service.dart';
 import 'services/database_service.dart';
 import 'tour_guides/transaction_details_tour.dart';
 import 'utils/ulb_language_helper.dart';
+import 'utils/share_origin.dart';
 
 class TransactionDetailsScreen extends StatefulWidget {
   final TransactionData transaction;
@@ -207,6 +208,9 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
         await Share.shareXFiles(
           [XFile(file.path)],
           text: 'Payment Receipt - Property ID: ${widget.transaction.propertyId}',
+          sharePositionOrigin: shareOriginFor(
+            _shareButtonKey.currentContext ?? context,
+          ),
         );
       } finally {
         try { await file.delete(); } catch (_) {}

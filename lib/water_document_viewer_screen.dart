@@ -9,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 
 import 'services/api_service.dart';
 import 'utils/water_connection_ui.dart';
+import 'utils/share_origin.dart';
 
 /// What the downloaded bytes actually are, decided from their magic number
 /// rather than the file name — the backend hands out signed links without an
@@ -152,7 +153,11 @@ class _WaterDocumentViewerScreenState extends State<WaterDocumentViewerScreen> {
       final file = File('${directory.path}/$_fileName');
       await file.writeAsBytes(bytes);
       if (!mounted) return;
-      await Share.shareXFiles([XFile(file.path)], subject: widget.title);
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        subject: widget.title,
+        sharePositionOrigin: shareOriginFor(context),
+      );
     } catch (e) {
       if (!mounted) return;
       _showSnackBar('Could not share this document. Please try again.');
