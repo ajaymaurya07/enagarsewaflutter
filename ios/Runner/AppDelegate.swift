@@ -47,24 +47,6 @@ import DeviceCheck
           result: result
         )
 
-      case "generateAssertion":
-        guard let args = call.arguments as? [String: String],
-              let keyId = args["keyId"],
-              let clientDataHash = args["clientDataHash"] else {
-          result(FlutterError(
-            code: "INVALID_ARGS",
-            message: "Missing keyId or clientDataHash",
-            details: nil
-          ))
-          return
-        }
-
-        self?.generateAssertion(
-          keyId: keyId,
-          clientDataHash: clientDataHash,
-          result: result
-        )
-
       default:
         result(FlutterMethodNotImplemented)
       }
@@ -96,9 +78,7 @@ import DeviceCheck
     }
   }
 
-  /// Maps DCError codes to stable Flutter error codes so Dart can decide
-  /// whether to retry (SERVER_UNAVAILABLE), discard the key (INVALID_KEY),
-  /// or fail (anything else).
+  /// Maps DCError codes to stable Flutter error codes.
   private func flutterError(from error: Error, fallbackCode: String) -> FlutterError {
     var code = fallbackCode
     if let dcError = error as? DCError {
@@ -157,53 +137,6 @@ import DeviceCheck
         result(FlutterError(
           code: "ATTEST_ERROR",
           message: "No attestation data returned",
-          details: nil
-        ))
-      }
-    }
-  }
-
-  /// Generates an assertion for the given request data hash.
-  /// clientDataHash must be a Base64-encoded SHA-256 hash (32 bytes).
-  private func generateAssertion(
-    keyId: String,
-    clientDataHash: String,
-    result: @escaping FlutterResult
-  ) {
-    let service = DCAppAttestService.shared
-
-    guard service.isSupported else {
-      result(FlutterError(
-        code: "NOT_SUPPORTED",
-        message: "App Attest not supported",
-        details: nil
-      ))
-      return
-    }
-
-    guard let hashData = Data(base64Encoded: clientDataHash),
-          hashData.count == 32 else {
-      result(FlutterError(
-        code: "INVALID_HASH",
-        message: "clientDataHash must be Base64-encoded SHA-256 (32 bytes)",
-        details: nil
-      ))
-      return
-    }
-
-    service.generateAssertion(
-      keyId,
-      clientDataHash: hashData
-    ) { assertion, error in
-
-      if let error = error {
-        result(self.flutterError(from: error, fallbackCode: "ASSERTION_ERROR"))
-      } else if let assertion = assertion {
-        result(assertion.base64EncodedString())
-      } else {
-        result(FlutterError(
-          code: "ASSERTION_ERROR",
-          message: "No assertion data returned",
           details: nil
         ))
       }
