@@ -314,12 +314,12 @@ final class PaymentDetailsViewController: BaseViewController {
 
     private func showGatewaySelection(_ amount: String) {
         let sheet = GatewaySelectionSheet(amount: amount) { [weak self] in
-            self?.handlePayuTransaction(customAmount: amount)
+            self?.handlePayuTransaction()
         }
         present(sheet, animated: true)
     }
 
-    private func buildTransactionRequest(customAmount: String?) async -> InitiateTransactionRequest {
+    private func buildTransactionRequest() async -> InitiateTransactionRequest {
         let entity = await DatabaseService.shared.getPropertyById(propertyId)
         let bill = details?.billDetails, owner = details?.ownerDetails
         let now = Date()
@@ -335,15 +335,15 @@ final class PaymentDetailsViewController: BaseViewController {
             propertyTax: bill?.houseTaxNetAmount ?? "0", waterTax: bill?.waterTaxNetAmount ?? "0",
             sewerTax: bill?.sewerTaxNetAmount ?? "0", otherTax: bill?.othertaxNetAmount ?? "0",
             waterCharge: bill?.waterChargeNetAmount ?? "0", netDemand: bill?.netDemand ?? "0",
-            netPayable: customAmount ?? bill?.netPayble ?? "0", totalArv: entity?.arvValue ?? "0.0",
+            netPayable: bill?.netPayble ?? "0", totalArv: entity?.arvValue ?? "0.0",
             userId: entity?.userId ?? "0", emailId: StorageService.emailId ?? "")
     }
 
-    private func handlePayuTransaction(customAmount: String?) {
+    private func handlePayuTransaction() {
         isBusy = true
         Task {
             do {
-                let request = await buildTransactionRequest(customAmount: customAmount)
+                let request = await buildTransactionRequest()
                 let response = try await APIService.shared.initiateTransaction(request)
                 isBusy = false
                 guard response.status == true else {
@@ -582,19 +582,10 @@ private final class PaymentOtpSheet: BottomSheetController {
     }
 }
 
-/// "Select Payment Amount" — full or partial (the partial amount field is read-only in Flutter).
+/// Confirms the full payable amount before choosing a payment gateway.
 private final class AmountSelectionSheet: BottomSheetController {
     private let fullAmount: String
     private let onProceed: (String) -> Void
-    private var isPartial = false
-    private let fullOption = UIView()
-    private let partialOption = UIView()
-    private let partialSection = UIStackView.v(8, [])
-    private let amountField: ENSTextField = {
-        var c = ENSTextField.Config()
-        c.fontSize = 15
-        return ENSTextField(c)
-    }()
 
     init(fullAmount: String, onProceed: @escaping (String) -> Void) {
         self.fullAmount = fullAmount
@@ -606,76 +597,37 @@ private final class AmountSelectionSheet: BottomSheetController {
 
     override func buildContent() {
         contentStack.addSpacer(8)
-        contentStack.add(UILabel("Select Payment Amount", font: .poppins(20, .bold), color: .appTextDark))
+        contentStack.add(UILabel("Payment Amount", font: .poppins(20, .bold), color: .appTextDark))
         contentStack.addSpacer(4)
-        contentStack.add(UILabel("Pay the full amount or choose a partial payment.", font: .poppins(13), color: .grey500, lines: 0))
+        contentStack.add(UILabel("Pay the complete due amount.", font: .poppins(13), color: .grey500, lines: 0))
         contentStack.addSpacer(20)
-        contentStack.add(fullOption)
-        contentStack.addSpacer(12)
-        contentStack.add(partialOption)
-
-        amountField.text = fullAmount
-        amountField.textField?.isUserInteractionEnabled = false
-        amountField.textField?.font = .poppins(15, .semibold)
-        let rupee = UILabel("₹", font: .poppins(16, .bold), color: .appPrimary)
-        let suffix = UILabel("/ ₹\(fullAmount)", font: .poppins(12), color: .grey400)
-        if let row = amountField.inputRow {
-            row.insertArrangedSubview(rupee, at: 1)
-            row.setCustomSpacing(8, after: rupee)
-            row.insertArrangedSubview(suffix, at: row.arrangedSubviews.count - 1)
-        }
-        partialSection.add(fieldLabel("Enter Amount", color: .grey700), amountField)
-        contentStack.add(partialSection.padded(UIEdgeInsets(top: 16, left: 0, bottom: 0, right: 0)))
+        let amountRow = UIStackView.h(12, [
+            UIImageView(symbol: "checkmark.circle.fill", size: 20, color: .appPrimary),
+            UIStackView.v(0, [
+                UILabel("Full Payment", font: .poppins(14, .semibold), color: .black87),
+                UILabel("Pay the complete due amount", font: .poppins(12), color: .grey500, lines: 0),
+            ]),
+            FlexSpacer(),
+            UILabel("₹ \(fullAmount)", font: .poppins(16, .extraBold), color: .appPrimary),
+        ])
+        let amountCard = UIView()
+        amountCard.backgroundColor = .appPrimaryLight
+        amountCard.layer.cornerRadius = 12
+        amountCard.layer.borderWidth = 2
+        amountCard.layer.borderColor = UIColor.appPrimary.cgColor
+        amountCard.addSubview(amountRow)
+        amountRow.pinToEdges(of: amountCard, insets: UIEdgeInsets(top: 16, left: 16, bottom: 16, right: 16))
+        contentStack.add(amountCard)
         contentStack.addSpacer(24)
         let proceed = PrimaryButton("Proceed to Payment")
         proceed.onEvent { [weak self] in self?.proceed() }
         contentStack.add(proceed)
         contentStack.addSpacer(12)
         contentStack.add(textButton("Cancel", color: .grey600, size: 14, weight: .regular) { [weak self] in self?.close() })
-        fullOption.onTap { [weak self] in self?.select(partial: false) }
-        partialOption.onTap { [weak self] in self?.select(partial: true) }
-        select(partial: false)
-    }
-
-    private func option(_ view: UIView, selected: Bool, title: String, subtitle: String, trailing: String?) {
-        view.subviews.forEach { $0.removeFromSuperview() }
-        view.backgroundColor = selected ? .appPrimaryLight : .grey50
-        view.layer.cornerRadius = 12
-        view.layer.borderWidth = selected ? 2 : 1
-        view.layer.borderColor = (selected ? UIColor.appPrimary : .grey200).cgColor
-        var items: [UIView] = [
-            UIImageView(symbol: selected ? "largecircle.fill.circle" : "circle", size: 20, color: .appPrimary),
-            UIStackView.v(0, [UILabel(title, font: .poppins(14, .semibold), color: .black87),
-                              UILabel(subtitle, font: .poppins(12), color: .grey500, lines: 0)]),
-            FlexSpacer(),
-        ]
-        if let trailing { items.append(UILabel(trailing, font: .poppins(16, .extraBold), color: .appPrimary)) }
-        let row = UIStackView.h(12, items)
-        view.addSubview(row)
-        row.pinToEdges(of: view, insets: UIEdgeInsets(top: 16, left: 16, bottom: 16, right: 16))
-    }
-
-    private func select(partial: Bool) {
-        isPartial = partial
-        amountField.setError(nil)
-        option(fullOption, selected: !partial, title: "Full Payment", subtitle: "Pay the complete due amount",
-               trailing: "₹ \(fullAmount)")
-        option(partialOption, selected: partial, title: "Partial Payment", subtitle: "Pay a custom amount (min ₹1)", trailing: nil)
-        partialSection.superview?.isHidden = !partial
     }
 
     private func proceed() {
-        let chosen: String
-        if isPartial {
-            let input = amountField.trimmedText
-            guard let parsed = Double(input) else { amountField.setError("Please enter a valid amount"); return }
-            if parsed <= 0 { amountField.setError("Amount must be greater than ₹0"); return }
-            if parsed > (Double(fullAmount) ?? 0) { amountField.setError("Amount cannot exceed ₹\(fullAmount)"); return }
-            chosen = String(format: "%.2f", parsed)
-        } else {
-            chosen = fullAmount
-        }
-        close { [onProceed] in onProceed(chosen) }
+        close { [onProceed, fullAmount] in onProceed(fullAmount) }
     }
 }
 
