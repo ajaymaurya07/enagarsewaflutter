@@ -228,62 +228,50 @@ class _MutationApplicationDetailScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Text(
+            'Acknowledgement No.',
+            style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 3),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Acknowledgement No.',
-                      style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey.shade600),
-                    ),
-                    const SizedBox(height: 3),
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            details.ackNo.isNotEmpty ? details.ackNo : widget.ackNo,
-                            style: GoogleFonts.poppins(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w700,
-                              color: _textColor,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        InkWell(
-                          onTap: _copyAckNo,
-                          borderRadius: BorderRadius.circular(6),
-                          child: const Padding(
-                            padding: EdgeInsets.all(3),
-                            child: Icon(Icons.copy_rounded, size: 16, color: _primaryColor),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                decoration: BoxDecoration(
-                  color: _primaryColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(20),
-                ),
+              Flexible(
                 child: Text(
-                  'Applied ${MutationUi.formatDate(details.ackDate)}',
+                  details.ackNo.isNotEmpty ? details.ackNo : widget.ackNo,
                   style: GoogleFonts.poppins(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                    color: _primaryColor,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: _textColor,
                   ),
                 ),
               ),
+              const SizedBox(width: 6),
+              InkWell(
+                onTap: _copyAckNo,
+                borderRadius: BorderRadius.circular(6),
+                child: const Padding(
+                  padding: EdgeInsets.all(3),
+                  child: Icon(Icons.copy_rounded, size: 16, color: _primaryColor),
+                ),
+              ),
             ],
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            decoration: BoxDecoration(
+              color: _primaryColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              'Applied ${MutationUi.formatDate(details.ackDate)}',
+              style: GoogleFonts.poppins(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: _primaryColor,
+              ),
+            ),
           ),
         ],
       ),
