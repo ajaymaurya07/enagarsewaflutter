@@ -171,9 +171,6 @@ class _NewMutationScreenState extends State<NewMutationScreen> {
         _isLoadingProperty = false;
         _selectedCauseId = null;
         _selectedIdProofId = null;
-        _mobileNoController.text = response.data!.mobile == '0'
-            ? ''
-            : response.data!.mobile;
       });
     } catch (e) {
       if (!mounted || _selectedProperty != property) return;
@@ -348,16 +345,10 @@ class _NewMutationScreenState extends State<NewMutationScreen> {
     setState(() => _currentStep--);
   }
 
-  // TODO: set back to false before release - skips per-step validation so
-  // every step can be opened for UI testing.
-  static const bool _skipStepValidation = true;
-
   void _handleContinue() {
     FocusManager.instance.primaryFocus?.unfocus();
     final isLastStep = _currentStep == _totalSteps - 1;
-    if (!(_skipStepValidation && !isLastStep) && !_validateCurrentStep()) {
-      return;
-    }
+    if (!_validateCurrentStep()) return;
     if (!isLastStep) {
       setState(() => _currentStep++);
       return;
@@ -665,7 +656,9 @@ class _NewMutationScreenState extends State<NewMutationScreen> {
           ],
           if (_propertyData != null) ...[
             const SizedBox(height: 18),
-            _buildPropertySummaryCard(_propertyData!),
+            _buildHouseDetailsCard(_propertyData!),
+            const SizedBox(height: 14),
+            _buildOwnerDetailsCard(_propertyData!),
             const SizedBox(height: 20),
             _sectionTitle('Mutation Details'),
             const SizedBox(height: 4),
@@ -750,7 +743,38 @@ class _NewMutationScreenState extends State<NewMutationScreen> {
     );
   }
 
-  Widget _buildPropertySummaryCard(MutationPropertyData data) {
+  Widget _buildHouseDetailsCard(MutationPropertyData data) {
+    return _buildInfoCard(
+      title: 'House Details',
+      icon: Icons.home_work_outlined,
+      rows: [
+        _infoRow('Property ID', data.propertyId),
+        _infoRow('Address', data.address),
+        _infoRow('Zone', data.zoneName),
+        _infoRow('Ward', data.wardName),
+        _infoRow('Mohalla', data.mohallaName),
+        _infoRow('Current ARV', '₹${MutationUi.formatAmount(data.arv)}'),
+      ],
+    );
+  }
+
+  Widget _buildOwnerDetailsCard(MutationPropertyData data) {
+    return _buildInfoCard(
+      title: 'Owner Details',
+      icon: Icons.person_outline_rounded,
+      rows: [
+        _infoRow('Owner Name', data.ownerName),
+        _infoRow('Father/Husband Name', data.fatherName),
+        _infoRow('Mobile Number', data.mobile == '0' ? '' : data.mobile),
+      ],
+    );
+  }
+
+  Widget _buildInfoCard({
+    required String title,
+    required IconData icon,
+    required List<Widget> rows,
+  }) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
@@ -777,33 +801,23 @@ class _NewMutationScreenState extends State<NewMutationScreen> {
                   color: const Color(0xFFFFF4E8),
                   borderRadius: BorderRadius.circular(9),
                 ),
-                child: const Icon(
-                  Icons.home_work_outlined,
-                  size: 17,
-                  color: _primaryColor,
-                ),
+                child: Icon(icon, size: 17, color: _primaryColor),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  data.ownerName.isNotEmpty ? data.ownerName : 'Current Owner',
+                  title,
                   style: GoogleFonts.poppins(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                     color: _textColor,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
           const Divider(height: 20),
-          _infoRow('Property ID', data.propertyId),
-          _infoRow('Address', data.address),
-          _infoRow('Zone / Ward / Mohalla',
-              '${data.zoneName} / ${data.wardName} / ${data.mohallaName}'),
-          _infoRow('Current ARV', '₹${MutationUi.formatAmount(data.arv)}'),
+          ...rows,
         ],
       ),
     );

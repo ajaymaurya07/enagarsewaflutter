@@ -8,7 +8,48 @@ import DeviceCheck
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    // Prevent screenshots and screen recording across all screens.
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(windowDidBecomeKey(_:)),
+      name: UIWindow.didBecomeKeyNotification,
+      object: nil
+    )
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  // MARK: - Screenshot protection
+
+  private let securedWindows = NSHashTable<UIWindow>.weakObjects()
+
+  @objc private func windowDidBecomeKey(_ notification: Notification) {
+    guard let window = notification.object as? UIWindow,
+          window.rootViewController is FlutterViewController,
+          !securedWindows.contains(window) else { return }
+    securedWindows.add(window)
+    secure(window)
+  }
+
+  /// iOS has no FLAG_SECURE equivalent. Hosting the window's layer inside the
+  /// secure container of a password UITextField makes the system render the
+  /// app content blank in screenshots, screen recordings and mirroring.
+  private func secure(_ window: UIWindow) {
+    let secureField = UITextField()
+    secureField.isSecureTextEntry = true
+    secureField.isUserInteractionEnabled = false
+    secureField.translatesAutoresizingMaskIntoConstraints = false
+    window.addSubview(secureField)
+    NSLayoutConstraint.activate([
+      secureField.centerXAnchor.constraint(equalTo: window.centerXAnchor),
+      secureField.centerYAnchor.constraint(equalTo: window.centerYAnchor),
+    ])
+
+    window.layer.superlayer?.addSublayer(secureField.layer)
+    if #available(iOS 17.0, *) {
+      secureField.layer.sublayers?.last?.addSublayer(window.layer)
+    } else {
+      secureField.layer.sublayers?.first?.addSublayer(window.layer)
+    }
   }
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {

@@ -1697,7 +1697,7 @@ class ApiService {
 
         final request = http.MultipartRequest(
           'POST',
-          Uri.parse('${AppConstants.baseUrl}api/House_tax/mutation/apply'),
+          Uri.parse('${AppConstants.baseUrl}api/mutation/apply'),
         );
 
         final data = {
