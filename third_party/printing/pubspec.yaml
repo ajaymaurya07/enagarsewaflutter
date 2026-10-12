@@ -6,9 +6,6 @@ description: >
 homepage: https://github.com/DavBfr/dart_pdf/tree/master/printing
 repository: https://github.com/DavBfr/dart_pdf
 issue_tracker: https://github.com/DavBfr/dart_pdf/issues
-screenshots:
-  - description: 'Printing a document on iOS'
-    path: example.png
 topics:
   - pdf
   - printer
