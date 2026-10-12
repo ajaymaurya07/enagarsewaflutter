@@ -1578,7 +1578,7 @@ class ApiService {
           debugPrint('[MutationPropertyData] Authorization -> ${headers['Authorization']}');
           return _post(
                 Uri.parse(
-                  '${AppConstants.baseUrl}api/House_tax/mutation/get-property-data',
+                  '${AppConstants.baseUrl}api/mutation/get-property-data',
                 ),
                 headers: headers,
                 body: json.encode(requestBody),
@@ -1624,7 +1624,7 @@ class ApiService {
         (headers) {
           debugPrint('[MutationFees] Authorization -> ${headers['Authorization']}');
           return _post(
-                Uri.parse('${AppConstants.baseUrl}api/House_tax/mutation/fees'),
+                Uri.parse('${AppConstants.baseUrl}api/mutation/fees'),
                 headers: headers,
                 body: json.encode(requestBody),
               )
@@ -1809,26 +1809,43 @@ class ApiService {
     }
   }
 
+
   // Mutation - Application Detail by Acknowledgement Number
-  static Future<MutationApplicationDetailResponse> getMutationApplicationDetail({
+  static Future<MutationApplicationDetailResponse>
+  getMutationApplicationDetail({
     required String ackNo,
   }) async {
     try {
       final response = await _makeAuthenticatedRequest(
         (headers) {
-          debugPrint('[MutationApplicationDetail] Authorization -> ${headers['Authorization']}');
+          final requestHeaders = {
+            ...headers,
+            'Content-Type': 'application/json',
+          };
+
+          final body = jsonEncode({
+            'ackNo': ackNo,
+          });
+
+          debugPrint(
+            '[MutationApplicationDetail] Request Body -> $body',
+          );
+
           return _post(
-                Uri.parse(
-                  '${AppConstants.baseUrl}api/House_tax/mutation/app-details/$ackNo',
-                ),
-                headers: headers,
-              )
-              .timeout(Duration(seconds: AppConstants.networkTimeout));
+            Uri.parse(
+              '${AppConstants.baseUrl}api/mutation/app-details',
+            ),
+            headers: requestHeaders,
+            body: body,
+          ).timeout(
+            Duration(seconds: AppConstants.networkTimeout),
+          );
         },
       );
 
       debugPrint(
-        '[MutationApplicationDetail] Response (${response.statusCode}) -> ${response.body}',
+        '[MutationApplicationDetail] Response '
+        '(${response.statusCode}) -> ${response.body}',
       );
 
       if (response.statusCode == 200) {
@@ -1836,13 +1853,17 @@ class ApiService {
           jsonDecode(response.body),
         );
       } else {
-        throw Exception('Server error: ${response.statusCode}');
+        throw Exception(
+          'Server error: ${response.statusCode}',
+        );
       }
     } catch (e) {
       debugPrint('[MutationApplicationDetail] Error -> $e');
       throw _userSafeException(e);
     }
   }
+
+
 
     // Search Property API
   static Future<List<PropertyData>> searchProperty({

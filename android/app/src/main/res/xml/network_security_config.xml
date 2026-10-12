@@ -1,16 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
 
-    <!-- SBI Payment Gateway — HTTPS only, no certificate pinning.
-         SBI's certificate is validated by Android's system trust store.
-         Pinning here would require SBI's actual SPKI hash which we don't control. -->
+    <!-- 1. ग्लोबल सुरक्षा नीति: पूरे ऐप में असुरक्षित HTTP ट्रैफिक ब्लॉक करें -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system"/>
+        </trust-anchors>
+    </base-config>
+
+    <!-- SBI Payment Gateway — HTTPS Only -->
     <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="true">sbi.co.in</domain>
         <domain includeSubdomains="true">sbi.in</domain>
         <domain includeSubdomains="true">sbiuat.bank.in</domain>
     </domain-config>
 
-    <!-- PayU Payment Gateway -->
+    <!-- PayU Payment Gateway — HTTPS Only -->
     <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="true">payu.in</domain>
         <domain includeSubdomains="true">secure.payu.in</domain>
@@ -19,26 +24,13 @@
         <domain includeSubdomains="true">secure.payucdn.com</domain>
     </domain-config>
 
-    <!-- Our API Server (iamsup.in) -->
+
     <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="true">iamsup.in</domain>
-
-        <!-- Certificate pinning for our API -->
-        <pin-set expiration="2026-09-27">
-            <!-- iamsup.in Leaf Certificate -->
-            <pin digest="SHA-256">9cfpRdt3u5byy0K2nxVHhWnByC+qBa0BS+RG60siZpQ=</pin>
-            <!-- RapidSSL Intermediate CA (DigiCert) -->
+        <pin-set expiration="2027-03-12">
+            <pin digest="SHA-256">HbdO5xh2vjXSulegzGh8hrAcD0e/l4F6S6NcPXkpap0=</pin>
             <pin digest="SHA-256">E3tYcwo9CiqATmKtpMLW5V+pzIq+ZoDmpXSiJlXGmTo=</pin>
         </pin-set>
     </domain-config>
-
-    <!-- Default policy: HTTP is permitted so the department portal WebView can
-         load any linked site, including plain-http ones. The payment gateways
-         and our own API above stay HTTPS-only (and pinned). -->
-    <base-config cleartextTrafficPermitted="true">
-        <trust-anchors>
-            <certificates src="system"/>
-        </trust-anchors>
-    </base-config>
 
 </network-security-config>
