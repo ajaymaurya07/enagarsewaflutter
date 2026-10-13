@@ -221,17 +221,17 @@ final class ScreenProtector: NSObject {
       return
     }
 
-    let secureField = UITextField()
+    // The secure field must cover the whole window: the window layer is
+    // re-hosted inside the field's canvas layer, so a smaller field renders
+    // the app shrunk to the field's size.
+    let secureField = UITextField(frame: window.bounds)
     secureField.isSecureTextEntry = true
     secureField.isUserInteractionEnabled = false
-    secureField.translatesAutoresizingMaskIntoConstraints = false
+    secureField.backgroundColor = .clear
+    secureField.autoresizingMask = [.flexibleWidth, .flexibleHeight]
     window.addSubview(secureField)
-    NSLayoutConstraint.activate([
-      secureField.centerXAnchor.constraint(equalTo: window.centerXAnchor),
-      secureField.centerYAnchor.constraint(equalTo: window.centerYAnchor),
-    ])
+    window.sendSubviewToBack(secureField)
     // Force layout so the secure canvas sublayer exists before we use it.
-    window.layoutIfNeeded()
     secureField.layoutIfNeeded()
 
     let canvasLayer: CALayer?
@@ -247,6 +247,12 @@ final class ScreenProtector: NSObject {
 
     hostLayer.addSublayer(secureField.layer)
     secureLayer.addSublayer(window.layer)
+    // Keep the re-hosted window at full size, independent of how UIKit sized
+    // the canvas layer.
+    secureField.layer.frame = window.frame
+    secureLayer.frame = secureField.layer.bounds
+    secureLayer.transform = CATransform3DIdentity
+    window.layer.frame = secureLayer.bounds
     securedWindows.add(window)
   }
 
