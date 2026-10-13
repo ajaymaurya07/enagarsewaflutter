@@ -20,6 +20,7 @@ class MutationScreen extends StatefulWidget {
 class _MutationScreenState extends State<MutationScreen> {
   static const Color _primaryColor = MutationUi.primaryColor;
   static const Color _textColor = MutationUi.textColor;
+  static const bool _showTrackCard = false;
 
   final _ackNoController = TextEditingController();
   bool _isTracking = false;
@@ -87,8 +88,11 @@ class _MutationScreenState extends State<MutationScreen> {
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
           children: [
             _buildNewMutationButton(),
-            const SizedBox(height: 24),
-            _buildTrackCard(),
+            // Track card hidden for now — set to true to show it again.
+            if (_showTrackCard) ...[
+              const SizedBox(height: 24),
+              _buildTrackCard(),
+            ],
           ],
         ),
       ),

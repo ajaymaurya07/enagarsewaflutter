@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
 
-    <!-- 1. ग्लोबल सुरक्षा नीति: पूरे ऐप में असुरक्षित HTTP ट्रैफिक ब्लॉक करें -->
+    
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system"/>

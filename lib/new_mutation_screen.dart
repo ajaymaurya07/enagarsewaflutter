@@ -34,7 +34,7 @@ class _NewMutationScreenState extends State<NewMutationScreen> {
   static const int _totalSteps = 4;
   static const int _maxDocSizeBytes = 200 * 1024;
 
-  static const List<String> _salutationOptions = ['S/o', 'D/o', 'W/o'];
+  static const List<String> _salutationOptions = ['S/o', 'D/o', 'W/o', 'H/o'];
   static const List<String> _occupiedByOptions = ['Self', 'Other'];
   static const List<String> _flagJujOptions = [
     'Normal Mutation',
@@ -1512,7 +1512,8 @@ class _NewMutationScreenState extends State<NewMutationScreen> {
               child: SizedBox(
                 height: 48,
                 child: ElevatedButton(
-                  onPressed: _isSubmitting ? null : _handleContinue,
+                  // Submission is disabled for now — the last step's button stays inactive.
+                  onPressed: (_isSubmitting || isLastStep) ? null : _handleContinue,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _primaryColor,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
