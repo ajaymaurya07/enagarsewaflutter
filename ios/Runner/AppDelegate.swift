@@ -8,48 +8,10 @@ import DeviceCheck
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    // Prevent screenshots and screen recording across all screens.
-    NotificationCenter.default.addObserver(
-      self,
-      selector: #selector(windowDidBecomeKey(_:)),
-      name: UIWindow.didBecomeKeyNotification,
-      object: nil
-    )
+    // Prevent screenshots, screen recording and app-switcher leaks (parity
+    // with Android FLAG_SECURE).
+    ScreenProtector.shared.start()
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
-  }
-
-  // MARK: - Screenshot protection
-
-  private let securedWindows = NSHashTable<UIWindow>.weakObjects()
-
-  @objc private func windowDidBecomeKey(_ notification: Notification) {
-    guard let window = notification.object as? UIWindow,
-          window.rootViewController is FlutterViewController,
-          !securedWindows.contains(window) else { return }
-    securedWindows.add(window)
-    secure(window)
-  }
-
-  /// iOS has no FLAG_SECURE equivalent. Hosting the window's layer inside the
-  /// secure container of a password UITextField makes the system render the
-  /// app content blank in screenshots, screen recordings and mirroring.
-  private func secure(_ window: UIWindow) {
-    let secureField = UITextField()
-    secureField.isSecureTextEntry = true
-    secureField.isUserInteractionEnabled = false
-    secureField.translatesAutoresizingMaskIntoConstraints = false
-    window.addSubview(secureField)
-    NSLayoutConstraint.activate([
-      secureField.centerXAnchor.constraint(equalTo: window.centerXAnchor),
-      secureField.centerYAnchor.constraint(equalTo: window.centerYAnchor),
-    ])
-
-    window.layer.superlayer?.addSublayer(secureField.layer)
-    if #available(iOS 17.0, *) {
-      secureField.layer.sublayers?.last?.addSublayer(window.layer)
-    } else {
-      secureField.layer.sublayers?.first?.addSublayer(window.layer)
-    }
   }
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
@@ -182,5 +144,161 @@ import DeviceCheck
         ))
       }
     }
+  }
+}
+
+// MARK: - Screen protection
+
+/// iOS has no FLAG_SECURE equivalent, so protection is layered:
+///  1. Secure layer – the Flutter window is hosted inside the secure container
+///     of a password UITextField, so the system renders it blank in
+///     screenshots, screen recordings and AirPlay/mirroring.
+///  2. Capture cover – while the screen is being recorded or mirrored an opaque
+///     cover is shown, in case the secure layer stops working on a future iOS.
+///  3. App-switcher cover – the same cover is shown while the app is inactive,
+///     so the multitasking snapshot never contains sensitive data.
+final class ScreenProtector: NSObject {
+  static let shared = ScreenProtector()
+
+  private let securedWindows = NSHashTable<UIWindow>.weakObjects()
+  private let covers = NSMapTable<UIWindow, UIView>.weakToStrongObjects()
+  private var isAppInactive = false
+
+  private override init() {}
+
+  func start() {
+    let center = NotificationCenter.default
+    center.addObserver(
+      self, selector: #selector(windowDidBecomeKey(_:)),
+      name: UIWindow.didBecomeKeyNotification, object: nil)
+    center.addObserver(
+      self, selector: #selector(appWillResignActive),
+      name: UIApplication.willResignActiveNotification, object: nil)
+    center.addObserver(
+      self, selector: #selector(appDidBecomeActive),
+      name: UIApplication.didBecomeActiveNotification, object: nil)
+    center.addObserver(
+      self, selector: #selector(captureStateDidChange),
+      name: UIScreen.capturedDidChangeNotification, object: nil)
+  }
+
+  // MARK: Notifications
+
+  @objc private func windowDidBecomeKey(_ notification: Notification) {
+    guard let window = notification.object as? UIWindow,
+          window.rootViewController is FlutterViewController,
+          !securedWindows.contains(window) else { return }
+    secure(window)
+    updateCover(for: window)
+  }
+
+  @objc private func appWillResignActive() {
+    isAppInactive = true
+    updateAllCovers()
+  }
+
+  @objc private func appDidBecomeActive() {
+    isAppInactive = false
+    updateAllCovers()
+  }
+
+  @objc private func captureStateDidChange() {
+    updateAllCovers()
+  }
+
+  // MARK: Secure layer
+
+  private func secure(_ window: UIWindow, attempt: Int = 0) {
+    // The window must be attached to the screen's layer tree first; retry on
+    // the next run loop pass if it is not there yet.
+    guard let hostLayer = window.layer.superlayer else {
+      if attempt < 10 {
+        DispatchQueue.main.async { [weak self, weak window] in
+          guard let self = self, let window = window else { return }
+          self.secure(window, attempt: attempt + 1)
+        }
+      }
+      return
+    }
+
+    let secureField = UITextField()
+    secureField.isSecureTextEntry = true
+    secureField.isUserInteractionEnabled = false
+    secureField.translatesAutoresizingMaskIntoConstraints = false
+    window.addSubview(secureField)
+    NSLayoutConstraint.activate([
+      secureField.centerXAnchor.constraint(equalTo: window.centerXAnchor),
+      secureField.centerYAnchor.constraint(equalTo: window.centerYAnchor),
+    ])
+    // Force layout so the secure canvas sublayer exists before we use it.
+    window.layoutIfNeeded()
+    secureField.layoutIfNeeded()
+
+    let canvasLayer: CALayer?
+    if #available(iOS 17.0, *) {
+      canvasLayer = secureField.layer.sublayers?.last
+    } else {
+      canvasLayer = secureField.layer.sublayers?.first
+    }
+    guard let secureLayer = canvasLayer else {
+      secureField.removeFromSuperview()
+      return
+    }
+
+    hostLayer.addSublayer(secureField.layer)
+    secureLayer.addSublayer(window.layer)
+    securedWindows.add(window)
+  }
+
+  // MARK: Privacy cover
+
+  private func updateAllCovers() {
+    for window in securedWindows.allObjects {
+      updateCover(for: window)
+    }
+  }
+
+  private func updateCover(for window: UIWindow) {
+    if isAppInactive || isCaptured(window) {
+      showCover(on: window)
+    } else {
+      hideCover(on: window)
+    }
+  }
+
+  private func isCaptured(_ window: UIWindow) -> Bool {
+    if #available(iOS 17.0, *) {
+      return window.traitCollection.sceneCaptureState == .active
+    }
+    return window.screen.isCaptured
+  }
+
+  private func showCover(on window: UIWindow) {
+    if let existing = covers.object(forKey: window) {
+      window.bringSubviewToFront(existing)
+      return
+    }
+    let cover = makeCoverView()
+    cover.frame = window.bounds
+    cover.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+    window.addSubview(cover)
+    covers.setObject(cover, forKey: window)
+  }
+
+  private func hideCover(on window: UIWindow) {
+    covers.object(forKey: window)?.removeFromSuperview()
+    covers.removeObject(forKey: window)
+  }
+
+  /// Uses the launch screen so the cover looks branded; falls back to a plain
+  /// opaque view.
+  private func makeCoverView() -> UIView {
+    if let launchView = UIStoryboard(name: "LaunchScreen", bundle: nil)
+      .instantiateInitialViewController()?.view {
+      return launchView
+    }
+    let view = UIView()
+    view.backgroundColor = .systemBackground
+    return view
   }
 }
