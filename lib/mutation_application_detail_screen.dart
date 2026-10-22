@@ -194,6 +194,10 @@ class _MutationApplicationDetailScreenState
 
       _pendingTxnId = txn.txnid;
       _pendingAmount = txn.amount;
+      // PayU reports back through the delegate callbacks and
+      // `openCheckoutScreen` may never complete, so release the button
+      // before handing over to the checkout instead of waiting on it.
+      setState(() => _isPaying = false);
       await _startPayuFlow(txn);
     } catch (e) {
       debugPrint('[MutationPayU] payNow error -> $e');
@@ -263,6 +267,7 @@ class _MutationApplicationDetailScreenState
     final txnId = _pendingTxnId;
     final amount = _pendingAmount;
     if (!mounted) return;
+    if (_isPaying) setState(() => _isPaying = false);
 
     if (txnId == null || txnId.isEmpty) {
       await _openResult(PaymentStatus.pending, message: unableToVerifyMessage);
@@ -291,18 +296,22 @@ class _MutationApplicationDetailScreenState
     if (!mounted) return;
     Navigator.of(context).pop();
 
-    if (res == null || !res.success || res.data == null) {
+    // `success` is false for PENDING/FAILED too, so trust `payment_status`
+    // whenever the server sent one; only fall back when there is none.
+    final statusStr = res?.paymentStatus ?? '';
+    if (res == null || statusStr.isEmpty) {
       await _openResult(
         PaymentStatus.pending,
         txnId: txnId,
         amount: amount,
-        message: unableToVerifyMessage,
+        message: res != null && res.message.isNotEmpty
+            ? res.message
+            : unableToVerifyMessage,
       );
       return;
     }
 
     _pendingTxnId = null;
-    final statusStr = res.paymentStatus;
     final status = statusStr == 'SUCCESS'
         ? PaymentStatus.success
         : statusStr == 'FAILED' || statusStr == 'FAILURE'

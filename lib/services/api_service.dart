@@ -1905,7 +1905,7 @@ class ApiService {
   }) async {
     final requestBody = {
       'ackNo': ackNo,
-      'ulb_id': "11111",
+      'ulb_id': int.tryParse(ulbId) ?? ulbId,
       'gateway': gateway,
       'user_id': userId,
     };
