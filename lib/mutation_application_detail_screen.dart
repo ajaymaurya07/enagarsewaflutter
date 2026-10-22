@@ -155,6 +155,254 @@ class _MutationApplicationDetailScreenState
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  /// Same gate as property-tax payment: send an OTP to the applicant's
+  /// mobile and only open the payment once it is verified.
+  Future<void> _handlePayNow() async {
+    final details = _details;
+    if (details == null || _isPaying) return;
+
+    final mobileNo = details.mobileNo.trim();
+    if (mobileNo.isEmpty) {
+      _showSnackBar('Mobile number not available for OTP');
+      return;
+    }
+
+    setState(() => _isPaying = true);
+    try {
+      debugPrint(
+        '[MutationOtp] sendOtp -> mobileNo=$mobileNo, propertyId=${details.propertyId}',
+      );
+      final otpRes = await ApiService.sendOtp(mobileNo, details.propertyId);
+      debugPrint(
+        '[MutationOtp] sendOtp response -> success=${otpRes.success}, '
+        'message=${otpRes.message}, maskedMobile=${otpRes.maskedMobile}',
+      );
+      if (!mounted) return;
+      setState(() => _isPaying = false);
+
+      if (otpRes.success == true) {
+        final maskedNumber = otpRes.maskedMobile ??
+            'XXXXXX${mobileNo.length > 4 ? mobileNo.substring(mobileNo.length - 4) : mobileNo}';
+        _showOtpSheet(mobileNo, maskedNumber);
+      } else {
+        _showSnackBar(otpRes.message ?? 'Failed to send OTP');
+      }
+    } catch (e) {
+      debugPrint('[MutationOtp] sendOtp error -> $e');
+      if (!mounted) return;
+      setState(() => _isPaying = false);
+      _showSnackBar(
+        ApiService.getUserFriendlyErrorMessage(
+          e,
+          fallbackMessage: 'Unable to send OTP right now. Please try again.',
+        ),
+      );
+    }
+  }
+
+  void _showOtpSheet(String mobileNo, String maskedNumber) {
+    final otpController = TextEditingController();
+    bool isVerifying = false;
+    String? sheetError;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Verification Required',
+                    style: GoogleFonts.poppins(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: _textColor,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Enter the OTP sent to $maskedNumber to proceed with payment.',
+                    style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade500),
+                  ),
+                  const SizedBox(height: 16),
+                  if (sheetError != null) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.red.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.error_outline, color: Colors.red.shade600, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              sheetError!,
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                color: Colors.red.shade700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  Text(
+                    'Enter OTP',
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: otpController,
+                    keyboardType: TextInputType.number,
+                    maxLength: 6,
+                    style: GoogleFonts.poppins(fontSize: 14, letterSpacing: 4),
+                    decoration: InputDecoration(
+                      hintText: '------',
+                      hintStyle: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade400),
+                      prefixIcon: const Icon(Icons.pin_outlined, color: _primaryColor, size: 20),
+                      counterText: '',
+                      filled: true,
+                      fillColor: const Color(0xFFF8F9FB),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade200),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: _primaryColor, width: 1.5),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: isVerifying
+                          ? null
+                          : () async {
+                              final otp = otpController.text.trim();
+                              if (otp.isEmpty) {
+                                setModalState(() => sheetError = 'Please enter OTP');
+                                return;
+                              }
+                              if (otp.length < 4) {
+                                setModalState(() => sheetError = 'Please enter valid OTP');
+                                return;
+                              }
+                              final sheetNavigator = Navigator.of(context);
+                              setModalState(() {
+                                isVerifying = true;
+                                sheetError = null;
+                              });
+                              try {
+                                debugPrint('[MutationOtp] verifyOtp -> mobileNo=$mobileNo');
+                                final res = await ApiService.verifyOtp(mobileNo, otp);
+                                debugPrint(
+                                  '[MutationOtp] verifyOtp response -> '
+                                  'success=${res.success}, message=${res.message}',
+                                );
+                                if (res.success == true) {
+                                  sheetNavigator.pop();
+                                  _payNow();
+                                } else {
+                                  setModalState(() => sheetError = res.message ?? 'Invalid OTP');
+                                }
+                              } catch (e) {
+                                debugPrint('[MutationOtp] verifyOtp error -> $e');
+                                setModalState(
+                                  () => sheetError = ApiService.getUserFriendlyErrorMessage(
+                                    e,
+                                    fallbackMessage:
+                                        'Unable to verify OTP right now. Please try again.',
+                                  ),
+                                );
+                              } finally {
+                                if (context.mounted) {
+                                  setModalState(() => isVerifying = false);
+                                }
+                              }
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _primaryColor,
+                        disabledBackgroundColor: _primaryColor.withValues(alpha: 0.6),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      child: isVerifying
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : Text(
+                              'Verify & Proceed',
+                              style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w700),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton(
+                      onPressed: isVerifying ? null : () => Navigator.pop(context),
+                      child: Text(
+                        'Cancel',
+                        style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey.shade600),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _payNow() async {
     final details = _details;
     if (details == null || _isPaying) return;
@@ -541,7 +789,7 @@ class _MutationApplicationDetailScreenState
           SizedBox(
             height: 50,
             child: ElevatedButton.icon(
-              onPressed: _isPaying ? null : _payNow,
+              onPressed: _isPaying ? null : _handlePayNow,
               icon: _isPaying
                   ? const SizedBox(
                       width: 18,
