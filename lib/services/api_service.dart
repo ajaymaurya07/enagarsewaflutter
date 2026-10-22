@@ -1647,6 +1647,39 @@ class ApiService {
     }
   }
 
+  // Mutation - Application List (logged-in citizen's applications)
+  static Future<MutationListResponse> getMutationList() async {
+    final requestBody = <String, dynamic>{};
+    debugPrint('[MutationList] Request -> ${json.encode(requestBody)}');
+
+    try {
+      final response = await _makeAuthenticatedRequest(
+        (headers) {
+          debugPrint('[MutationList] Authorization -> ${headers['Authorization']}');
+          return _post(
+                Uri.parse('${AppConstants.baseUrl}api/mutation/list'),
+                headers: headers,
+                body: json.encode(requestBody),
+              )
+              .timeout(Duration(seconds: AppConstants.networkTimeout));
+        },
+      );
+
+      debugPrint(
+        '[MutationList] Response (${response.statusCode}) -> ${response.body}',
+      );
+
+      if (response.statusCode == 200) {
+        return MutationListResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('[MutationList] Error -> $e');
+      throw _userSafeException(e);
+    }
+  }
+
   // Mutation - Submit Application (Multipart)
   //
   // `flagJuj` is 0 for a normal mutation application and 1 when another
@@ -1859,6 +1892,88 @@ class ApiService {
       }
     } catch (e) {
       debugPrint('[MutationApplicationDetail] Error -> $e');
+      throw _userSafeException(e);
+    }
+  }
+
+  // Mutation - Create Payment (returns PayU checkout params for amountToPayNow)
+  static Future<MutationCreatePaymentResponse> createMutationPayment({
+    required String ackNo,
+    required String ulbId,
+    required String userId,
+    String gateway = 'PAYU',
+  }) async {
+    final requestBody = {
+      'ackNo': ackNo,
+      'ulb_id': "11111",
+      'gateway': gateway,
+      'user_id': userId,
+    };
+    debugPrint('[MutationCreatePayment] Request -> ${json.encode(requestBody)}');
+
+    try {
+      final response = await _makeAuthenticatedRequest(
+        (headers) {
+          debugPrint('[MutationCreatePayment] Authorization -> ${headers['Authorization']}');
+          return _post(
+                Uri.parse('${AppConstants.baseUrl}api/mutation/create-payment'),
+                headers: {...headers, 'Content-Type': 'application/json'},
+                body: json.encode(requestBody),
+              )
+              .timeout(Duration(seconds: AppConstants.networkTimeout));
+        },
+      );
+
+      debugPrint(
+        '[MutationCreatePayment] Response (${response.statusCode}) -> ${response.body}',
+      );
+
+      if (response.statusCode == 200) {
+        return MutationCreatePaymentResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('[MutationCreatePayment] Error -> $e');
+      throw _userSafeException(e);
+    }
+  }
+
+  // Mutation - Verify Payment (cross-verify after PayU SDK callback)
+  static Future<MutationVerifyPaymentResponse> verifyMutationPayment({
+    required String txnid,
+  }) async {
+    final requestBody = {'txnid': txnid};
+    debugPrint('[MutationVerifyPayment] Request -> ${json.encode(requestBody)}');
+
+    try {
+      final response = await _makeAuthenticatedRequest(
+        (headers) {
+          debugPrint('[MutationVerifyPayment] Authorization -> ${headers['Authorization']}');
+          return _post(
+                Uri.parse('${AppConstants.baseUrl}api/mutation/verify-payment'),
+                headers: {...headers, 'Content-Type': 'application/json'},
+                body: json.encode(requestBody),
+              )
+              .timeout(Duration(seconds: AppConstants.networkTimeout));
+        },
+      );
+
+      debugPrint(
+        '[MutationVerifyPayment] Response (${response.statusCode}) -> ${response.body}',
+      );
+
+      // A 404 "Transaction not found" still comes back as a JSON envelope.
+      final body = response.body.trim();
+      if (body.isNotEmpty) {
+        final decoded = jsonDecode(body);
+        if (decoded is Map<String, dynamic>) {
+          return MutationVerifyPaymentResponse.fromJson(decoded);
+        }
+      }
+      throw Exception('Server error: ${response.statusCode}');
+    } catch (e) {
+      debugPrint('[MutationVerifyPayment] Error -> $e');
       throw _userSafeException(e);
     }
   }
@@ -3446,6 +3561,55 @@ class MutationFeesResponse {
   }
 }
 
+class MutationListResponse {
+  final bool success;
+  final int responseCode;
+  final String message;
+  final List<MutationListItem> data;
+
+  MutationListResponse({
+    required this.success,
+    required this.responseCode,
+    required this.message,
+    required this.data,
+  });
+
+  factory MutationListResponse.fromJson(Map<String, dynamic> json) {
+    final rawData = json['data'];
+    return MutationListResponse(
+      success: json['success'] ?? false,
+      responseCode: json['responseCode'] ?? 0,
+      message: json['message'] ?? '',
+      data: rawData is List
+          ? rawData
+              .whereType<Map<String, dynamic>>()
+              .map(MutationListItem.fromJson)
+              .toList()
+          : const [],
+    );
+  }
+}
+
+class MutationListItem {
+  final String ackNo;
+  final String propertyId;
+  final String applicationDate;
+
+  MutationListItem({
+    required this.ackNo,
+    required this.propertyId,
+    required this.applicationDate,
+  });
+
+  factory MutationListItem.fromJson(Map<String, dynamic> json) {
+    return MutationListItem(
+      ackNo: json['ackNo']?.toString() ?? '',
+      propertyId: json['propertyId']?.toString() ?? '',
+      applicationDate: json['applicationDate']?.toString() ?? '',
+    );
+  }
+}
+
 class MutationApplyResponse {
   final bool success;
   final int responseCode;
@@ -3622,6 +3786,82 @@ class MutationApplicationDetailResponse {
       data: rawData is Map<String, dynamic>
           ? MutationApplicationDetail.fromJson(rawData)
           : null,
+    );
+  }
+}
+
+/// `api/mutation/create-payment` returns the PayU params at the top level
+/// (no `success`/`data` envelope); an envelope is also accepted just in case.
+class MutationCreatePaymentResponse {
+  final bool success;
+  final String message;
+  final String? ackNo;
+  final Transaction? data;
+
+  MutationCreatePaymentResponse({
+    required this.success,
+    required this.message,
+    this.ackNo,
+    this.data,
+  });
+
+  factory MutationCreatePaymentResponse.fromJson(Map<String, dynamic> json) {
+    final rawData = json['data'];
+    final payload = rawData is Map<String, dynamic> ? rawData : json;
+    final txn = Transaction.fromJson({
+      ...payload,
+      'firstname': payload['firstname']?.toString(),
+      'email': payload['email']?.toString(),
+      'key': payload['key']?.toString(),
+      'productinfo': payload['productinfo']?.toString(),
+      'surl': payload['surl']?.toString(),
+      'furl': payload['furl']?.toString(),
+    });
+    final hasTxn = (txn.txnid ?? '').isNotEmpty && (txn.key ?? '').isNotEmpty;
+    return MutationCreatePaymentResponse(
+      success: json['success'] is bool ? json['success'] as bool && hasTxn : hasTxn,
+      message: json['message']?.toString() ?? '',
+      ackNo: payload['ackNo']?.toString(),
+      data: hasTxn ? txn : null,
+    );
+  }
+}
+
+class MutationVerifyPaymentResponse {
+  final bool success;
+  final int responseCode;
+  final String message;
+  final Map<String, dynamic>? data;
+
+  MutationVerifyPaymentResponse({
+    required this.success,
+    required this.responseCode,
+    required this.message,
+    this.data,
+  });
+
+  /// Payment status from the verify payload (`status` / `paymentStatus`),
+  /// upper-cased; empty when the server did not send one.
+  String get paymentStatus {
+    final d = data;
+    if (d == null) return '';
+    final raw = d['paymentStatus'] ?? d['payment_status'] ?? d['status'] ?? d['txnStatus'];
+    return raw?.toString().toUpperCase() ?? '';
+  }
+
+  String? field(String key) {
+    return data?[key]?.toString();
+  }
+
+  factory MutationVerifyPaymentResponse.fromJson(Map<String, dynamic> json) {
+    final rawData = json['data'];
+    return MutationVerifyPaymentResponse(
+      success: json['success'] == true || json['status'] == true,
+      responseCode: json['responseCode'] is int
+          ? json['responseCode'] as int
+          : int.tryParse(json['responseCode']?.toString() ?? '') ?? 0,
+      message: json['message']?.toString() ?? '',
+      data: rawData is Map<String, dynamic> ? rawData : null,
     );
   }
 }

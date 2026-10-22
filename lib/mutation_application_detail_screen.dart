@@ -1,9 +1,87 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:payu_checkoutpro_flutter/payu_checkoutpro_flutter.dart';
+import 'package:payu_checkoutpro_flutter/PayUConstantKeys.dart';
 
+import 'payment_result_screen.dart';
 import 'services/api_service.dart';
+import 'services/storage_service.dart';
 import 'utils/mutation_ui.dart';
+
+/// PayU CheckoutPro callbacks for the mutation fee payment. Hash generation
+/// mirrors the property-tax flow; every terminal callback is handed back to
+/// the screen, which cross-verifies with `api/mutation/verify-payment`.
+class _MutationPayuDelegate implements PayUCheckoutProProtocol {
+  final void Function(String unableToVerifyMessage) onFinished;
+  PayUCheckoutProFlutter? _payu;
+
+  _MutationPayuDelegate({required this.onFinished});
+
+  void setPayuInstance(PayUCheckoutProFlutter payu) {
+    _payu = payu;
+  }
+
+  @override
+  generateHash(Map response) async {
+    try {
+      String? hashName;
+      String? hashString;
+
+      if (response.containsKey('hashName') && response.containsKey('hashString')) {
+        hashName = response['hashName']?.toString();
+        hashString = response['hashString']?.toString();
+      } else {
+        for (final k in response.keys) {
+          hashName = k?.toString();
+          hashString = response[k]?.toString();
+          break;
+        }
+      }
+
+      debugPrint('[MutationPayU] generateHash -> hashName=$hashName');
+      if (hashName == null || hashString == null) return;
+
+      final hashRes = await ApiService.generateHash(hashName, hashString);
+      final hash = hashRes.data;
+      if (hash == null || hash.isEmpty) {
+        debugPrint('[MutationPayU] generateHash -> empty hash from server');
+        return;
+      }
+
+      await _payu?.hashGenerated(hash: {hashName: hash});
+    } catch (e) {
+      debugPrint('[MutationPayU] generateHash error -> $e');
+    }
+  }
+
+  @override
+  onError(Map? response) {
+    debugPrint('[MutationPayU] onError -> $response');
+    onFinished(_unableToVerify);
+  }
+
+  @override
+  onPaymentCancel(Map? response) {
+    debugPrint('[MutationPayU] onPaymentCancel -> $response');
+    onFinished('Payment Cancelled. $_unableToVerify');
+  }
+
+  @override
+  onPaymentFailure(response) {
+    debugPrint('[MutationPayU] onPaymentFailure -> $response');
+    onFinished(_unableToVerify);
+  }
+
+  @override
+  onPaymentSuccess(response) {
+    debugPrint('[MutationPayU] onPaymentSuccess -> $response');
+    onFinished(_unableToVerify);
+  }
+
+  static const _unableToVerify =
+      'Payment verification could not be completed. Please check your application status to confirm.';
+}
 
 /// Read-only view of a single mutation application, looked up by
 /// acknowledgement number (Mutation Application Detail API).
@@ -25,6 +103,9 @@ class _MutationApplicationDetailScreenState
   bool _isLoading = true;
   String? _errorMessage;
   MutationApplicationDetail? _details;
+  bool _isPaying = false;
+  String? _pendingTxnId;
+  String? _pendingAmount;
 
   @override
   void initState() {
@@ -65,6 +146,206 @@ class _MutationApplicationDetailScreenState
         );
       });
     }
+  }
+
+  bool _hasAmountToPay(MutationApplicationDetail details) =>
+      (num.tryParse(details.amountToPayNow.trim()) ?? 0) > 0;
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _payNow() async {
+    final details = _details;
+    if (details == null || _isPaying) return;
+
+    setState(() => _isPaying = true);
+    try {
+      final ulbId = await StorageService.getUlbCache() ?? await StorageService.getUlbId();
+      final userId = await StorageService.getUserId();
+      final ackNo = details.ackNo.isNotEmpty ? details.ackNo : widget.ackNo;
+      debugPrint(
+        '[MutationPayU] payNow -> ackNo=$ackNo, ulbId=$ulbId, userId=$userId, '
+        'amountToPayNow=${details.amountToPayNow}',
+      );
+
+      if (ulbId == null || ulbId.isEmpty || userId == null || userId.isEmpty) {
+        if (!mounted) return;
+        _showSnackBar('Unable to start payment. Please login again and retry.');
+        return;
+      }
+
+      final response = await ApiService.createMutationPayment(
+        ackNo: ackNo,
+        ulbId: ulbId,
+        userId: userId,
+      );
+      if (!mounted) return;
+
+      final txn = response.data;
+      if (!response.success || txn == null) {
+        _showSnackBar(
+          response.message.isNotEmpty
+              ? response.message
+              : 'Unable to create payment right now. Please try again.',
+        );
+        return;
+      }
+
+      _pendingTxnId = txn.txnid;
+      _pendingAmount = txn.amount;
+      await _startPayuFlow(txn);
+    } catch (e) {
+      debugPrint('[MutationPayU] payNow error -> $e');
+      if (!mounted) return;
+      _showSnackBar(
+        ApiService.getUserFriendlyErrorMessage(
+          e,
+          fallbackMessage: 'Unable to create payment right now. Please try again.',
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isPaying = false);
+    }
+  }
+
+  Future<void> _startPayuFlow(Transaction txn) async {
+    final key = txn.key ?? '';
+    final email = txn.email ?? '';
+
+    final delegate = _MutationPayuDelegate(onFinished: _verifyPayment);
+    final payu = PayUCheckoutProFlutter(delegate);
+    delegate.setPayuInstance(payu);
+
+    final payUPaymentParams = <String, dynamic>{
+      PayUPaymentParamKey.key: key,
+      PayUPaymentParamKey.amount: txn.amount ?? '',
+      PayUPaymentParamKey.transactionId: txn.txnid ?? '',
+      PayUPaymentParamKey.productInfo: txn.productinfo ?? '',
+      PayUPaymentParamKey.firstName: txn.firstname ?? '',
+      PayUPaymentParamKey.email: email,
+      PayUPaymentParamKey.phone: txn.phone ?? '',
+      PayUPaymentParamKey.android_surl: txn.surl ?? '',
+      PayUPaymentParamKey.android_furl: txn.furl ?? '',
+      PayUPaymentParamKey.ios_surl: txn.surl ?? '',
+      PayUPaymentParamKey.ios_furl: txn.furl ?? '',
+      PayUPaymentParamKey.environment: txn.resolvedPayuEnvironment,
+      PayUPaymentParamKey.userCredential: '$key:$email',
+      PayUPaymentParamKey.additionalParam: {
+        PayUAdditionalParamKeys.udf1: txn.ulbId ?? '',
+      },
+    };
+    final payUCheckoutProConfig = <String, dynamic>{
+      PayUCheckoutProConfigKeys.merchantName: txn.merchantName ?? '',
+    };
+
+    debugPrint('[MutationPayU] openCheckout params -> $payUPaymentParams');
+    debugPrint('[MutationPayU] openCheckout config -> $payUCheckoutProConfig');
+
+    try {
+      await payu.openCheckoutScreen(
+        payUPaymentParams: payUPaymentParams,
+        payUCheckoutProConfig: payUCheckoutProConfig,
+      );
+    } catch (e) {
+      debugPrint('[MutationPayU] openCheckout error -> $e');
+      if (!mounted) return;
+      _showSnackBar(
+        ApiService.getUserFriendlyErrorMessage(
+          e,
+          fallbackMessage: 'Unable to start PayU payment right now. Please try again.',
+        ),
+      );
+    }
+  }
+
+  Future<void> _verifyPayment(String unableToVerifyMessage) async {
+    final txnId = _pendingTxnId;
+    final amount = _pendingAmount;
+    if (!mounted) return;
+
+    if (txnId == null || txnId.isEmpty) {
+      await _openResult(PaymentStatus.pending, message: unableToVerifyMessage);
+      return;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const PopScope(
+        canPop: false,
+        child: Center(child: CircularProgressIndicator(color: _primaryColor)),
+      ),
+    );
+
+    MutationVerifyPaymentResponse? res;
+    try {
+      res = await ApiService.verifyMutationPayment(txnid: txnId);
+      debugPrint(
+        '[MutationPayU] verify -> success=${res.success}, '
+        'status=${res.paymentStatus}, data=${res.data}',
+      );
+    } catch (e) {
+      debugPrint('[MutationPayU] verify error -> $e');
+    }
+    if (!mounted) return;
+    Navigator.of(context).pop();
+
+    if (res == null || !res.success || res.data == null) {
+      await _openResult(
+        PaymentStatus.pending,
+        txnId: txnId,
+        amount: amount,
+        message: unableToVerifyMessage,
+      );
+      return;
+    }
+
+    _pendingTxnId = null;
+    final statusStr = res.paymentStatus;
+    final status = statusStr == 'SUCCESS'
+        ? PaymentStatus.success
+        : statusStr == 'FAILED' || statusStr == 'FAILURE'
+            ? PaymentStatus.failure
+            : PaymentStatus.pending;
+
+    final details = <String, String>{};
+    void add(String label, String? value) {
+      if (value != null && value.isNotEmpty) details[label] = value;
+    }
+
+    add('Acknowledgement No.', res.field('ackNo') ?? _details?.ackNo ?? widget.ackNo);
+    add('Property ID', res.field('propertyId') ?? _details?.propertyId);
+    add('Payment Mode', res.field('paymentMode') ?? res.field('mode'));
+    add('Bank Ref No.', res.field('bankRefNo') ?? res.field('bank_ref_num'));
+    add('Payment Date', res.field('paymentDate') ?? res.field('addedon'));
+
+    await _openResult(
+      status,
+      txnId: res.field('txnid') ?? txnId,
+      amount: res.field('amount') ?? amount,
+      message: res.message.isNotEmpty ? res.message : null,
+      details: details,
+    );
+  }
+
+  Future<void> _openResult(
+    PaymentStatus status, {
+    String? txnId,
+    String? amount,
+    String? message,
+    Map<String, String> details = const {},
+  }) async {
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => PaymentResultScreen(
+        status: status,
+        txnId: txnId,
+        amount: amount,
+        message: message,
+        details: details,
+      ),
+    ));
+    if (mounted) _fetchDetails();
   }
 
   void _copyAckNo() {
@@ -207,7 +488,74 @@ class _MutationApplicationDetailScreenState
         ),
         const SizedBox(height: 16),
         _buildFeesSection(details),
+        if (_hasAmountToPay(details)) ...[
+          const SizedBox(height: 16),
+          _buildPayNowCard(details),
+        ],
       ],
+    );
+  }
+
+  Widget _buildPayNowCard(MutationApplicationDetail details) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF4E8),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _primaryColor.withValues(alpha: 0.4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Amount to Pay Now',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: _textColor,
+                ),
+              ),
+              Text(
+                '₹${MutationUi.formatAmount(details.amountToPayNow)}',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: _primaryColor,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            height: 50,
+            child: ElevatedButton.icon(
+              onPressed: _isPaying ? null : _payNow,
+              icon: _isPaying
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.payment_rounded, size: 20),
+              label: Text(
+                _isPaying ? 'Please wait...' : 'Pay with PayU',
+                style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w700),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _primaryColor,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: _primaryColor.withValues(alpha: 0.6),
+                disabledForegroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
