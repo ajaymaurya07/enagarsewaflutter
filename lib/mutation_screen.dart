@@ -273,7 +273,7 @@ class _MutationScreenState extends State<MutationScreen> {
           ),
           const SizedBox(height: 6),
           Text(
-            'Enter the acknowledgement number you received on submission to '
+            'Enter the acknowledgement number '
             'check its status.',
             style: GoogleFonts.poppins(fontSize: 12.5, color: Colors.grey.shade600),
           ),
