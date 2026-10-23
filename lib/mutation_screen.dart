@@ -439,57 +439,75 @@ class _MutationScreenState extends State<MutationScreen> {
         borderRadius: BorderRadius.circular(16),
         onTap: item.ackNo.isEmpty ? null : () => _openApplication(item.ackNo),
         child: Container(
-          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.grey.shade200),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(9),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF4E8),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.description_outlined,
-                  size: 20,
-                  color: _primaryColor,
-                ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+                child: Row(
                   children: [
-                    Text.rich(
-                      TextSpan(
+                    Container(
+                      padding: const EdgeInsets.all(9),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF4E8),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.description_outlined,
+                        size: 20,
+                        color: _primaryColor,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          TextSpan(
-                            text: 'Ack No: ',
+                          Text(
+                            'Acknowledgement No.',
                             style: GoogleFonts.poppins(
-                              fontSize: 13,
+                              fontSize: 12,
                               color: Colors.grey.shade600,
                             ),
                           ),
-                          TextSpan(
-                            text: item.ackNo,
+                          const SizedBox(height: 2),
+                          Text(
+                            item.ackNo.isNotEmpty ? item.ackNo : '-',
                             style: GoogleFonts.poppins(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
                               color: _textColor,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 4),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     _buildCardRow('Property ID', item.propertyId),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 4),
                     _buildCardRow('New Owner', item.newOwnerName),
                     if (item.fatherHusbandName.isNotEmpty) ...[
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 4),
                       _buildCardRow(
                         item.fatherHusbandSalutation.isEmpty
                             ? 'Father/Husband'
@@ -497,12 +515,42 @@ class _MutationScreenState extends State<MutationScreen> {
                         item.fatherHusbandName,
                       ),
                     ],
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 4),
                     _buildCardRow('Applied on', item.applicationDate),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right_rounded, color: Colors.grey.shade400),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFDF6F0),
+                  borderRadius: BorderRadius.vertical(
+                    bottom: Radius.circular(16),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text(
+                      'View Details',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: _primaryColor,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 12,
+                      color: _primaryColor,
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
