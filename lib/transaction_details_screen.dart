@@ -276,6 +276,7 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
       ));
     }
 
+    addRow('Type', _displayValue(txn.type));
     addRow('ULB Name', _displayValue(txn.ulbName));
     addRow('ULB Type', _displayValue(txn.ulbType));
     addRow('Financial Year', _displayValue(txn.financialYear));
@@ -592,6 +593,7 @@ class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
           const Divider(height: 1, thickness: 1, color: Color(0xFF4CAF50)),
 
           // Receipt Table
+          _buildReceiptRow('Type', _displayValue(txn.type)),
           _buildReceiptRow('ULB Name', _displayValue(txn.ulbName)),
           _buildReceiptRow('ULB Type', _displayValue(txn.ulbType)),
           _buildReceiptRow('Financial Year', _displayValue(txn.financialYear)),

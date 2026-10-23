@@ -5894,8 +5894,10 @@ class TransactionData {
   final String? ulbId;
   final String? receiptNo;
   final String? billDate;
+  final String? type;
 
   TransactionData({
+    this.type,
     this.paymentAmount,
     this.billNo,
     this.propertyId,
@@ -5920,6 +5922,7 @@ class TransactionData {
 
   factory TransactionData.fromJson(Map<String, dynamic> json) {
     return TransactionData(
+      type: json['type']?.toString(),
       paymentAmount: json['payment_amount']?.toString(),
       billNo: json['bill_no']?.toString(),
       propertyId: json['property_id']?.toString(),

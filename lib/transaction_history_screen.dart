@@ -398,6 +398,27 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                         ),
                       ],
                     ),
+                    if (txn.type?.isNotEmpty ?? false) ...[
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE3F2FD),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          txn.type!,
+                          style: GoogleFonts.poppins(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF1565C0),
+                          ),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 8),
                     Text(
                       'TXN ID: ${txn.txnId ?? "N/A"}',
