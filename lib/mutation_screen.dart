@@ -273,8 +273,8 @@ class _MutationScreenState extends State<MutationScreen> {
           ),
           const SizedBox(height: 6),
           Text(
-            'Enter the acknowledgement number '
-            'check its status.',
+            "Can't find your application in the list below? "
+            'Enter its acknowledgement number to check its status.',
             style: GoogleFonts.poppins(fontSize: 12.5, color: Colors.grey.shade600),
           ),
           const SizedBox(height: 14),
@@ -463,16 +463,40 @@ class _MutationScreenState extends State<MutationScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      item.ackNo,
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: _textColor,
+                    Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: 'Ack No: ',
+                            style: GoogleFonts.poppins(
+                              fontSize: 13,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                          TextSpan(
+                            text: item.ackNo,
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: _textColor,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 4),
                     _buildCardRow('Property ID', item.propertyId),
+                    const SizedBox(height: 2),
+                    _buildCardRow('New Owner', item.newOwnerName),
+                    if (item.fatherHusbandName.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      _buildCardRow(
+                        item.fatherHusbandSalutation.isEmpty
+                            ? 'Father/Husband'
+                            : item.fatherHusbandSalutation,
+                        item.fatherHusbandName,
+                      ),
+                    ],
                     const SizedBox(height: 2),
                     _buildCardRow('Applied on', item.applicationDate),
                   ],

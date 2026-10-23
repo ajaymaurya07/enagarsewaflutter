@@ -3594,11 +3594,17 @@ class MutationListItem {
   final String ackNo;
   final String propertyId;
   final String applicationDate;
+  final String newOwnerName;
+  final String fatherHusbandName;
+  final String fatherHusbandSalutation;
 
   MutationListItem({
     required this.ackNo,
     required this.propertyId,
     required this.applicationDate,
+    required this.newOwnerName,
+    required this.fatherHusbandName,
+    required this.fatherHusbandSalutation,
   });
 
   factory MutationListItem.fromJson(Map<String, dynamic> json) {
@@ -3606,6 +3612,10 @@ class MutationListItem {
       ackNo: json['ackNo']?.toString() ?? '',
       propertyId: json['propertyId']?.toString() ?? '',
       applicationDate: json['applicationDate']?.toString() ?? '',
+      newOwnerName: json['newOwnerName']?.toString() ?? '',
+      fatherHusbandName: json['fatherHusbandName']?.toString() ?? '',
+      fatherHusbandSalutation:
+          json['fatherHusbandSalutation']?.toString() ?? '',
     );
   }
 }

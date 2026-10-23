@@ -1512,8 +1512,7 @@ class _NewMutationScreenState extends State<NewMutationScreen> {
               child: SizedBox(
                 height: 48,
                 child: ElevatedButton(
-                  // Submission is disabled for now — the last step's button stays inactive.
-                  onPressed: (_isSubmitting || isLastStep) ? null : _handleContinue,
+                  onPressed: _isSubmitting ? null : _handleContinue,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _primaryColor,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
