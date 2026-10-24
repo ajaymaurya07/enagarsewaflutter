@@ -2,7 +2,7 @@ name: enagarsewa
 description: "Property Tax & Municipal Grievance Management - SECURE VERSION"
 publish_to: 'none'
 
-version: 2.3.26+54
+version: 2.3.26+55
 
 environment:
   sdk: ^3.11.3
